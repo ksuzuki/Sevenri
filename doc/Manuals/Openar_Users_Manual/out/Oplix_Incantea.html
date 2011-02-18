@@ -20,7 +20,7 @@
 
 <h3>3.5.2 Editing Spell</h3>
 
-<p>Now let's see how the <code>incant</code> function of the <code>sample1</code> spell is written. Open the spell in Ced by clicking the <code>Edit</code> button and find the function. You can see the <code>view</code> and <code>do-views</code> functions are called as explained above. Let's make a change. Instead of comparing the sales of Alice with John, do it with Rob. Change the line 44 like this:</p>
+<p>Now let's see how the <code>incant</code> function of the <code>sample1</code> spell is written. Open the spell in Ced by clicking the <code>Edit</code> button and find the function. You can see the <code>view</code> and <code>do-views</code> functions are called as explained above. Let's make a change. Instead of comparing the sales of Alice with John, do it with Rob. Change the line 55 like this:</p>
 
 <pre><code>    (with-data ($where ($fn [name] (or (= name "alice") (= name "rob"))) sales)
 </code></pre>
@@ -29,7 +29,7 @@
 
 <h3>3.5.3 Interacting with Spell: The <code>in-spell-ns</code> and <code>create-spell-ns</code> Functions</h3>
 
-<p>You can also work with spell interactively. Open the REPL by clicking the <code>Repl</code> button. When you open the REPL from Incantea, Incantea opens a dedicated REPL window and remembers it. So when you click the <code>Repl</code> button again, Incantea doesn't open another REPL window. Instead, it brings the dedicated REPL window on the front. When Incantea closes, it closes the dedicated REPL window too.</p>
+<p>You can also work with spell interactively. Open the REPL by clicking the <code>Repl</code> button. When you open the REPL from Incantea, Incantea opens a dedicated REPL window and remembers it. So when you click the <code>Repl</code> button again, Incantea doesn't open another REPL window. Instead, it brings the dedicated REPL window on the front. When Incantea quits, it closes the dedicated REPL window.</p>
 
 <p>The REPL starts in the namespace <code>oplix.incantea</code> instead of <code>user</code>. In order to work with spell at the REPL, you could refer to the spell's namespace or move in the spell's namespace. But Incantea has an easier and cleaner way for you; the <code>in-spell-ns</code> function. At the REPL call the <code>in-spell-ns</code> function with spell name in symbol like this:</p>
 
@@ -38,7 +38,7 @@
 
 <p>This creates a namespace named <code>spell.sample1</code> with reference to the spell's namespace <code>library.oplix.incantea.spells.sample1</code> and then set *ns* to the namepsce. Think it this way; the namespace <code>spell.sample1</code> is a "workbench" namespace in which you test and refine the <code>sample1</code> spell.</p>
 
-<p>Type "sales-2000" at the REPL and you will see the dataset as it is defined in the spell. Let's define another dataset for sales in 1999 as well and see it at the REPL.  In the spell <code>sales-2000</code> is defined like this:</p>
+<p>Move in the <code>spell.sample1</code> namespace using the <code>in-spell-ns</code> function and type "sales-2000" at the REPL. You will see the dataset as it is defined in the spell. Let's define another dataset for sales in 1999 as well and see it at the REPL.  In the spell <code>sales-2000</code> is defined like this:</p>
 
 <pre><code>    (def sales-2000 ($where {:year 2000} sales))
 </code></pre>
@@ -62,7 +62,7 @@
 
 <p>You can also call the <code>get-views</code> function to get all views and the <code>get-view</code> function to get a specific view. Having view you can change its properties such as name, title and size.</p>
 
-<p><code>sales-1999</code> above is defined in the <code>spell.sample1</code> namespace. Whereas <code>sales-2000</code> is defined in the <code>library.oplix.incantea.spells.sample1</code> namespace. Let's move <code>sales-1999</code> to the same namespace. To do that, open the spell in Ced and insert the <code>def</code> line for <code>sales-1999</code>, say, between line 31 and 32. Press MEA+S to save the spell and then press F2 to load it. Back to the REPL and type <code>(var sales-1999)</code>. You can see the dataset is now defined in the <code>library.oplix.incantea.spells.sample1</code> namespace. The real trick to make it happen is that the call to the <code>create-spell-ns</code> function at the end of the spell; it does the same thing as the <code>in-spell-ns</code> function except extra setup for the REPL.</p>
+<p><code>sales-1999</code> above is defined in the <code>spell.sample1</code> namespace. Whereas <code>sales-2000</code> is defined in the <code>library.oplix.incantea.spells.sample1</code> namespace. Let's move <code>sales-1999</code> to the same namespace. To do that, open the spell in Ced and insert the <code>def</code> line for <code>sales-1999</code>, say, between line 42 and 43. Press MEA+S to save the spell and then press F2 to load it. Back to the REPL and type <code>(var sales-1999)</code>. You can see the dataset is now defined in the <code>library.oplix.incantea.spells.sample1</code> namespace. The real trick to make it happen is that the call to the <code>create-spell-ns</code> function at the end of the spell; it does the same thing as the <code>in-spell-ns</code> function except extra setup for the REPL.</p>
 
 <h3>3.5.4 The <code>use-incanter</code> Macro and The <code>get-using-incanter</code> Function</h3>
 
@@ -97,8 +97,8 @@
 
 <h4>3.5.7 The Sample Datasets and The *incanter-home* Var</h4>
 
-<p><a href="https://github.com/liebke/incanter">Incanter on GitHub</a> comes with sample datasets, and you can get the datasets using the Incanter's <code>get-dataset</code> function. The <code>get-dataset</code> function refers to the var <code>\*incanter-home\*</code> to find the <code>data</code> directory where the datasets are saved.</p>
+<p><a href="https://github.com/liebke/incanter">Incanter on GitHub</a> comes with sample datasets, and you can get the datasets using the Incanter's <code>get-dataset</code> function. The <code>get-dataset</code> function refers to the var <code>*incanter-home*</code> to find the <code>data</code> directory where the datasets are saved.</p>
 
-<p>In Incantea the <code>\*incanter-home\*</code> var is set to <code>library.oplix.incantea</code>. When Incantea starts, it calls the <code>download-datasets</code> funcion to download the sample datasets to the <code>data</code> directory from the Incanter repository on GitHub. If the <code>get-dataset</code> function doesn't work for some datasets or entirely, try copying the sample datasets manually to the <code>library.oplix.incantea.data</code> directory.</p>
+<p>In Incantea the <code>*incanter-home*</code> var is set to <code>library.oplix.incantea</code>. When Incantea starts, it calls the <code>download-datasets</code> funcion to download the sample datasets to the <code>data</code> directory from the Incanter repository on GitHub. If the <code>get-dataset</code> function doesn't work for some datasets or entirely, try copying the sample datasets manually to the <code>library.oplix.incantea.data</code> directory.</p>
 
 <p>You can customize downloading datasets and the repository URL by modifying the file <code>library.oplix.incantea.sample-datasets</code>. You can also manually add datasets from a URL using the <code>download-datasets</code> function.</p>

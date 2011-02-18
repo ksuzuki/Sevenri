@@ -20,7 +20,7 @@ You can rearrange views from the `Views...` listbox. One of the menu items is '`
 
 ### 3.5.2 Editing Spell
 
-Now let's see how the `incant` function of the `sample1` spell is written. Open the spell in Ced by clicking the `Edit` button and find the function. You can see the `view` and `do-views` functions are called as explained above. Let's make a change. Instead of comparing the sales of Alice with John, do it with Rob. Change the line 44 like this:
+Now let's see how the `incant` function of the `sample1` spell is written. Open the spell in Ced by clicking the `Edit` button and find the function. You can see the `view` and `do-views` functions are called as explained above. Let's make a change. Instead of comparing the sales of Alice with John, do it with Rob. Change the line 55 like this:
 
 		(with-data ($where ($fn [name] (or (= name "alice") (= name "rob"))) sales)
 
@@ -28,7 +28,7 @@ Save the file by pressing META+S. Then click the `Incant` button to see the new 
 
 ### 3.5.3 Interacting with Spell: The `in-spell-ns` and `create-spell-ns` Functions
 
-You can also work with spell interactively. Open the REPL by clicking the `Repl` button. When you open the REPL from Incantea, Incantea opens a dedicated REPL window and remembers it. So when you click the `Repl` button again, Incantea doesn't open another REPL window. Instead, it brings the dedicated REPL window on the front. When Incantea closes, it closes the dedicated REPL window too.
+You can also work with spell interactively. Open the REPL by clicking the `Repl` button. When you open the REPL from Incantea, Incantea opens a dedicated REPL window and remembers it. So when you click the `Repl` button again, Incantea doesn't open another REPL window. Instead, it brings the dedicated REPL window on the front. When Incantea quits, it closes the dedicated REPL window.
 
 The REPL starts in the namespace `oplix.incantea` instead of `user`. In order to work with spell at the REPL, you could refer to the spell's namespace or move in the spell's namespace. But Incantea has an easier and cleaner way for you; the `in-spell-ns` function. At the REPL call the `in-spell-ns` function with spell name in symbol like this:
 
@@ -36,7 +36,7 @@ The REPL starts in the namespace `oplix.incantea` instead of `user`. In order to
 
 This creates a namespace named `spell.sample1` with reference to the spell's namespace `library.oplix.incantea.spells.sample1` and then set \*ns\* to the namepsce. Think it this way; the namespace `spell.sample1` is a "workbench" namespace in which you test and refine the `sample1` spell.
 
-Type "sales-2000" at the REPL and you will see the dataset as it is defined in the spell. Let's define another dataset for sales in 1999 as well and see it at the REPL.  In the spell `sales-2000` is defined like this:
+Move in the `spell.sample1` namespace using the `in-spell-ns` function and type "sales-2000" at the REPL. You will see the dataset as it is defined in the spell. Let's define another dataset for sales in 1999 as well and see it at the REPL.  In the spell `sales-2000` is defined like this:
 
 		(def sales-2000 ($where {:year 2000} sales))
 
@@ -56,7 +56,7 @@ The views will be opened in the Incantea window. To tile the views horizontally 
 
 You can also call the `get-views` function to get all views and the `get-view` function to get a specific view. Having view you can change its properties such as name, title and size.
 
-`sales-1999` above is defined in the `spell.sample1` namespace. Whereas `sales-2000` is defined in the `library.oplix.incantea.spells.sample1` namespace. Let's move `sales-1999` to the same namespace. To do that, open the spell in Ced and insert the `def` line for `sales-1999`, say, between line 31 and 32. Press MEA+S to save the spell and then press F2 to load it. Back to the REPL and type `(var sales-1999)`. You can see the dataset is now defined in the `library.oplix.incantea.spells.sample1` namespace. The real trick to make it happen is that the call to the `create-spell-ns` function at the end of the spell; it does the same thing as the `in-spell-ns` function except extra setup for the REPL.
+`sales-1999` above is defined in the `spell.sample1` namespace. Whereas `sales-2000` is defined in the `library.oplix.incantea.spells.sample1` namespace. Let's move `sales-1999` to the same namespace. To do that, open the spell in Ced and insert the `def` line for `sales-1999`, say, between line 42 and 43. Press MEA+S to save the spell and then press F2 to load it. Back to the REPL and type `(var sales-1999)`. You can see the dataset is now defined in the `library.oplix.incantea.spells.sample1` namespace. The real trick to make it happen is that the call to the `create-spell-ns` function at the end of the spell; it does the same thing as the `in-spell-ns` function except extra setup for the REPL.
 
 ### 3.5.4 The `use-incanter` Macro and The `get-using-incanter` Function
 
@@ -86,8 +86,8 @@ To delete spell, choose `Delete...` from the `Actions...` listbox. The current s
 
 #### 3.5.7 The Sample Datasets and The \*incanter-home\* Var
 
-[Incanter on GitHub](https://github.com/liebke/incanter) comes with sample datasets, and you can get the datasets using the Incanter's `get-dataset` function. The `get-dataset` function refers to the var `\*incanter-home\*` to find the `data` directory where the datasets are saved.
+[Incanter on GitHub](https://github.com/liebke/incanter) comes with sample datasets, and you can get the datasets using the Incanter's `get-dataset` function. The `get-dataset` function refers to the var `*incanter-home*` to find the `data` directory where the datasets are saved.
 
-In Incantea the `\*incanter-home\*` var is set to `library.oplix.incantea`. When Incantea starts, it calls the `download-datasets` funcion to download the sample datasets to the `data` directory from the Incanter repository on GitHub. If the `get-dataset` function doesn't work for some datasets or entirely, try copying the sample datasets manually to the `library.oplix.incantea.data` directory.
+In Incantea the `*incanter-home*` var is set to `library.oplix.incantea`. When Incantea starts, it calls the `download-datasets` funcion to download the sample datasets to the `data` directory from the Incanter repository on GitHub. If the `get-dataset` function doesn't work for some datasets or entirely, try copying the sample datasets manually to the `library.oplix.incantea.data` directory.
 
 You can customize downloading datasets and the repository URL by modifying the file `library.oplix.incantea.sample-datasets`. You can also manually add datasets from a URL using the `download-datasets` function.
