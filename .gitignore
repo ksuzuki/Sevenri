@@ -1,0 +1,31 @@
+# Ignore these throughout the tree
+.DS_Store
+build/
+dist/
+private/
+scratch*
+foo*
+bar*
+*_.clj
+
+# Ignore these specific dirs and files
+/.openar
+/classes
+/dop
+/lib
+/pom.xml
+/temp
+/*.jar
+openar.app/Icon*
+doc/apidocs/J2SE/*
+doc/apidocs/JavaEE/*
+src/library/clojure/*
+src/library/incanter/*
+src/library/oplix/incantea/data
+src/library/oplix/incantea/examples
+src/library/user
+src/openar/listeners/*.class
+
+# BUT DONOT ignore these specific dirs and files
+!src/oplix/ced/jvm/gui/dist/gui.jar
+!src/oplix/openar/jvm/gui/dist/gui.jar

@@ -1,0 +1,150 @@
+;; %! Copyright (C) 2011 Kei Suzuki  All rights reserved. !%
+;; 
+;; This file is part of Openar, a Clojure environment ("This Software").
+;; 
+;; The use and distribution terms for this software are covered by the Eclipse
+;; Public License version 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;; which can be found in the COPYING at the root of this distribution.
+;; By using this software in any fashion, you are agreeing to be bound by the
+;; terms of this license.
+;; You must not remove this notice, or any other, from this software.
+
+(ns oplix.log-viewer.core
+  (:use [clojure.java io]
+        [openar config core log oplix])
+  (:import (java.awt Rectangle)
+           (java.io BufferedReader BufferedWriter)
+           (java.io ByteArrayInputStream ByteArrayOutputStream)
+           (java.io File FileInputStream FileOutputStream)
+           (java.io InputStreamReader OutputStreamWriter)
+           (java.text DateFormat)
+           (java.util Date)
+           (java.util.logging Filter Level SimpleFormatter StreamHandler)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn copy-temp-log-file
+  []
+  (let [lsrc (get-openar-log-file)
+        lisr (InputStreamReader. (FileInputStream. lsrc) "UTF-8")
+        ltgt (get-dop-temp-file "log" "xml")
+        losw (OutputStreamWriter. (FileOutputStream. ltgt) "UTF-8")]
+    (with-open [lrdr (BufferedReader. lisr)
+                lwtr (BufferedWriter. losw)]
+      (loop [lseq (line-seq lrdr)]
+        (if (seq lseq)
+          (let [line (first lseq)]
+            (.write lwtr line 0 (count line))
+            (.newLine lwtr)
+            (recur (next lseq)))
+          (do
+            (.write lwtr "</log>" 0 6)
+            (.newLine lwtr)))))
+    ltgt))
+
+(defn copy-temp-dtd-file
+  []
+  (let [dsrc (File. (get-resources-dir (get-default :src :resources :logger :dir-name))
+                    (str (get-default :src :resources :logger :dtd-file)))
+        dtgt (File. (get-dop-temp-dir)
+                    (str (get-default :src :resources :logger :dtd-file)))]
+    (copy dsrc dtgt :econdig "UTF-8")
+    dtgt))
+
+(defn copy-temp-logger-files
+  []
+  (when (.exists (get-openar-log-file))
+    [(copy-temp-log-file) (copy-temp-dtd-file)]))
+
+(defn delete-temp-logger-files
+  [logger-files]
+  (let [[log dtd] logger-files]
+    (when (.exists log)
+      (.delete log))
+    (when (.exists dtd)
+      (.delete dtd))))
+
+(defn read-log-file
+  []
+  (if-let [lfs (copy-temp-logger-files)]
+    (let [[log dtd] lfs
+          lxml (clojure.xml/parse log)
+          sbuf (StringBuffer.)
+          dfmt (DateFormat/getDateInstance DateFormat/MEDIUM)
+          tfmt (DateFormat/getTimeInstance DateFormat/MEDIUM)]
+      (delete-temp-logger-files lfs)
+      ;;
+      (doseq [rec-elem (:content lxml)]
+        (let [[date-elem millis-elem sequence-elem
+               logger-elem level-elem class-elem
+               method-elem thread-elem message-elem] (:content rec-elem)
+              ;;
+              date (Date. (Long/parseLong (first (:content millis-elem))))
+              logger (first (:content logger-elem))
+              method (first (:content method-elem))
+              level (first (:content level-elem))
+              message (first (:content message-elem))]
+          (doto sbuf
+            (.append (str (.format dfmt date) " "))
+            (.append (str (.format tfmt date) " "))
+            (.append (str logger " "))
+            (.append (str method "\n"))
+            (.append (str level ": "))
+            (.append (str message "\n")))))
+      ;;
+      (.toString sbuf))
+    ""))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn start-view-log
+  []
+  (let [fr (oplix-frame)
+        cp (.getContentPane fr)
+        sp (.getComponent cp 0)
+        vp (.getViewport sp)
+        ta (.getView vp)
+        os (ByteArrayOutputStream.)
+        fl (proxy [Filter][] (isLoggable [r] true))
+        sh (StreamHandler. os (SimpleFormatter.))
+        ag (agent [*oplix* os ta vp sh])]
+    (doto sh
+      (.setLevel Level/INFO)
+      (.setFilter fl))
+    (.setText ta (read-log-file))
+    (when-let [openar-logger (get-openar-logger)]
+      (.addHandler openar-logger sh)
+      (send ag (fn *fn* [[op os ta vp sh]]
+                 (if (get-oplix (oplix-name op))
+                   ;; If this viewer is still open...
+                   (do
+                     (.flush sh)
+                     ;; If there is something in the stream, write it to
+                     ;; the text area.
+                     (when (pos? (.size os))
+                       (let [s (.toString os)]
+                         (.reset os)
+                         (invoke-later op #(let [doc (.getDocument ta)
+                                                 rot (.getDefaultRootElement doc)
+                                                 lec (max 0 (dec (.getElementCount rot)))]
+                                             ;; Got the last element count/index.
+                                             ;; Then append the new string/elements.
+                                             (.append ta s)
+                                             ;; Get the top of the new elements, which
+                                             ;; is indexed by lec. Then scroll to the
+                                             ;; element start offset.
+                                             (let [elm (.getElement (.getDefaultRootElement doc) lec)
+                                                   rec (.modelToView ta (.getStartOffset elm))
+                                                   vrc (.getViewRect vp)
+                                                   nrc (Rectangle. (.x rec) (.y rec) (.width vrc) (.height vrc))]
+                                               (.scrollRectToVisible ta nrc)
+                                               (.setCaretPosition ta (.getStartOffset elm)))))))
+                     ;; Wait a sec.
+                     (Thread/sleep 1000)
+                     ;; Perform this fn again.
+                     (send *agent* *fn*)
+                     ;; return the fn args back for the next call.
+                     [op os ta vp sh])
+                   ;; This viewer seems closed. Remove the streamHandler.
+                   (when-let [openar-logger (get-openar-logger)]
+                     (.removeHandler openar-logger sh))))))))
