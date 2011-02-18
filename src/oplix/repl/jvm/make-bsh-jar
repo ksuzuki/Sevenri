@@ -1,0 +1,3 @@
+#!/bin/bash
+find . -name '*.class' -print >bsh.classes.list
+jar cf bsh.jar @bsh.classes.list

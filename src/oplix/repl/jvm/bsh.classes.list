@@ -1,0 +1,12 @@
+./bsh/ConsoleInterface.class
+./bsh/util/GUIConsoleInterface.class
+./bsh/util/JConsole$1.class
+./bsh/util/JConsole$2.class
+./bsh/util/JConsole$3.class
+./bsh/util/JConsole$4.class
+./bsh/util/JConsole$5.class
+./bsh/util/JConsole$6.class
+./bsh/util/JConsole$AKM.class
+./bsh/util/JConsole$BlockingPipedInputStream.class
+./bsh/util/JConsole.class
+./bsh/util/NameCompletion.class
