@@ -30,7 +30,7 @@ Contains various files of Openar and oplixes. These sub directories are reserved
 >A directory Openar and oplix can use to save temporary files.
 
 >### trash/
->Contains most recently delete files.
+>Contains most recently deleted files.
 
 ### classes/
 Contains aot-compiled Openar system lib files. This directory may not exist unless you compile Openar system lib files.
