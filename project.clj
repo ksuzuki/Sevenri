@@ -1,4 +1,4 @@
-(defproject openar "0.1.0-RC2"
+(defproject openar "0.1.0"
   :description "Openar, a Clojure environment"
   :lic {:artifact :description
         :author ["Kei Suzuki"]

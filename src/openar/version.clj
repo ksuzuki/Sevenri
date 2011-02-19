@@ -13,5 +13,4 @@
  :major 0
  :minor 1
  :incremental 0
- :qualifier "RC2"
 }
