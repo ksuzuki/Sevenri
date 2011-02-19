@@ -8,7 +8,7 @@ of oplixes, such as *REPL*, Clojure editor *Ced*, and Incanter front-end
 learn and study Clojure, try out your ideas and run your projects, and even
 develop your own oplixes, all in Clojure interactively.
 
-Please read the [Openar Users Manual](doc/Manuals/Openar_Users_Manual/out/Table_of_Conents.html)
+Please read the Openar Users Manual (doc/Manuals/Openar_Users_Manual/src/Table_of_Conents.md)
 for more details.
 
 ### Current Status
