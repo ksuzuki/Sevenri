@@ -4,7 +4,7 @@ oplix name: `incantea`
 
 Incantea (pronounced "inˈkantē") is a font-end for [Incanter](http://incanter.org/) to help you work with your Incanter projects.
 
-Libs you create using Incantea are called *spells*. Each spell has a namespace whose name begins with `library.oplix.incantea.spells` and the *incant* function.  For example, the spell "open-sesame" has the namespace `library.oplix.incantea.spells.open-sesame` and the function `library.oplix.incantea.spells.open-sesame/incant'.
+Libs you create using Incantea are called *spells*. Each spell has a namespace whose name begins with `library.oplix.incantea.spells` and the *incant* function.  For example, the spell "open-sesame" has the namespace `library.oplix.incantea.spells.open-sesame` and the function `library.oplix.incantea.spells.open-sesame/incant`.
 
 You can create and delete spells, edit spell using Ced, call the `incant` function, and open the REPL to work on spell interactively.
 
