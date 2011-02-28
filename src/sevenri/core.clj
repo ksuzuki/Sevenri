@@ -117,6 +117,53 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn get-src-projects-file
+ [& pfxs]
+ (File. (str (apply get-src-projects-dir pfxs) ".clj")))
+
+(defmacro get-projects-file
+  [& pfxs]
+  `(get-src-projects-file ~@pfxs))
+
+(defn get-projects-protocol-file
+  []
+  (File. (get-src-projects-dir) (str (get-default :src :projects :protocol-file-name))))
+
+(defn get-projects-protocol
+  []
+  (let [ppf (get-projects-protocol-file)]
+    (if (.exists ppf)
+      (try
+        (load-string (slurp ppf :encoding "UTF-8"))
+        (catch Exception e
+          (log-severe "get-projects-protocol: failed to read protocol file")
+          nil))
+      (do
+        (log-severe "get-projects-protocol: protocol file missing")
+        nil))))
+
+(defn query-project
+  ([proj-sym query-kwd]
+     (when-let [prtcl (get-projects-protocol)]
+       (query-project proj-sym query-kwd prtcl)))
+  ([proj-sym query-kwd protocol]
+     (when (and (or (symbol? proj-sym) (string? proj-sym)) (keyword? query-kwd) (map? protocol))
+       (let [manager (:manager protocol)
+             [qryfn-sym arg-kwd] (get protocol query-kwd)
+             loaded? (try
+                       (require manager :reload)
+                       true
+                       (catch Exception e
+                         (log-severe "query-project: failed to load manager:" manager)
+                         false))
+             queryfn (when (and loaded? (find-ns manager))
+                       (ns-resolve manager qryfn-sym))]
+         (if (and (var? queryfn) (fn? (var-get queryfn)))
+           (queryfn (hash-map arg-kwd proj-sym))
+           (log-severe "query-project: not found fn for:" query-kwd))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn get-sid-temp-file
   ([]
      (get-sid-temp-file 'temp))

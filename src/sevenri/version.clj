@@ -13,5 +13,5 @@
  :major 0
  :minor 2
  :incremental 0
- :qualifier "SNAPSHORT"
+ :qualifier "SNAPSHOT"
 }

@@ -16,6 +16,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def PHI (* 2 (Math/cos (/ Math/PI 5))))
+(def *unsafe-sym-chars* "[<>:\"\\|?*\\s]")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -26,6 +27,14 @@
 (defn path2nssym
   [path]
   (symbol (.replace (.replace (str path) \/ \.) \_ \-)))
+
+(defn safesymstr
+  [sym]
+  (.replaceAll (str sym) *unsafe-sym-chars* "-"))
+
+(defn nssym2safepath
+  [nssym]
+  (nssym2path (safesymstr nssym)))
 
 (defn get-user-dir
   []

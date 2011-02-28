@@ -24,7 +24,7 @@
         :apidoc-urls-file-name 'apidoc_urls.clj}
 
   :lib {:dir-name 'lib}
-  
+
   ;; sid := system instance directory (.sevenri)
   :sid {:dir-name '.sevenri
 
@@ -60,6 +60,9 @@
                   :slix {:dir-name 'slix}
                   :user {:dir-name 'user
                          :scratch-file-name 'scratch.clj}}
+        
+        :projects {:dir-name 'projects
+                   :protocol-file-name 'protocol.clj}
         
         :resources {:dir-name 'resources
                     :images {:dir-name 'images
@@ -98,6 +101,7 @@
 
   ;; tln := sevenri/slix top level namespaces
   :tln {:library 'library
+        :projects 'projects
         :resources 'resources
         :sevenri 'sevenri
         :slix 'slix}})
@@ -143,6 +147,14 @@
 (defmacro get-library-dir
   [& pfxs]
   `(get-src-library-dir ~@pfxs))
+
+(defn get-src-projects-dir
+  [& pfxs]
+  (apply get-dir (File. (get-src-dir) (str (get-default :src :projects :dir-name))) pfxs))
+
+(defmacro get-projects-dir
+  [& pfxs]
+  `(get-src-projects-dir ~@pfxs))
 
 (defn get-src-resources-dir
   [& pfxs]
