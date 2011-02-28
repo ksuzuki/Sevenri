@@ -1,0 +1,18 @@
+<h2>3.4 Exceptor</h2>
+
+<p>slix name: <code>exceptor</code></p>
+
+<p>Sevenri has a logging facility to catch and print exception to log file. When an exception is reported to the logging facility, it also looks for the exception listeners registered to the logging facility and calls them with the exception object. Exceptor is one slix using this feature.</p>
+
+<p><img src="../res/ss-exceptor.png" alt="Exceptor" title="Exceptor" /></p>
+
+<p>Given an exception object Exceptor does:</p>
+
+<ol>
+<li>open a window in the bottom-right corner of the display and show the detail message of the exception in the window, and</li>
+<li>when it is possible to figure out the location where the exception was thrown, open Ced with the location information.</li>
+</ol>
+
+<p>Exceptor can handle both compiler and runtime exception. But for runtime exception Exceptor handles it only when Sevenri lib is involved in the exception stack (you can get the list of Sevenri lib name prefix using the <code>get-sevenri-namespaces</code> function).</p>
+
+<p>Besides, Exceptor won't open Ced if runtime exception is thrown from Ced (there is something wrong with Ced, so it can't be used).</p>

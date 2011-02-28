@@ -1,0 +1,31 @@
+<h2>3.9 REPL</h2>
+
+<p>slix name: <code>repl</code></p>
+
+<p>This slix opens a window and runs the Clojure's read-eval-print loop, or REPL for short. You can open multiple REPLs. By default the REPL starts in the <em>user</em> namespace. The prompt shows the current namespace and matching parentheses on the command line will be highlighted as you type. Also wherever the caret is it comes back on the command line when you start typing.</p>
+
+<p><img src="../res/ss-repls.png" alt="REPLs" title="REPLs" /></p>
+
+<p>In the REPL window there are some <code>repl</code> specific key bindings available in addition to the standard key bindings. The keys you would use most often are:</p>
+
+<ul>
+<li>CTRL+A and E to move the caret to the beginning and the end of line</li>
+<li>CTRL+F, B, P, and N to move the caret right, left, up, and down</li>
+<li>CTRL+H and D to delete a character next to the caret</li>
+<li>CTRL+U to delete characters by the beginning of the command line</li>
+<li>CTRL+R and V to scroll up and down a screen</li>
+<li>CTRL+C to interrupt eval process and get back to the prompt</li>
+<li>When the caret is on the command line the up and down arrow keys scroll back and forth command history</li>
+<li>When parenthesis is highlighted META+] move the caret to the matching parenthesis position</li>
+<li>META+; moves the caret to the beginning of the command line</li>
+</ul>
+
+<p>You can also select text in the REPL window.</p>
+
+<h3>3.10.1 The "Repl" Instance and The clear-repl-content Function</h3>
+
+<p>Among <code>repl</code> instances the one named "Repl" (normally the very first <code>repl</code> instance) is special. It saves the text in the window when it closes and restores the text when it opens next time. There is no limit set for the text size currently, so it keeps growing up. Eventually you would need to clear it. To do that call the <code>clear-repl-content</code> function or its shorthand macro <code>crc</code>.</p>
+
+<h3>3.10.2 The replrc File</h3>
+
+<p>When the REPL starts, it loads a file called <em><code>replrc</code></em>. It is a startup script to configure the REPL environment. You can customize your REPL environment by editing the file. At the REPL call the <code>ced-replrc</code> function to open the <code>replrc</code> file and the <code>load-replrc</code> function to load it. If you corrupted the <code>replrc</code> file, open the REPL from the Sevenri by holding down the ALT key (the Option key on Mac OS X). Then call the <code>restore-replrc</code> function to restore the file.</p>

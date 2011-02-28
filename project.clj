@@ -1,5 +1,5 @@
-(defproject openar "0.1.0"
-  :description "Openar, a Clojure environment"
+(defproject sevenri "0.1.1"
+  :description "Sevenri, a Clojure environment"
   :lic {:artifact :description
         :author ["Kei Suzuki"]
         :update true}
@@ -21,4 +21,4 @@
                  ;; for documenter
                  [rhino/js "1.7R2"]]
   :dev-dependencies [[lein-lic "1.0.0"]]
-  :main Openar)
+  :main Sevenri)

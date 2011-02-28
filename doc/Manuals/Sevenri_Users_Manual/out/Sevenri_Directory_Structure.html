@@ -1,0 +1,167 @@
+<h2>5 Sevenri Directory Structure</h2>
+
+<p>This section describes the overview of the Sevenri directory structure.</p>
+
+<h3>.sevenri/</h3>
+
+<p>Contains various files of Sevenri and slixes. These sub directories are reserved: classes/, log/, sevenri/, slix/, temp/, trash/.</p>
+
+<blockquote>
+  <h3>classes/</h3>
+  
+  <p>Contains aot-compiled slix files.</p>
+  
+  <h3>log/</h3>
+  
+  <p>Contains log files.</p>
+  
+  <h3>sevenri/</h3>
+  
+  <p>Contains Sevenri system files created and used at runtime. These sub directory and file are reserved: excetpion/, lock.</p>
+  
+  <blockquote>
+    <h3>exception/</h3>
+    
+    <p>Contains files the Sevenri's logging facility uses.</p>
+    
+    <h3>lock</h3>
+    
+    <p>Sevenri creates this file at startup and uses it to prevent multiple Sevenris starting from the same Sevenri directory. Removed when Sevenri quits.</p>
+  </blockquote>
+  
+  <h3>slix/</h3>
+  
+  <p>Contains saved slix instance files. This file is reserved: _startup_.clj</p>
+  
+  <blockquote>
+    <h3>_startup_.clj</h3>
+    
+    <p>Sevenri uses this file to remember running slix instances at shutdown and open them at startup.</p>
+  </blockquote>
+  
+  <h3>temp/</h3>
+  
+  <p>A directory Sevenri and slix can use to save temporary files.</p>
+  
+  <h3>trash/</h3>
+  
+  <p>Contains most recently deleted files.</p>
+</blockquote>
+
+<h3>classes/</h3>
+
+<p>Leiningen creates this directory when downloading project dependencies. Also Sevenri lib files compiled by leiningen go here.</p>
+
+<h3>doc/</h3>
+
+<p>Contains any "document" files. These sub directories are reserved: apidocs/, liceses/, Manuals/, Misc/.</p>
+
+<blockquote>
+  <h3>apidocs/</h3>
+  
+  <p>Contains any API documents. These sub directories are reserved: J2SE/, JavaEE/.</p>
+  
+  <blockquote>
+    <h3>J2SE/</h3>
+    
+    <p>Contains local Java 2 SE documents.</p>
+    
+    <h3>JavaEE/</h3>
+    
+    <p>Contains local Java EE documents.</p>
+  </blockquote>
+  
+  <h3>licenses/</h3>
+  
+  <p>Contains license files.</p>
+  
+  <h3>Manuals/</h3>
+  
+  <p>Contains manual files.</p>
+  
+  <h3>Misc/</h3>
+  
+  <p>Contains miscellaneous files. </p>
+</blockquote>
+
+<h3>lib/</h3>
+
+<p>Contains files Sevenri depends.</p>
+
+<h3>src/</h3>
+
+<p>Contains lib and resource files for Sevenri system, slix, and user. These sub directories are reserved: library/, sevenri/, slix/, resources/.</p>
+
+<blockquote>
+  <h3>Sevenri.clj</h3>
+  
+  <p>The Sevenri boot loader file</p>
+  
+  <h3>*.class</h3>
+  
+  <p>Aot-compiled Sevenri boot loader files</p>
+  
+  <h3>library/</h3>
+  
+  <p>Contains sharable lib files. These sub directories are reserved: slix/, user/.</p>
+  
+  <blockquote>
+    <h3>slix/</h3>
+    
+    <p>Contains slix lib files sharable between slixes.</p>
+    
+    <h3>user/</h3>
+    
+    <p>A directory where Sevenri user can save any user lib files. This file is reserved: scratch.</p>
+    
+    <blockquote>
+      <h3>scratch</h3>
+      
+      <p>A scratch file Ced opens by default</p>
+    </blockquote>
+  </blockquote>
+  
+  <h3>sevenri/</h3>
+  
+  <p>Contains Opeanr system lib files.</p>
+  
+  <h3>slix/</h3>
+  
+  <p>Contains slix lib files.</p>
+  
+  <h3>resources/</h3>
+  
+  <p>Contains resources files for Sevenri system and slixes. These sub directories are reserved: image/, logger/.</p>
+</blockquote>
+
+<h3>temp/</h3>
+
+<p>Sevenri user can use this directory to save any files.</p>
+
+<h3>test/</h3>
+
+<p>Contains the Sevenri system test files.</p>
+
+<h3>tools/</h3>
+
+<p>Contains files used to build Sevenri.</p>
+
+<h3>COPYING</h3>
+
+<p>The license file of Sevenri</p>
+
+<h3>README.md</h3>
+
+<p>A Sevenri readme file</p>
+
+<h3>sevenri</h3>
+
+<p>A bash file you can use to start Sevenri</p>
+
+<h3>sevenri.app</h3>
+
+<p>A compiled AppleScript file you can use to start Sevenri</p>
+
+<h3>project.clj</h3>
+
+<p>The Sevenri project configuration file for leiningen</p>

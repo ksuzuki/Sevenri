@@ -1,0 +1,2 @@
+#!/bin/bash
+/usr/bin/java -Dfile.encoding=UTF-8 -cp src:lib/* Sevenri $* &>/dev/null &

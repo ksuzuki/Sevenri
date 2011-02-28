@@ -1,0 +1,105 @@
+<h2>3.2 Ced</h2>
+
+<p>slix name: <code>ced</code></p>
+
+<p>Ced is a Clojure editor designed to work best in the Sevenri environment. Working together with other slixes Ced helps you write and compile your code, browse libraries, and develop slix quickly and interactively.</p>
+
+<p>Ced window consists of two parts; the main text pane and a panel in the bottom. There is the divider with the tiny arrows in the top of the text pane. From left in the bottom panel there are the Line Number field, the Column Number field, and the Find field. There is also the modification indicator in the left most edge of the panel. It turns a red asterisk when you touch file and disappears when you save the file. The window title displays Ced instance name and the file name currently editing. When the mouse cursor is in the title area, hold down the ALT+META key. The full path name of the current file pops up. (Note: on Mac OS X the Option key is the ALT key.)</p>
+
+<p><img src="../res/ss-ced.png" alt="Ced" title="Ced" /></p>
+
+<p>Ced has the following features.</p>
+
+<ul>
+<li><p>Most of the standard mouse actions and key bindings in Java are available. In addition, there are Ced specific key bindings and edit actions.</p></li>
+<li><p>Automatically indent lines. The way Ced indents lines is fairly close to the way Emacs in Clojure mode does.</p></li>
+<li><p>Highlight matching parentheses, that is, when these character pairs, '(' and ')', '{' and '}', '[' and ']', are used and "match up", Ced displays those matching characters in different color.</p></li>
+<li><p>Move the caret to the line specified in the Line Number field.</p></li>
+<li><p>Search and highlight matching string as you type in the Find field.</p></li>
+<li><p>Undo your edit actions up to the last save point, and redo undone actions.</p></li>
+<li><p>The text pane can be divided in two vertically, so you can see and edit two different parts of the same file side by side.</p></li>
+<li><p>When the caret is on or next to a Java class/interface name, open the JDK documentation page of the class/interface in the default system browser by pressing F1.</p></li>
+<li><p>By pressing F2 load the file currently editing using the <code>require</code> function with the <code>:reload</code> flag. Pressing SHIFT+F2 compiles the file and the output files go into the directory <code>.sevenri/classes</code>.</p></li>
+<li><p>Pressing F5 figures out the slix name from the file currently editing and open the slix.</p></li>
+<li><p>Ced doesn't insert TAB character in file. When reading file, TAB character in the file is replaced with eight spaces. (You can, however, insert TAB character by pasting it from the system clipboard.)</p></li>
+</ul>
+
+<h3>3.2.1 Key Bindings and Edit Operations</h3>
+
+<p>This section describes Ced specific key bindings and edit operations.</p>
+
+<ul>
+<li><p>ENTER <br />
+Insert a newline and indent.</p></li>
+<li><p>TAB <br />
+Indent the current line and move the caret to the beginning of the line. When a region is selected, indent the lines in the selection.</p></li>
+<li><p>META+] <br />
+When the caret is next to a highlighting parenthesis, move the caret to a matching parenthesis position.</p></li>
+<li><p>SHIFT+META+] <br />
+When the caret is next to a highlighting parenthesis, move the caret to a matching parenthesis position and select the string between them.</p></li>
+<li><p>META+F <br />
+Move the focus to the Find field. In the field, case sensitive search is performed as you type and matching string, if any, will be highlighted. Press ENTER ore META+G to search next match. Keep pressing ENTER or META+G lets the search continue from the beginning of file. Press TAB to move the focus back to the text pane and then move the caret to the beginning of highlighting string. Press ESC to cancel search and move the focus back to the text pane and the caret moves back to original position.</p></li>
+<li><p>META+G
+When the focus is in the text pane or the Find field, move the caret to the beginning of next match of the string in the Find field.</p></li>
+<li><p>META+L <br />
+Move the focus to the Line Number field. In the field, type line number and press ENTER to move the caret to the beginning of the line. Pressing ESC or TAB cancels the operation and move the focus back to the text pane.</p></li>
+<li><p>META+N <br />
+When the text pane is divided, move the focus from the current pane to the other.</p></li>
+<li><p>META+O <br />
+Open a Clojure file using the Open Sevenri File dialog box. The translations from slash to period and underscore to hyphen will be applied to the file path.</p></li>
+<li><p>META+S <br />
+Save the file currently editing.</p></li>
+<li><p>SHIFT+META+S <br />
+Save the file currently editing in a different name using the Save As Sevenri File dialog box. The <code>.clj</code> extension will be added to the file name automatically, and then the translations from period to slash and hyphen to underscore will be applied to the file path.</p></li>
+<li><p>META+Z <br />
+Undo the last edit action. Keep pressing META+Z undoes the edit actions up to the last save point.</p></li>
+<li><p>SHIFT+META+Z <br />
+Redo the last undone action. Keep pressing SHIFT+META+Z redoes the undone actions up to the last edit action.</p></li>
+<li><p>F1 <br />
+When the caret is on or next to a word, call API-browser with the word. A fully qualified Java class/interface name can also be identified as word (e.g. "javax.swing.text.html.HTML$Tag").</p></li>
+<li><p>F2 <br />
+Figure out lib name from the file currently editing and load the lib using the <code>require</code> function with the <code>:reload</code> flag.</p></li>
+<li><p>SHIFT+F2 <br />
+Figure out lib name from the file currently editing and aot-compile the lib using the <code>compile</code> function with *compile-path* set to <code>.sevenri/classes</code>.</p></li>
+<li><p>F5 <br />
+Figure out slix name from the file currently editing and open the slix.</p></li>
+</ul>
+
+<h3>3.2.2 Opening Clojure Files</h3>
+
+<p>When you open Ced from the Sevenri, Ced opens the default scratch file <code>src/library/user/scratch</code>.</p>
+
+<p>In Ced use META+O to open a Clojure file.</p>
+
+<h4>3.2.2.1 The <code>ced</code> Macro at The REPL</h4>
+
+<p>You can open Ced at the REPL using the <code>ced</code> macro. The macro can take a file path or a java.io.File and optional line number as arguments.</p>
+
+<p>File path can be either in symbol or string. When it's a symbol, it doesn't need to be quoted and period to slash and hypen to underscore translations are applied. Then a lib file corresponding the symbol in the <code>src</code> directory is looked up. Try the followings at the REPL. To open the default scratch file:</p>
+
+<pre><code>    (ced library.user.scratch)
+</code></pre>
+
+<p>To open the Sevenri's <code>slix</code> lib file and move to line 203:</p>
+
+<pre><code>    (ced sevenri.slix 203)
+</code></pre>
+
+<p>When you want to open a slix lib file you can abbreviate <code>slix</code>. For example, this opens the <code>core</code> file of the slix <code>repl</code>.</p>
+
+<pre><code>    (ced repl.core)
+</code></pre>
+
+<p>The symbol has to begin with <code>slix</code> only when you want to open a slix lib file whose name begins with <code>sevenri</code>. For example,</p>
+
+<pre><code>    (ced slix.sevenri.lists)
+</code></pre>
+
+<p>When the path is in string, it should be an absolute path or a relative path from the current Sevenri directory. When the argument is a java.io.File, it's taken as is. Either way you don't need to add the <code>.clj</code> extension. When the specified file doesn't exist or no argument is given,  Ced falls back to open the default scratch file.</p>
+
+<p>One another argumnt type the <code>ced</code> macro can take is a var. When the metadata of the var has enough information regarding to the file associated with the var, the <code>ced</code> macro can open the file in Ced. For example, when you want to see how the Clojure's <code>map</code> function is implemented, type this at REPL.</p>
+
+<pre><code>    (ced #'map)
+</code></pre>
+
+<p>The Clojure's <code>core</code> file is opened in Ced with the caret is set on the line where the <code>map</code> function is defined.</p>
