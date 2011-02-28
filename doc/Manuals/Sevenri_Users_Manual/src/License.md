@@ -1,4 +1,4 @@
-## 6 License
+## 7 License
 
 Copyright (C) 2011 Kei Suzuki  All rights reserved.
 

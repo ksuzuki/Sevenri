@@ -1,6 +1,6 @@
 # Sevenri Users Manual
 
-Revision 1.0.1
+Revision 1.0.2
 
 ## Table of Contents
 
@@ -23,4 +23,6 @@ Revision 1.0.1
 
 ### 5 [Sevenri Directory Structure](Sevenri_Directory_Structure.html "Sevenri Directory Structure")
 
-### 6 [License](License.html "License")
+### 6 [Contributing](Contributing.html "Contributing")
+
+### 7 [License](License.html "License")
