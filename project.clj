@@ -1,4 +1,4 @@
-(defproject sevenri "0.1.1"
+(defproject sevenri "0.1.2-SNAPSHOT"
   :description "Sevenri, a Clojure environment"
   :lic {:artifact :description
         :author ["Kei Suzuki"]
