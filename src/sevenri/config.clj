@@ -61,8 +61,8 @@
                   :user {:dir-name 'user
                          :scratch-file-name 'scratch.clj}}
         
-        :projects {:dir-name 'projects
-                   :protocol-file-name 'protocol.clj}
+        :project {:dir-name 'project
+                  :protocol-file-name 'protocol.clj}
         
         :resources {:dir-name 'resources
                     :images {:dir-name 'images
@@ -101,7 +101,7 @@
 
   ;; tln := sevenri/slix top level namespaces
   :tln {:library 'library
-        :projects 'projects
+        :project 'project
         :resources 'resources
         :sevenri 'sevenri
         :slix 'slix}})
@@ -148,13 +148,13 @@
   [& pfxs]
   `(get-src-library-dir ~@pfxs))
 
-(defn get-src-projects-dir
+(defn get-src-project-dir
   [& pfxs]
-  (apply get-dir (File. (get-src-dir) (str (get-default :src :projects :dir-name))) pfxs))
+  (apply get-dir (File. (get-src-dir) (str (get-default :src :project :dir-name))) pfxs))
 
-(defmacro get-projects-dir
+(defmacro get-project-dir
   [& pfxs]
-  `(get-src-projects-dir ~@pfxs))
+  `(get-src-project-dir ~@pfxs))
 
 (defn get-src-resources-dir
   [& pfxs]

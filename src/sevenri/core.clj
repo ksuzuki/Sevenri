@@ -117,34 +117,34 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-src-projects-file
+(defn get-src-project-file
  [& pfxs]
- (File. (str (apply get-src-projects-dir pfxs) ".clj")))
+ (File. (str (apply get-src-project-dir pfxs) ".clj")))
 
-(defmacro get-projects-file
+(defmacro get-project-file
   [& pfxs]
-  `(get-src-projects-file ~@pfxs))
+  `(get-src-project-file ~@pfxs))
 
-(defn get-projects-protocol-file
+(defn get-project-protocol-file
   []
-  (File. (get-src-projects-dir) (str (get-default :src :projects :protocol-file-name))))
+  (File. (get-src-project-dir) (str (get-default :src :project :protocol-file-name))))
 
-(defn get-projects-protocol
+(defn get-project-protocol
   []
-  (let [ppf (get-projects-protocol-file)]
+  (let [ppf (get-project-protocol-file)]
     (if (.exists ppf)
       (try
         (load-string (slurp ppf :encoding "UTF-8"))
         (catch Exception e
-          (log-severe "get-projects-protocol: failed to read protocol file")
+          (log-severe "get-project-protocol: failed to read protocol file")
           nil))
       (do
-        (log-severe "get-projects-protocol: protocol file missing")
+        (log-severe "get-project-protocol: protocol file missing")
         nil))))
 
 (defn query-project
   ([proj-sym query-kwd]
-     (when-let [prtcl (get-projects-protocol)]
+     (when-let [prtcl (get-project-protocol)]
        (query-project proj-sym query-kwd prtcl)))
   ([proj-sym query-kwd protocol]
      (when (and (or (symbol? proj-sym) (string? proj-sym)) (keyword? query-kwd) (map? protocol))
@@ -158,9 +158,14 @@
                          false))
              queryfn (when (and loaded? (find-ns manager))
                        (ns-resolve manager qryfn-sym))]
-         (if (and (var? queryfn) (fn? (var-get queryfn)))
-           (queryfn (hash-map arg-kwd proj-sym))
-           (log-severe "query-project: not found fn for:" query-kwd))))))
+         (if (var? queryfn)
+           (let [m (array-map arg-kwd proj-sym)]
+             (if (fn? (var-get queryfn))
+               (queryfn m)
+               (if-let [querymthd (get-method (var-get queryfn) (class m))]
+                 (querymthd m)
+                 (log-severe "query-project: no fn/method for:" query-kwd))))
+           (log-severe "query-project: no fn/method for:" query-kwd))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
