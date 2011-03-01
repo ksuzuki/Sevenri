@@ -143,27 +143,31 @@
         nil))))
 
 (defn query-project
-  ([proj-sym query-kwd]
+  ([query-kwd slix-name]
+     (query-project query-kwd slix-name nil))
+  ([query-kwd slix-name name]
+     (query-project query-kwd slix-name name nil))
+  ([query-kwd slix-name name args]
      (when-let [prtcl (get-project-protocol)]
-       (query-project proj-sym query-kwd prtcl)))
-  ([proj-sym query-kwd protocol]
-     (when (and (or (symbol? proj-sym) (string? proj-sym)) (keyword? query-kwd) (map? protocol))
+       (query-project query-kwd slix-name name args prtcl)))
+  ([query-kwd slix-name name args protocol]
+     (when (and (keyword? query-kwd) (or (symbol? slix-name) (string? slix-name)) (map? protocol))
        (let [manager (:manager protocol)
-             [qryfn-sym arg-kwd] (get protocol query-kwd)
+             qryfsym (get protocol query-kwd)
              loaded? (try
                        (require manager :reload)
                        true
                        (catch Exception e
                          (log-severe "query-project: failed to load manager:" manager)
                          false))
-             queryfn (when (and loaded? (find-ns manager))
-                       (ns-resolve manager qryfn-sym))]
-         (if (var? queryfn)
-           (let [m (array-map arg-kwd proj-sym)]
-             (if (fn? (var-get queryfn))
-               (queryfn m)
-               (if-let [querymthd (get-method (var-get queryfn) (class m))]
-                 (querymthd m)
+             qryfvar (when (and loaded? (find-ns manager))
+                       (ns-resolve manager qryfsym))]
+         (if (var? qryfvar)
+           (let [m (array-map :slix-name slix-name :name name :arguments args)]
+             (if (fn? (var-get qryfvar))
+               (qryfvar m)
+               (if-let [qrymthd (get-method (var-get qryfvar) (class m))]
+                 (qrymthd m)
                  (log-severe "query-project: no fn/method for:" query-kwd))))
            (log-severe "query-project: no fn/method for:" query-kwd))))))
 

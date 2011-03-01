@@ -249,6 +249,11 @@
   ([sn pfx & pfxs]
      (apply get-slix-fqns sn (str pfx \. (first pfxs)) (rest pfxs))))
 
+(defn get-slix-name-from-fqns
+  [fqns]
+  (when-let [rm (re-matches (re-pattern (str "^" (get-default :tln :slix) "\\.(.+)")) (str fqns))]
+    (symbol (second rm))))
+
 (defn get-slix-sn-meta
   [sn]
   (when-let [sns (find-ns (get-slix-fqns sn))]

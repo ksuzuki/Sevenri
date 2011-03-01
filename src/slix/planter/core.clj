@@ -1,5 +1,5 @@
 (ns slix.planter.core
-  (:use [sevenri config core log utils]
+  (:use [sevenri config core log slix utils]
         clojure.java.shell)
   (:import [java.io File FileFilter]))
 
@@ -14,6 +14,8 @@
                 (str sym))]
     (apply merge {:symbol sym :dir dir :parent-dir pdir :name pname} optms)))
 
+;;;;
+
 (defmulti get-project-parent-path
   (fn [obj] (class obj)))
 
@@ -24,6 +26,8 @@
 (defmethod get-project-parent-path :default
   [sym]
   (get-project-parent-path (project-name-to-map sym)))
+
+;;;;
 
 (defmulti get-project-path
   (fn [obj] (class obj)))
@@ -36,6 +40,8 @@
   [sym]
   (get-project-path (project-name-to-map sym)))
 
+;;;;
+
 (defmulti get-project-config-file
   (fn [obj] (class obj)))
 
@@ -46,6 +52,8 @@
 (defmethod get-project-config-file :default
   [sym]
   (get-project-config-file (project-name-to-map sym)))
+
+;;;;
 
 (defmulti project-exists?
   (fn [obj] (class obj)))
@@ -59,6 +67,19 @@
 (defmethod project-exists? :default
   [sym]
   (project-exists? (project-name-to-map sym)))
+
+;;;;
+
+(defmulti remove-project
+  (fn [obj] (class obj)))
+
+(defmethod remove-project clojure.lang.PersistentArrayMap
+  [pmap]
+  (trash-dir? (get-project-path pmap) (get-project-dir)))
+
+(defmethod remove-project :default
+  [sym]
+  (remove-project (project-name-to-map sym)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -211,3 +232,17 @@
       (create-project-jar sym)
       (is-project-built? sym))
     false))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn build-slix-project-and-run
+  [fqsn nm args]
+  (if (build-project? fqsn)
+    (let [sn (get-slix-name-from-fqns fqsn)]
+      (if args
+        (if nm
+          (open-slix-with-args args sn nm)
+          (open-slix-with-args args sn))
+        (if nm
+          (open-slix sn nm)
+          (open-slix sn))))))
