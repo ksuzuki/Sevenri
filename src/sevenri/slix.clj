@@ -486,9 +486,15 @@
   (let [pa [(get-slix-dir sn (get-default :src :slix :jvm :dir-name))]]
     (reduce (fn [a p] (conj a p)) pa (find-files '.jar (first pa)))))
 
+(defn get-slix-project-jar-paths
+  [sn]
+  (query-project :get-jars (get-slix-fqns sn)))
+
 (defn create-slix-class-loader
   [sn]
-  (let [cps (conj (get-slix-jvm-and-jar-paths sn) (get-sid-classes-dir))
+  (let [cps (let [s (conj (get-slix-jvm-and-jar-paths sn) (get-sid-classes-dir))
+                  p (get-slix-project-jar-paths sn)]
+              (if p (apply conj s p) s))
         cpn (count cps)
         urls (make-array URL cpn)]
     (reduce (fn [a i] (aset a i (.toURL (.toURI (cps i)))) a) urls (range cpn))
