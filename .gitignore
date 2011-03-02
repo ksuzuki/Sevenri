@@ -23,6 +23,8 @@ src/library/incanter/*
 src/library/slix/incantea/data
 src/library/slix/incantea/examples
 src/library/user
+src/project/slix/planter/*.jar
+src/project/slix/planter/lib/*.jar
 src/sevenri/listeners/*.class
 src/slix/ced/jvm/gui/dist/*
 src/slix/sevenri/jvm/gui/dist/*
