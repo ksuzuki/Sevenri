@@ -48,8 +48,8 @@
     (let [im (.getInputMap ced)
           ky (KeyStroke/getKeyStroke KeyEvent/VK_F1 0)]
       (.put im ky bap)))
-  ;; META+G: find-next-keyword
-  (when-let [fnk (.get (.getActionMap ced) "find-next-keyword")]
+  ;; META+G: find-next-string
+  (when-let [fnk (.get (.getActionMap ced) "find-next-string")]
     (let [im (.getInputMap ced)
           key (KeyStroke/getKeyStroke KeyEvent/VK_G InputEvent/META_MASK)]
       (.put im key fnk)))

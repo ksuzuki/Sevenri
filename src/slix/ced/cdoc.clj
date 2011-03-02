@@ -28,7 +28,7 @@
              [lineNumberToStartPosition [java.lang.Integer] java.lang.Integer]
              [positionToLineNumber [java.lang.Integer] java.lang.Integer]
              [initFindContext [] java.lang.Void]
-             [setFindKeyword [java.lang.String] java.lang.Void]
+             [setFindString [java.lang.String] java.lang.Void]
              [setFindStartPos [java.lang.Integer] java.lang.Void]
              [getFindStartPos [] java.lang.Integer]
              [find [java.lang.Boolean] clojure.lang.PersistentVector]]
@@ -157,10 +157,10 @@
   [this]
      (-initFindContext* this))
   
-(defn -setFindKeyword
-  [this keyword]
+(defn -setFindString
+  [this string]
   (when-let [fctxt (.getProperty this *prop-find-context*)]
-    (.putProperty this *prop-find-context* (set-find-keyword fctxt keyword))))
+    (.putProperty this *prop-find-context* (set-find-string fctxt string))))
 
 (defn -setFindStartPos
   [this pos]

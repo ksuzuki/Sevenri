@@ -12,6 +12,7 @@
 ;; slix - Sevenri library complex
 
 (ns sevenri.slix
+  (:require [clojure set])
   (:use [sevenri config core defs event log jvm os refs ui utils])
   (:import (java.awt.event KeyAdapter KeyEvent)
            (java.beans ExceptionListener XMLEncoder XMLDecoder)
@@ -23,7 +24,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *slix* nil)
+(def ^:dynamic *slix* nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -813,7 +814,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def -open-slix-args- nil)
+(def ^:dynamic -open-slix-args- nil)
 
 (defn generate-slix-name
   [sn]

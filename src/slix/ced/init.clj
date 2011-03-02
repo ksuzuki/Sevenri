@@ -97,7 +97,7 @@
         cd2 (.ced2 mpl)
         mid (.modIndicator mpl)
         lnc (.lineNumber mpl)
-        fkw (.findKeyword mpl)
+        fst (.findString mpl)
         doc (.getDocument (get-ced))]
     ;; Show the file name in the title. This also add the working file to
     ;; the xref.
@@ -126,7 +126,7 @@
     (.setDividerLocation spl (double 0.0))
     (.requestFocusInWindow cd1)
     ;; Close the window with META+W.
-    (doseq [c [cd1 cd2 lnc fkw]]
+    (doseq [c [cd1 cd2 lnc fst]]
       (add-default-key-listener c)
       (add-ced-key-listener c frm doc))
     ;; Process args other than :file.

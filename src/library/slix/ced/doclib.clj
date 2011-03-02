@@ -15,8 +15,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *dcntxt* nil)
-(def *txtseg* nil)
+(def ^:dynamic *dcntxt* nil)
+(def ^:dynamic *txtseg* nil)
 
 (def *open-close-pairs* {\( [\( \)]
                          \{ [\{ \}]

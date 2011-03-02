@@ -268,7 +268,7 @@
         </Component>
         <Component class="javax.swing.JToolBar$Separator" name="sep">
         </Component>
-        <Component class="javax.swing.JTextField" name="findKeyword">
+        <Component class="javax.swing.JTextField" name="findString">
           <Properties>
             <Property name="font" type="java.awt.Font" editor="org.netbeans.modules.form.RADConnectionPropertyEditor">
               <Connection component="Form" name="font" type="property"/>

@@ -112,7 +112,7 @@
             sis (get-selected-indices (seq (.getSelectedValues lstName)) name-titles)]
         (doto lstName
           (.setListData (into-array String name-titles))
-          (.setSelectedIndices (into-array Integer/TYPE sis))
+          (.setSelectedIndices (int-array sis))
           (.putClientProperty *prop-title-name-map* title-name-map)))
       (.setListData lstName (into-array String [])))
     ;; Restore listeners.
@@ -188,8 +188,8 @@
       (if-let [indecies (get-item-indices sns-listed sns-by-nms)]
         (do
           (.setListData lstName (into-array String name-titles))
-          (.setSelectedIndices lstName (into-array Integer/TYPE (range (count name-titles))))
-          (.setSelectedIndices lstSn (into-array Integer/TYPE indecies)))
+          (.setSelectedIndices lstName (int-array (range (count name-titles))))
+          (.setSelectedIndices lstSn (int-array indecies)))
         (.setListData lstName (into-array String []))))
     ;; Restore listeners.
     (doseq [lsl nmlsls]

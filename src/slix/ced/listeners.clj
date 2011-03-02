@@ -73,7 +73,7 @@
   (let [doc (.getDocument ced)]
     (.setFindStartPos doc (.getCaretPosition ced))))
 
-(defn find-next-keyword
+(defn find-next-string
   [ced doc next?]
   (let [[pos len] (.find doc next?)
         ccl (.getClientProperty ced *prop-ced-caret-listener*)]
@@ -89,12 +89,12 @@
         (.setSelectionVisible crt true)))
     (.addCaretListener ced ccl)))
 
-(defn find-keyword
-  [ced fkwd-doc]
+(defn find-string
+  [ced fstr-doc]
   (let [doc (.getDocument ced)
-        kwd (.getText fkwd-doc 0 (.getLength fkwd-doc))]
-    (.setFindKeyword doc kwd)
-    (find-next-keyword ced doc false)))
+        str (.getText fstr-doc 0 (.getLength fstr-doc))]
+    (.setFindString doc str)
+    (find-next-string ced doc false)))
 
 (defn find-back-to-start-pos
   [ced doc]
@@ -183,10 +183,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn move-focus-key-listener
-  "Moves the focus to the last ced, line-number, or find-keyword.
+  "Moves the focus to the last ced, line-number, or find-string.
    Key      Focus on
    META+L:  line-number
-   META+F:  find-keyword
+   META+F:  find-string
    TAB/ESC: the last focused ced, if not on ced
    Note: make sure to disable FocusTraversalKey of the control to which
    this listener is assigned."
@@ -198,7 +198,7 @@
               m? (pos? (bit-and (.getModifiers e) Event/META_MASK))
               cd (.getClientProperty main-panel *prop-mp-last-ced*)
               ln (.lineNumber main-panel)
-              fk (.findKeyword main-panel)
+              fs (.findString main-panel)
               tf (fn [e c]
                    (when-not (identical? c (.getComponent e))
                      (.consume e)
@@ -210,7 +210,7 @@
            (= kc KeyEvent/VK_TAB) (tf e cd)
            (and (= kc KeyEvent/VK_ESCAPE) (.isFocusOwner ln)) (tf e cd)
            (and (= kc KeyEvent/VK_L) m?) (rf e ln)
-           (and (= kc KeyEvent/VK_F) m?) (rf e fk)))))))
+           (and (= kc KeyEvent/VK_F) m?) (rf e fs)))))))
 
 (defn divider-location-listener
   "Change the ced focus based on the divider location."
@@ -262,7 +262,7 @@
             (.selectAll)))))
     (focusLost [e])))
 
-(defn find-keyword-focus-listener
+(defn find-string-focus-listener
   [main-panel]
   (proxy [FocusListener] []
     (focusGained [e]
@@ -273,7 +273,7 @@
           (.setCaretPosition fky (max 0 (.getLength doc))))))
     (focusLost [e])))
 
-(defn find-keyword-key-listener
+(defn find-string-key-listener
   [main-panel]
   (proxy [KeyAdapter] []
     (keyPressed [e]
@@ -286,16 +286,16 @@
              (find-back-to-start-pos ced doc)
            (or (= kc KeyEvent/VK_ENTER)
                (and (= kc KeyEvent/VK_G) (bit-and (.getModifiers e) Event/META_MASK)))
-             (find-next-keyword ced doc true)))))))
+             (find-next-string ced doc true)))))))
 
-(defn find-keyword-document-listener
+(defn find-string-document-listener
   [main-panel]
   (proxy [DocumentListener] []
     (changedUpdate [e])
     (insertUpdate [e]
-      (find-keyword (.getClientProperty main-panel *prop-mp-last-ced*) (.getDocument e)))
+      (find-string (.getClientProperty main-panel *prop-mp-last-ced*) (.getDocument e)))
     (removeUpdate [e]
-      (find-keyword (.getClientProperty main-panel *prop-mp-last-ced*) (.getDocument e)))))
+      (find-string (.getClientProperty main-panel *prop-mp-last-ced*) (.getDocument e)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -310,14 +310,14 @@
       (.putClientProperty *prop-ced-caret-listener* ccl)
       (.putClientProperty *prop-ced-column-number* (.columnNumber main-panel))
       (.putClientProperty *prop-ced-line-number* (.lineNumber main-panel))
-      (.putClientProperty *prop-ced-find-keyword* (.findKeyword main-panel))
+      (.putClientProperty *prop-ced-find-string* (.findString main-panel))
       (.putClientProperty *prop-ced-other-ced* oced))))
 
 (defn add-listeners
   [main-panel]
   (let [splt (.splitter main-panel)
         lnum (.lineNumber main-panel)
-        fkwd (.findKeyword main-panel)
+        fstr (.findString main-panel)
         mfkl (move-focus-key-listener main-panel)]
     (doto splt
       (.addPropertyChangeListener JSplitPane/DIVIDER_LOCATION_PROPERTY
@@ -326,11 +326,11 @@
       (.addKeyListener mfkl)
       (.addFocusListener (line-number-focus-listener main-panel))
       (.addActionListener (line-number-action-listener main-panel)))
-    (doto fkwd
+    (doto fstr
       (.addKeyListener mfkl)
-      (.addFocusListener (find-keyword-focus-listener main-panel))
-      (.addKeyListener (find-keyword-key-listener main-panel)))
-    (.addDocumentListener (.getDocument fkwd) (find-keyword-document-listener main-panel))))
+      (.addFocusListener (find-string-focus-listener main-panel))
+      (.addKeyListener (find-string-key-listener main-panel)))
+    (.addDocumentListener (.getDocument fstr) (find-string-document-listener main-panel))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

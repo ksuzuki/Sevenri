@@ -28,7 +28,7 @@
             sis (get-selected-indices (seq (.getSelectedValues lstSn)) sns)]
         (invoke-later #(doto lstSn
                          (.setListData (into-array String sns))
-                         (.setSelectedIndices (into-array Integer/TYPE sis))))))))
+                         (.setSelectedIndices (int-array sis))))))))
 
 (defn aot-compile-slixes
   []

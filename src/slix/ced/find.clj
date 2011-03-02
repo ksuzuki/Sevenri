@@ -19,15 +19,15 @@
 
 (defn initial-find-context
   []
-  {:new-keyword nil
-   :keyword ""
+  {:new-string nil
+   :string ""
    :stale-content? true
    :matcher (re-matcher #"" "")
    :pos-history (list [0 nil])})
 
-(defn set-find-keyword
-  [fctxt keyword]
-  (assoc fctxt :new-keyword keyword))
+(defn set-find-string
+  [fctxt string]
+  (assoc fctxt :new-string string))
 
 (defn content-is-stale
   [fctxt]
@@ -42,7 +42,7 @@
   (first (last (:pos-history fctxt))))
 
 (defn create-match-pattern
-  [keyword]
+  [string]
   (re-pattern (apply str (map #(if (Character/isUpperCase %)
                                  %
                                  (if (neg? (.indexOf "^\\.*?+&,|:=<=>-[](){}$" (int %)))
@@ -52,28 +52,28 @@
                                        lc
                                        (str "(" lc "|" uc ")")))
                                    (str "\\" %)))
-                              keyword))))
+                              string))))
 
 (defn update-match-pattern-and-pos-history
   [fctxt]
-  (if (nil? (:new-keyword fctxt))
+  (if (nil? (:new-string fctxt))
     fctxt
-    (let [newky (:new-keyword fctxt)
-          oldky (:keyword fctxt)]
-      (if (= newky oldky)
+    (let [newstr (:new-string fctxt)
+          oldstr (:string fctxt)]
+      (if (= newstr oldstr)
         (assoc fctxt
-          :new-keyword nil)
-        (let [newln (count newky)
-              oldln (count oldky)
+          :new-string nil)
+        (let [newln (count newstr)
+              oldln (count oldstr)
               phist (:pos-history fctxt)]
           (assoc fctxt
-            :new-keyword nil
-            :keyword newky
-            :matcher (.usePattern (:matcher fctxt) (create-match-pattern newky))
-            :pos-history (if (empty? newky)
+            :new-string nil
+            :string newstr
+            :matcher (.usePattern (:matcher fctxt) (create-match-pattern newstr))
+            :pos-history (if (empty? newstr)
                            (list (last phist))
                            (if (and (< newln oldln)
-                                    (= newky (subs oldky 0 newln)))
+                                    (= newstr (subs oldstr 0 newln)))
                              (filter #(<= (count (last %)) newln) phist)
                              phist))))))))
 
@@ -109,8 +109,8 @@
   (let [fctxt (-> fctxt
                   (update-match-pattern-and-pos-history)
                   (update-match-sequence doc))
-        nkwd? (:new-keyword fctxt)
-        keywd (:keyword fctxt)
+        nkwd? (:new-string fctxt)
+        keywd (:string fctxt)
         mtchr (:matcher fctxt)
         [s k] (first (:pos-history fctxt))
         [o _] (last (:pos-history fctxt))

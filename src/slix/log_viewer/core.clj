@@ -10,6 +10,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.log-viewer.core
+  (:require [clojure xml])
   (:use [clojure.java io]
         [sevenri config core log slix])
   (:import (java.awt Rectangle)

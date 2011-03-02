@@ -96,7 +96,7 @@
             pos (.createPosition doc (get-doc-context :pos))
             ;;
             ctls [(.getClientProperty ced *prop-ced-line-number*)
-                  (.getClientProperty ced *prop-ced-find-keyword*)]
+                  (.getClientProperty ced *prop-ced-find-string*)]
             ceds [ced (.getClientProperty ced *prop-ced-other-ced*)]
             crls (.getCaretListeners ced)
             frls (.getFocusListeners ced)
@@ -241,15 +241,15 @@
         (let [api-sym (or (.getSelectedText ced)
                           (fetch-symbol ced))]
           (when-not (empty? api-sym)
-            (future (open-slix-with-args {:keyword api-sym} 'api-browser))))))))
+            (future (open-slix-with-args {:string api-sym} 'api-browser))))))))
 
-(defn find-next-keyword-action
+(defn find-next-string-action
   []
-  (proxy [AbstractAction] ["find-next-keyword"]
+  (proxy [AbstractAction] ["find-next-string"]
     (actionPerformed
       [event]
       (ced-action event
-        (find-next-keyword ced (.getDocument ced) true)))))
+        (find-next-string ced (.getDocument ced) true)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -453,7 +453,7 @@
                       (select-by-matching-paren-pos-action)
                       (switch-pane-action)
                       (browse-api-action)
-                      (find-next-keyword-action)
+                      (find-next-string-action)
                       ;;
                       (require-action)
                       (compile-action)

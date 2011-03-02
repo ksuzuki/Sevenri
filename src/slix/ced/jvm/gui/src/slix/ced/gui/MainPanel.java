@@ -55,7 +55,7 @@ public class MainPanel extends javax.swing.JPanel {
         col = new javax.swing.JLabel();
         columnNumber = new javax.swing.JLabel();
         sep = new javax.swing.JToolBar.Separator();
-        findKeyword = new javax.swing.JTextField();
+        findString = new javax.swing.JTextField();
 
         setBackground(new java.awt.Color(255, 255, 255));
         setFont(new java.awt.Font("Courier", 0, 12));
@@ -136,13 +136,13 @@ public class MainPanel extends javax.swing.JPanel {
         toolBar.add(columnNumber);
         toolBar.add(sep);
 
-        findKeyword.setFont(getFont());
-        findKeyword.setHorizontalAlignment(javax.swing.JTextField.LEFT);
-        findKeyword.setFocusTraversalKeysEnabled(false);
-        findKeyword.setMaximumSize(new java.awt.Dimension(160, 24));
-        findKeyword.setMinimumSize(new java.awt.Dimension(160, 24));
-        findKeyword.setPreferredSize(new java.awt.Dimension(160, 24));
-        toolBar.add(findKeyword);
+        findString.setFont(getFont());
+        findString.setHorizontalAlignment(javax.swing.JTextField.LEFT);
+        findString.setFocusTraversalKeysEnabled(false);
+        findString.setMaximumSize(new java.awt.Dimension(160, 24));
+        findString.setMinimumSize(new java.awt.Dimension(160, 24));
+        findString.setPreferredSize(new java.awt.Dimension(160, 24));
+        toolBar.add(findString);
 
         org.jdesktop.layout.GroupLayout layout = new org.jdesktop.layout.GroupLayout(this);
         this.setLayout(layout);
@@ -170,7 +170,7 @@ public class MainPanel extends javax.swing.JPanel {
     public javax.swing.JEditorPane ced2;
     private javax.swing.JLabel col;
     public javax.swing.JLabel columnNumber;
-    public javax.swing.JTextField findKeyword;
+    public javax.swing.JTextField findString;
     public javax.swing.JFormattedTextField lineNumber;
     public javax.swing.JLabel modIndicator;
     public javax.swing.JScrollPane scrollPane1;

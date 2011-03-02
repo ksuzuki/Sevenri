@@ -13,7 +13,7 @@
   (:require clojure.main)
   (:use [sevenri config event log slix ui utils]
         [slix.repl defs listeners])
-  (:import (java.io File OutputStreamWriter)))
+  (:import (java.io File OutputStreamWriter PrintWriter)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -63,7 +63,7 @@
   [slix repl-slix con ins rrc]
     (binding [*in*  (clojure.lang.LineNumberingPushbackReader. (.getIn con))
               *out* (OutputStreamWriter. (.getOut con))
-              *err* (.getOut con)
+              *err* (PrintWriter. (.getOut con))
               *slix* repl-slix]
       (let [it (fn []
                  (in-ns ins)

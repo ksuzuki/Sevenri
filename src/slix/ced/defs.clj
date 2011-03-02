@@ -24,7 +24,7 @@
 
 (def *prop-ced-caret-listener* "caret-listener")
 (def *prop-ced-column-number* "column-number")
-(def *prop-ced-find-keyword* "find-keyword")
+(def *prop-ced-find-string* "find-string")
 (def *prop-ced-line-number* "line-number")
 (def *prop-ced-slix* "slix")
 (def *prop-ced-other-ced* "other-ced")
