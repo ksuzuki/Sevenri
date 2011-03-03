@@ -20,7 +20,7 @@ Use this format for issue title.
 
 * When the issue is a non-slix issue, just write a short description.
 * When the issue is a slix-wise issue, write "SLIX: " then a short description.
-* When the issue is regarding a slix, write the "slix-name: " then a short description.
+* When the issue is regarding a slix, write "slix-name: " then a short description.
 * When the issue is regarding slixes, write "slix-name1, slix-name2,...: " then a short description.
 
 Apply appropriate label when possible.
