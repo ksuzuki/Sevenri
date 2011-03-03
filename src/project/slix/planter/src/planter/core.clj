@@ -1,2 +1,0 @@
-(ns slix.planter.core)
-

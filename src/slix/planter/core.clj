@@ -99,17 +99,60 @@
 
 ;;;;
 
-(defn write-slix-project-core-file?
+(defn setup-slix-project?
   [pmap]
-  (let [p (File. (get-project-path pmap) (str (File. "src" (:name pmap))))
-        f (File. p "core.clj")]
-    (if (.exists f)
-      (try
-        (spit f (format "(ns project.%s.core)\n" (:symbol pmap)) :encoding "UTF-8")
-        true
-        (catch Exception e
-          false))
-      false)))
+  (letfn [(modify-project []
+            (let [pf (get-project-file (:symbol pmap) 'project)]
+              (if (.exists pf)
+                (try
+                  (spit pf (format (str "(defproject %s \"0.1.0-SNAPSHOT\"\n"
+                                        "  :description \"%s project\")\n")
+                                   (:symbol pmap) (:symbol pmap))
+                        :encoding "UTF-8")
+                  true
+                  (catch Exception e
+                    false))
+                false)))
+          (write-proj-clj []
+            (let [pn (:name pmap)
+                  sp (File. (get-project-path pmap) (str (File. "src" pn)))
+                  fc (File. sp "core.clj")
+                  dp (File. (get-project-path pmap) (str (File. (File. "src" "slix") pn)))
+                  fp (File. dp "proj.clj")]
+              (if (.exists fc)
+                (try
+                  (spit fc (format "(ns %s.proj)\n" (:symbol pmap)) :encoding "UTF-8")
+                  (.mkdirs dp)
+                  (.renameTo fc fp)
+                  (.delete sp)
+                  true
+                  (catch Exception e
+                    false))
+                false)))
+          (write-test-clj []
+            (let [pn (str (File. (:name pmap) "test"))
+                  sp (File. (get-project-path pmap) (str (File. "test" pn)))
+                  fc (File. sp "core.clj")
+                  dp (File. (get-project-path pmap) (str (File. (File. "test" "slix") pn)))
+                  fp (File. dp "proj.clj")]
+              (if (.exists fc)
+                (try
+                  (spit fc (format (str "(ns %s.test.proj\n"
+                                        "  (:use [%s.proj] :reload)\n"
+                                        "  (:use [clojure.test]))\n\n"
+                                        "(deftest replace-me ;; FIXME: write\n"
+                                        "  (is false \"No tests have been written.\"))\n")
+                                   (:symbol pmap) (:symbol pmap))
+                        :encoding "UTF-8")
+                  (.mkdirs dp)
+                  (.renameTo fc fp)
+                  (.delete sp)
+                  (.delete (.getParentFile sp))
+                  true
+                  (catch Exception e
+                    false))
+                false)))]
+    (and (modify-project) (write-proj-clj) (write-test-clj))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -142,9 +185,9 @@
                      (empty? (:err rm))
                      (project-exists? pmap))
             (if (is-slix-project? pmap)
-              (assoc rm :slix-project true :err (if (write-slix-project-core-file? pmap)
+              (assoc rm :slix-project true :err (if (setup-slix-project? pmap)
                                                   ""
-                                                  "write-slix-project-core-file-failed"))
+                                                  "setup-slix-project? failed"))
               (assoc rm :six-project false))))))))
 
 (defmacro planter-new

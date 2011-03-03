@@ -1,5 +1,5 @@
-(defproject planter "0.1.0"
-  :description "Lein deps for lein47ri"
+(defproject slix.planter "0.1.0"
+  :description "slix.planter project: stub to get lein deps for lein47ri"
   :dependencies [[org.apache.ant/ant "1.7.1"]
                  [org.apache.ant/ant-nodeps "1.7.1"]
                  [robert/hooke "1.1.0"]
