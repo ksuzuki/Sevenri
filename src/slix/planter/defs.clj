@@ -9,9 +9,13 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(defproject slix.planter "0.1.0"
-  :description "slix.planter project: stub to get lein deps for lein47ri"
-  :dependencies [[org.apache.ant/ant "1.7.1"]
-                 [org.apache.ant/ant-nodeps "1.7.1"]
-                 [robert/hooke "1.1.0"]
-                 [org.apache.maven/maven-ant-tasks "2.0.10" :exclusions [ant]]])
+(ns slix.planter.defs
+  (:use [sevenri log]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def *planter-project-ready* false)
+
+(defn planter-project-ready
+  [b]
+  (def *planter-project-ready* (if b true false)))

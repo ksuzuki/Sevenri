@@ -142,6 +142,11 @@
         (log-severe "get-project-protocol: protocol file missing")
         nil))))
 
+(defn get-project-manager
+  []
+  (when-let [protocol (get-project-protocol)]
+    (:manager protocol)))
+
 (defn query-project
   ([query-kwd slix-name]
      (query-project query-kwd slix-name nil))
@@ -382,6 +387,15 @@
   (binding [*compile-path* (str (get-src-dir))]
     (compile (get-default :src :sevenri :listeners :aot))))
 
+(defn setup-project-manager?
+  []
+  (let [pm (get-project-manager)]
+    (when-not (query-project :ready? pm)
+      (future
+        (when-not (query-project :setup? pm)
+          (log-severe "setup-project-manager: failed to setup projet manager:" pm))))
+    true))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn shutdown-core?
@@ -391,9 +405,11 @@
 
 (defn startup-core?
   []
-  (with-create-sn-get-dir
-    (and true
-         (create-sid-sevenri-dirs?)
-         (create-other-dirs?)
-         (aot-compile-sevenri-listeners?)
-         (create-sevenri-lock-file?))))
+  (let [result (with-create-sn-get-dir
+                 (and true
+                      (create-sid-sevenri-dirs?)
+                      (create-other-dirs?)
+                      (aot-compile-sevenri-listeners?)
+                      (create-sevenri-lock-file?)))]
+    (and result
+         (setup-project-manager?))))
