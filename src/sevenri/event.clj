@@ -259,13 +259,21 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro event-response-donot-save
+(defmacro event-response-donot-open
   []
-  `(create-event-response :sevenri.event/response-donot-save))
+  `(create-event-response :sevenri.event/response-donot-open))
+
+(defmacro event-response-donot-load
+  []
+  `(create-event-response :sevenri.event/response-donot-load))
 
 (defmacro event-response-donot-close
   []
   `(create-event-response :sevenri.event/response-donot-close))
+
+(defmacro event-response-donot-save
+  []
+  `(create-event-response :sevenri.event/response-donot-save))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
