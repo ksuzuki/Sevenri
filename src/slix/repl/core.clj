@@ -63,7 +63,7 @@
   [slix repl-slix con ins rrc]
     (binding [*in*  (clojure.lang.LineNumberingPushbackReader. (.getIn con))
               *out* (OutputStreamWriter. (.getOut con))
-              *err* (PrintWriter. (.getOut con))
+              *err* (PrintWriter. (OutputStreamWriter. (.getOut con)) true)
               *slix* repl-slix]
       (let [it (fn []
                  (in-ns ins)
