@@ -179,3 +179,7 @@
 (defmacro gs
   []
   `(git "status"))
+
+(defmacro gb
+  []
+  `(git "branch"))

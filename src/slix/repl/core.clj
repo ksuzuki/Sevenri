@@ -55,7 +55,7 @@
               (File. (get-sid-slix-dir (slix-sn repl-slix)) (str (get-startup-script-file-name) ".clj")))]
     (when-not (.exists tgt)
       (clojure.java.io/copy src tgt))
-    (if (and (map? (slix-args)) ((get-default :slix :arguments :alt-open) (slix-args)))
+    (if (alt-open-slix?)
       src
       tgt)))
 

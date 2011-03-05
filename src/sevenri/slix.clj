@@ -55,6 +55,13 @@
   (and (map? object)
        (every? identity [(slix-id object) (slix-sn object) (slix-name object)])))
 
+(defn alt-open-slix?
+  ([]
+     (alt-open-slix? *slix*))
+  ([slix]
+     (let [args (slix-args slix)]
+       (and (map? args) ((get-default :slix :arguments :alt-open) args)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn create-slix-context
