@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:slix true}
+(ns ^{:slix true :singleton true}
   slix.planter
   (:use [sevenri config core event log slix ui utils]
         [slix.planter core init]))
@@ -101,14 +101,6 @@
      (build-slix-project-and-run (:slix-name m) (:name m) (:arguments m)))
   ([slix-name name args]
      (build-and-run {:slix-name slix-name :name name :arguments args})))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn debug-in-repl
-  []
-  (let [ds 'slix.planter.debug]
-    (require ds)
-    (in-ns ds)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

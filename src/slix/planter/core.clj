@@ -334,3 +334,11 @@
     `(do
        (def ~baosn ~baos)
        (def ~opsn ~ops))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn debug-in-repl
+  []
+  (let [ds 'slix.planter.debug]
+    (require ds)
+    (in-ns ds)))
