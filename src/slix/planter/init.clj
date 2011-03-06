@@ -19,22 +19,26 @@
 (defn verify
   []
   (let [slx *slix*
-        frm (slix-frame slx)
-        ao? (alt-open-slix? slx)]
+        frm (slix-frame)
+        ao? (alt-open-slix?)]
     (future
       (if (is-project-built? 'slix.planter)
         (planter-project-ready true)
         (let [oc (.getCursor frm)]
           (.setCursor frm Cursor/WAIT_CURSOR)
           ;;
-          (if ao?
-            (let [bp? (build-project? 'slix.planter)]
-              (lg "slix.planter: self-diag: building the planter project" (if bp?
-                                                                            "succeeded"
-                                                                            "failed")))
-            (do
-              (log-warning "slix.planter: self-diag: planter project isn't ready yet")
-              (Thread/sleep (* 1000 3))))
-          ;;
-          (.setCursor frm oc)
-          (close-slix slx))))))
+          (planter-project-ready false)
+          (when ao?
+            (let [bp? (build-project? 'slix.planter)
+                  msg (if bp? "succeeded" "failed")]
+              (when bp?
+                (planter-project-ready true))
+              (lg "slix.planter: verify: building the planter project" msg)))
+          (let [b? (is-project-built? 'slix.planter)]
+            (when-not b?
+              (log-warning "slix.planter: verify: planter project isn't ready.")
+              (Thread/sleep (* 1000 3)))
+            ;;
+            (.setCursor frm oc)
+            (when-not b?
+              (close-slix slx))))))))

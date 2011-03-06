@@ -156,11 +156,13 @@
      (when-let [prtcl (get-project-protocol)]
        (query-project query-kwd slix-name name args prtcl)))
   ([query-kwd slix-name name args protocol]
-     (when (and (keyword? query-kwd) (or (symbol? slix-name) (string? slix-name)) (map? protocol))
-       (let [manager (:manager protocol)
-             qryfsym (get protocol query-kwd)
+     (when (and (keyword? query-kwd)
+                (or (symbol? slix-name) (string? slix-name))
+                (and (map? protocol) (:manager protocol) (get protocol query-kwd)))
+       (let [manager (symbol (:manager protocol))
+             qryfsym (symbol (get protocol query-kwd))
              loaded? (try
-                       (require manager :reload)
+                       (require manager)
                        true
                        (catch Exception e
                          (log-severe "query-project: failed to load manager:" manager)
@@ -170,11 +172,23 @@
          (if (var? qryfvar)
            (let [m (array-map :slix-name slix-name :name name :arguments args)]
              (if (fn? (var-get qryfvar))
-               (qryfvar m)
+               (try
+                 (qryfvar m)
+                 (catch Exception e
+                   (log-severe "query-project: fn failed:" qryfsym)
+                   nil))
                (if-let [qrymthd (get-method (var-get qryfvar) (class m))]
-                 (qrymthd m)
-                 (log-severe "query-project: no fn/method for:" query-kwd))))
-           (log-severe "query-project: no fn/method for:" query-kwd))))))
+                 (try
+                   (qrymthd m)
+                   (catch Exception e
+                     (log-severe "query-project: method failed:" qryfsym)
+                     nil))
+                 (do
+                   (log-severe "query-project: no fn/method:" query-kwd)
+                   nil))))
+           (do
+             (log-severe "query-project: no fn/method:" query-kwd)
+             nil))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

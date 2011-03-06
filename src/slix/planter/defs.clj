@@ -18,4 +18,5 @@
 
 (defn planter-project-ready
   [b]
-  (def *planter-project-ready* (if b true false)))
+  (def *planter-project-ready* (if b true false))
+  b)
