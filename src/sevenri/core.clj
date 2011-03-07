@@ -407,7 +407,7 @@
     (when-not (query-project :ready? pm)
       (future
         (when-not (query-project :setup? pm)
-          (log-severe "setup-project-manager: failed to setup projet manager:" pm))))
+          (log-severe "setup-project-manager?: failed to setup projet manager:" pm))))
     true))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

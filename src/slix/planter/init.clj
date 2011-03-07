@@ -11,28 +11,29 @@
 
 (ns slix.planter.init
   (:use [sevenri log slix]
-        [slix.planter core defs])
+        [slix.planter core defs ui])
   (:import (java.awt Cursor)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn verify
   []
-  (let [slx *slix*
-        frm (slix-frame)
-        ao? (alt-open-slix?)]
-    (future
-      (if (is-project-built? 'slix.planter)
-        (planter-project-ready true)
+  (planter-project-ready false)
+  (if (is-project-built? 'slix.planter)
+    (planter-project-ready true)
+    (let [slx *slix*
+          frm (slix-frame)
+          ao? (alt-open-slix?)]
+      (future
         (let [oc (.getCursor frm)]
           (.setCursor frm Cursor/WAIT_CURSOR)
           ;;
-          (planter-project-ready false)
           (when ao?
             (let [bp? (build-project? 'slix.planter)
                   msg (if bp? "succeeded" "failed")]
               (when bp?
-                (planter-project-ready true))
+                (planter-project-ready true)
+                (invoke-later slx #(init-ui)))
               (lg "slix.planter: verify: building the planter project" msg)))
           (let [b? (is-project-built? 'slix.planter)]
             (when-not b?

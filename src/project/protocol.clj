@@ -9,9 +9,9 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-;; I/F for slix; all takes a map with keys :slix-name, :name, and :arguments.
+;; query-project I/F; all takes a map with keys :slix-name, :name, and :arguments.
 
-{:manager 'slix.planter ;; must be fully qualified
+{:manager 'slix.planter.manager ;; must be fully qualified
  ;; query for manager
  :ready? 'ready?
  :setup? 'setup?

@@ -311,12 +311,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn is-manager-ready?
-  [sym]
-  (is-project-built? sym))
+  [_]
+  (is-project-built? 'slix.planter))
 
 (defn setup-manager?
-  [sym]
-  (build-project? sym))
+  [_]
+  (build-project? 'slix.planter))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
