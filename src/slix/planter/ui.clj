@@ -1,12 +1,11 @@
 (ns slix.planter.ui
   (:use [sevenri config log slix ui]
-        [slix.planter defs io])
-  (:import (java.awt BorderLayout Color Dimension)
+        [slix.planter controller defs io])
+  (:import (java.awt BorderLayout Color Dimension Font)
            (java.awt.event ItemEvent ItemListener)
-           (javax.swing BorderFactory DefaultListModel JPanel)
+           (javax.swing BorderFactory Box BoxLayout JPanel)
            (javax.swing JButton JComboBox)
-           (javax.swing JList JScrollPane JSplitPane JTextPane)
-           (javax.swing.event ListSelectionListener)))
+           (javax.swing JList JScrollPane JSplitPane JTextPane)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -22,6 +21,23 @@
   ([controls]
      (put-slix-prop :controls controls)))
 
+(defn set-title
+  ([sym]
+     (set-title sym *slix*))
+  ([sym slix]
+     (set-slix-title (format "%s - %s" (slix-name slix) (str sym)))))
+
+(defn get-font
+  "This should be merged into sevenri.ui."
+  []
+  (let [lge (java.awt.GraphicsEnvironment/getLocalGraphicsEnvironment)
+        pref (filter #(= (ffirst *preferred-fonts*) %)
+                     (map str (seq (.getAvailableFontFamilyNames lge))))
+        [name style size] (if (seq pref)
+                             (first *preferred-fonts*)
+                             (second *preferred-fonts*))]
+    (Font. name style size)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-more-actions-item-listener
@@ -32,26 +48,48 @@
             itm (.getItem e)]
         (when (and (= (.getStateChange e) ItemEvent/SELECTED)
                    (not (zero? (.getSelectedIndex src))))
-          (lg "gmail:" itm)
           (.setSelectedIndex src 0))))))
 
-(defn get-project-name-selection-listener
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn show-config
+  [controls project]
+  (let [cfgtxt (:config-text controls)
+        confgf (get (get-project-name-config-map) project)]
+    (.setText cfgtxt "")
+    (when (.exists confgf)
+      (doto cfgtxt
+        (.setText (slurp confgf :encoding "UTF-8"))
+        (.setCaretPosition 0)))))
+
+(defn get-project-name-item-listener
   [controls]
-  (proxy [ListSelectionListener] []
-    (valueChanged [e]
-      (let [idcs (seq (.getSelectedIndices (.getSource e)))
-            txbx (:text-box controls)]
-        (.setText txbx "")
-        (when (= (count idcs) 1)
-          (let [pname (.getSelectedValue (.getSource e))
-                nmlst (:name-list controls)
-                ncmap (.getClientProperty nmlst *name-config-map*)]
-            (when ncmap
-              (let [f (get ncmap (symbol pname))]
-                (when (.exists f)
-                  (doto txbx
-                    (.setText (slurp f :encoding "UTF-8"))
-                    (.setCaretPosition 0)))))))))))
+  (proxy [ItemListener] []
+    (itemStateChanged [e]
+      (let [frm (:frame controls)
+            slx (get-slix frm)
+            cur-proj (get-project-name frm)
+            sel-proj (symbol (.getItem e))
+            name-lst (.getSource e)
+            itmlsnrs (seq (.getItemListeners name-lst))]
+        (doseq [l itmlsnrs]
+          (.removeItemListener name-lst l))
+        ;;
+        (when (= (.getStateChange e) ItemEvent/SELECTED)
+          (.setSelectedItem name-lst (str cur-proj))
+          (if (= cur-proj sel-proj)
+            (show-config controls cur-proj)
+            ;;
+            (if-let [slx (is-project-used sel-proj)]
+              (.toFront (slix-frame slx))
+              (when-not (is-project-busy? frm)
+                (set-project-name slx sel-proj)
+                (.setSelectedItem name-lst (str sel-proj))
+                (show-config controls sel-proj)
+                (invoke-later slx #(set-title sel-proj slx))))))
+        ;;
+        (doseq [l itmlsnrs]
+          (.addItemListener name-lst l))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -60,53 +98,66 @@
   (let [frame (slix-frame)
         cpane (.getContentPane frame)
         ;;
-        opbtn (JButton. "Open")
-        mabtn (JComboBox.)
-        btnpl (JPanel. (BorderLayout.))
+        edtbt (JButton. "Edit")
+        cplbt (JButton. "Compile")
+        jarbt (JButton. "Jar")
+        btnbx (Box. BoxLayout/X_AXIS)
+        macbx (JComboBox. (into-array *more-actions*))
+        prjnl (JComboBox.)
+        toppl (JPanel. (BorderLayout.))
         ;;
-        prjnl (JList. (DefaultListModel.))
-        prjtx (JTextPane.)
-        scrpn (JScrollPane. prjtx)
-        spltr (JSplitPane. JSplitPane/VERTICAL_SPLIT true prjnl scrpn)
+        cfgtx (JTextPane.)
+        cfgpn (JPanel. (BorderLayout.))
+        cfgsp (JScrollPane. cfgpn)
+        outtx (JTextPane.)
+        outpn (JPanel. (BorderLayout.))
+        outsp (JScrollPane. outpn)
+        spltr (JSplitPane. JSplitPane/VERTICAL_SPLIT true cfgsp outsp)
         ;;
-        panel (JPanel. (BorderLayout.))
-        ctrls {:name-list prjnl :splitter spltr :text-box prjtx}]
+        ctrls {:frame frame
+               :compile cplbt
+               :jar jarbt
+               :more-actions macbx
+               :name-list prjnl
+               :config-text cfgtx
+               :output-text outtx
+               :splitter spltr}
+        ;;
+        panel (JPanel. (BorderLayout.))]
     ;;
-    (let [df (get-default :frame)
-          ds (Dimension. (:width df) (:height df))]
-      (.setMinimumSize frame ds))
+    (let [ds (Dimension. 510 320)]
+      (doto frame
+        (.setMinimumSize ds)
+        (.setPreferredSize ds)))
     ;;
-    (doseq [i ["More Actions..." "Delete..." "New..."]]
-      (.addItem mabtn i))
-    (.addItemListener mabtn (get-more-actions-item-listener ctrls))
-    (doto btnpl
-      (.add opbtn BorderLayout/WEST)
-      (.add mabtn BorderLayout/EAST))
+    (let [d (Dimension. (first *button-size*) (second *button-size*))]
+      (doseq [b [edtbt cplbt jarbt]]
+        (.setMinimumSize b d)
+        (.setMaximumSize b d)
+        (.setPreferredSize b d)
+        (.add btnbx b)))
+    (.addItemListener macbx (get-more-actions-item-listener ctrls))
+    (.addItemListener prjnl (get-project-name-item-listener ctrls))
+    (doto toppl
+      (.add btnbx BorderLayout/WEST)
+      (.add macbx BorderLayout/EAST)
+      (.add prjnl BorderLayout/SOUTH))
     ;;
-    (.addListSelectionListener prjnl (get-project-name-selection-listener ctrls))
-    (.setEditable prjtx false)
+    (let [font (get-font)]
+      (doseq [text [cfgtx outtx]]
+        (.setFont text font)
+        (.setEditable text false)))
+    (.add cfgpn cfgtx)
+    (.add outpn outtx)
     ;;
     (doto panel
       (.setBorder (BorderFactory/createLineBorder Color/lightGray 2))
-      (.add btnpl BorderLayout/NORTH)
+      (.add toppl BorderLayout/NORTH)
       (.add spltr BorderLayout/CENTER))
     ;;
     (.add cpane panel)
     (ui-panel panel)
     (ui-controls ctrls)))
-
-(defn init-ui
-  []
-  (let [controls (ui-controls)
-        name-lst (:name-list controls)
-        list-mdl (.getModel name-lst)
-        nmcnfgmp (get-project-name-config-map)]
-    (.putClientProperty name-lst *name-config-map* nmcnfgmp)
-    (.clear list-mdl)
-    (doseq [nm (sort (keys nmcnfgmp))]
-      (.addElement list-mdl (str nm)))
-    (.setDividerLocation (:splitter controls) 0.3)
-    (.setSelectedIndex name-lst 0)))
 
 (defn remove-ui
   []

@@ -9,10 +9,10 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:slix true :singleton true}
+(ns ^{:slix true}
   slix.planter
   (:use [sevenri config core event log slix ui utils]
-        [slix.planter core init ui]))
+        [slix.planter controller core init ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -22,11 +22,13 @@
   (set-slix-visible)
   (verify)
   (when (is-planter-project-ready?)
-    (init-ui)))
+    (when-let [pn (do-project-or-close *slix*)]
+      (init-ui pn))))
 
 (defn saving
   [event]
   (remove-ui)
+  (save-state *slix*)
   ;; Shut up xml encoder error msgs caused by PopupFactory that is
   ;; auto-installed by Swing when popuping ComboBox items.
   (save-dyna-listeners

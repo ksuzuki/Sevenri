@@ -14,7 +14,21 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def *button-size* [96 29])
 (def *name-config-map* "name-config-map")
+(def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
+(def *xref-planter-project* :planter-project)
+
+(def *more-actions* ["More Actions..."
+                     "Clean"
+                     "Delete..."
+                     "Deps"
+                     "Install"
+                     "New..."
+                     "Pom"
+                     "Test"
+                     "Test!"
+                     "UberJar"])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

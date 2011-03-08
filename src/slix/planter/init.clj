@@ -11,7 +11,7 @@
 
 (ns slix.planter.init
   (:use [sevenri log slix]
-        [slix.planter core defs ui])
+        [slix.planter core defs io ui])
   (:import (java.awt Cursor)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -33,6 +33,7 @@
                   msg (if bp? "succeeded" "failed")]
               (when bp?
                 (planter-project-ready true)
+                (declare init-ui)
                 (invoke-later slx #(init-ui)))
               (lg "slix.planter: verify: building the planter project" msg)))
           (let [b? (is-project-built? 'slix.planter)]
@@ -43,3 +44,20 @@
             (.setCursor frm oc)
             (when-not b?
               (close-slix slx))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn init-ui
+  [sym]
+  (let [controls (ui-controls)
+        name-lst (:name-list controls)
+        nmcnfgmp (get-project-name-config-map)]
+    (.putClientProperty name-lst *name-config-map* nmcnfgmp)
+    (.removeAllItems name-lst)
+    (doseq [nm (sort (keys nmcnfgmp))]
+      (.addItem name-lst (str nm)))
+    ;;
+    (.setSelectedItem name-lst (str sym))
+    (.setDividerLocation (:splitter controls) 0.3)
+    ;;
+    (set-title sym)))
