@@ -70,13 +70,14 @@
             slx (get-slix frm)
             cur-proj (get-project-name frm)
             sel-proj (symbol (.getItem e))
-            name-lst (.getSource e)
-            itmlsnrs (seq (.getItemListeners name-lst))]
+            prjnames (.getSource e)
+            itmlsnrs (seq (.getItemListeners prjnames))]
         (doseq [l itmlsnrs]
-          (.removeItemListener name-lst l))
+          (.removeItemListener prjnames l))
         ;;
         (when (= (.getStateChange e) ItemEvent/SELECTED)
-          (.setSelectedItem name-lst (str cur-proj))
+          #_(lg "cur-proj:" cur-proj "sel-proj:" sel-proj)
+          (.setSelectedItem prjnames (str cur-proj))
           (if (= cur-proj sel-proj)
             (show-config controls cur-proj)
             ;;
@@ -84,12 +85,12 @@
               (.toFront (slix-frame slx))
               (when-not (is-project-busy? frm)
                 (set-project-name slx sel-proj)
-                (.setSelectedItem name-lst (str sel-proj))
+                (.setSelectedItem prjnames (str sel-proj))
                 (show-config controls sel-proj)
                 (invoke-later slx #(set-title sel-proj slx))))))
         ;;
         (doseq [l itmlsnrs]
-          (.addItemListener name-lst l))))))
+          (.addItemListener prjnames l))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -103,7 +104,7 @@
         jarbt (JButton. "Jar")
         btnbx (Box. BoxLayout/X_AXIS)
         macbx (JComboBox. (into-array *more-actions*))
-        prjnl (JComboBox.)
+        prjns (JComboBox.)
         toppl (JPanel. (BorderLayout.))
         ;;
         cfgtx (JTextPane.)
@@ -118,7 +119,7 @@
                :compile cplbt
                :jar jarbt
                :more-actions macbx
-               :name-list prjnl
+               :project-names prjns
                :config-text cfgtx
                :output-text outtx
                :splitter spltr}
@@ -137,11 +138,11 @@
         (.setPreferredSize b d)
         (.add btnbx b)))
     (.addItemListener macbx (get-more-actions-item-listener ctrls))
-    (.addItemListener prjnl (get-project-name-item-listener ctrls))
+    (.addItemListener prjns (get-project-name-item-listener ctrls))
     (doto toppl
       (.add btnbx BorderLayout/WEST)
       (.add macbx BorderLayout/EAST)
-      (.add prjnl BorderLayout/SOUTH))
+      (.add prjns BorderLayout/SOUTH))
     ;;
     (let [font (get-font)]
       (doseq [text [cfgtx outtx]]

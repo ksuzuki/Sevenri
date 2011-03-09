@@ -33,30 +33,6 @@
   [frame sym]
   (set-project-name (get-slix frame) sym))
 
-;;;;
-
-
-(defn save-project-name
-  [slix]
-  (let [pn (get-project-name slix)]
-    (with-create-sn-get-dir
-      (let [sf (get-sid-slix-state-file slix)]
-        (spit sf pn :encoding "UTF-8")))))
-
-(defn load-project-name
-  [slix]
-  (let [sf (get-sid-slix-state-file slix)]
-    (when (.exists sf)
-      (slurp sf :encoding "UTF-8"))))
-
-(defn save-state
-  [slix]
-  (save-project-name slix))
-
-(defn load-state
-  [slix]
-  {:project (load-project-name slix)})
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn is-project-used
@@ -67,27 +43,9 @@
 
 (defn get-unused-project
   []
-  (when-first [pn (filter #(nil? (is-project-used %)) (sort (keys (get-project-name-config-map))))]
+  (when-first [pn (filter #(nil? (is-project-used %))
+                          (sort (keys (get-project-name-config-map))))]
     pn))
-
-(defn do-project-or-close
-  [slix]
-  (if-let [pn (:project (or (slix-args slix) (load-state slix)))]
-    (if-let [slx (is-project-used pn)]
-      (do
-        (invoke-later slx #(.toFront (slix-frame slx)))
-        (close-slix slix)
-        nil)
-      (do
-        (invoke-later slix #(.toFront (slix-frame slix)))
-        (set-project-name slix pn)))
-    (if-let [pn (get-unused-project)]
-      (do
-        (invoke-later slix #(.toFront (slix-frame slix)))
-        (set-project-name slix pn))
-      (do
-        (close-slix slix)
-        nil))))
 
 (defn is-project-busy?
   "FIX ME"

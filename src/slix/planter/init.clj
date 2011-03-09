@@ -11,7 +11,7 @@
 
 (ns slix.planter.init
   (:use [sevenri log slix]
-        [slix.planter core defs io ui])
+        [slix.planter controller core defs io ui])
   (:import (java.awt Cursor)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -47,17 +47,49 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn get-project
+  [slix]
+  (if-let [pn (:project (or (slix-args slix) (load-state slix)))]
+    (if-let [slx (is-project-used pn)]
+      (if-let [pn (get-unused-project)]
+        (set-project-name slix pn)
+        (do
+          (set-project-name slix nil)
+          (invoke-later slx #(.toFront (slix-frame slx)))
+          (close-slix slix)
+          nil))
+      (set-project-name slix pn))
+    (if-let [pn (get-unused-project)]
+      (set-project-name slix pn)
+      (let [lpn (last (keys (get-project-name-config-map)))
+            slx (is-project-used lpn)]
+        (assert (is-slix? slx))
+        (set-project-name slix nil)
+        (invoke-later slx #(.toFront (slix-frame slx)))
+        (close-slix slix)
+        nil))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn init-ui
   [sym]
-  (let [controls (ui-controls)
-        name-lst (:name-list controls)
-        nmcnfgmp (get-project-name-config-map)]
-    (.putClientProperty name-lst *name-config-map* nmcnfgmp)
-    (.removeAllItems name-lst)
+  (let [nmcnfgmp (get-project-name-config-map)
+        controls (ui-controls)
+        prjnames (:project-names controls)
+        itmlstrs (seq (.getItemListeners prjnames))]
+    (doseq [l itmlstrs]
+      (.removeItemListener prjnames l))
+    ;;
+    (.putClientProperty prjnames *name-config-map* nmcnfgmp)
+    (.removeAllItems prjnames)
     (doseq [nm (sort (keys nmcnfgmp))]
-      (.addItem name-lst (str nm)))
+      (.addItem prjnames (str nm)))
+    ;; Do this or the setSelectedItem call below won't work.
+    (.setSelectedIndex prjnames -1)
     ;;
-    (.setSelectedItem name-lst (str sym))
+    (doseq [l itmlstrs]
+      (.addItemListener prjnames l))
+    ;;
+    (.setSelectedItem prjnames (str sym))
     (.setDividerLocation (:splitter controls) 0.3)
-    ;;
     (set-title sym)))
