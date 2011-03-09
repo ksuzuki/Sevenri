@@ -16,37 +16,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn verify
-  []
-  (planter-project-ready false)
-  (if (is-project-built? 'slix.planter)
-    (planter-project-ready true)
-    (let [slx *slix*
-          frm (slix-frame)
-          ao? (alt-open-slix?)]
-      (future
-        (let [oc (.getCursor frm)]
-          (.setCursor frm Cursor/WAIT_CURSOR)
-          ;;
-          (when ao?
-            (let [bp? (build-project? 'slix.planter)
-                  msg (if bp? "succeeded" "failed")]
-              (when bp?
-                (planter-project-ready true)
-                (declare init-ui)
-                (invoke-later slx #(init-ui)))
-              (lg "slix.planter: verify: building the planter project" msg)))
-          (let [b? (is-project-built? 'slix.planter)]
-            (when-not b?
-              (log-warning "slix.planter: verify: planter project isn't ready.")
-              (Thread/sleep (* 1000 3)))
-            ;;
-            (.setCursor frm oc)
-            (when-not b?
-              (close-slix slx))))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn get-project
   [slix]
   (if-let [pn (:project (or (slix-args slix) (load-state slix)))]
@@ -93,3 +62,37 @@
     (.setSelectedItem prjnames (str sym))
     (.setDividerLocation (:splitter controls) 0.3)
     (set-title sym)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn setup-planter
+  [slix]
+  (when-let [pn (get-project slix)]
+    (create-lein-agent slix)
+    (invoke-later slix #(init-ui pn))))
+
+(defn init-planter
+  []
+  (if (is-project-built? 'slix.planter)
+    (setup-planter *slix*)
+    (let [slx *slix*
+          frm (slix-frame)
+          ao? (alt-open-slix?)]
+      (future
+        (let [oc (.getCursor frm)]
+          (.setCursor frm Cursor/WAIT_CURSOR)
+          ;;
+          (when ao?
+            (let [bp? (build-project? 'slix.planter)
+                  msg (if bp? "succeeded" "failed")]
+              (when bp?
+                (setup-planter slx))
+              (lg "slix.planter: init: building the planter project" msg)))
+          (let [b? (is-project-built? 'slix.planter)]
+            (when-not b?
+              (log-warning "slix.planter: init: planter project isn't ready.")
+              (Thread/sleep (* 1000 3)))
+            ;;
+            (.setCursor frm oc)
+            (when-not b?
+              (close-slix slx))))))))

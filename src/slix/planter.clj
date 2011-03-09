@@ -20,15 +20,12 @@
   [event]
   (add-ui)
   (set-slix-visible)
-  (verify)
-  (when (is-planter-project-ready?)
-    (when-let [pn (get-project *slix*)]
-      (init-ui pn))))
+  (init-planter))
 
 (defn saving
   [event]
-  (remove-ui)
   (save-state *slix* (get-project-name *slix*))
+  (remove-ui)
   ;; Shut up xml encoder error msgs caused by PopupFactory that is
   ;; auto-installed by Swing when popuping ComboBox items.
   (save-dyna-listeners

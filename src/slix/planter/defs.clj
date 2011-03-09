@@ -29,12 +29,3 @@
                      "Test"
                      "Test!"
                      "UberJar"])
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def *planter-project-ready* false)
-
-(defn planter-project-ready
-  [b]
-  (def *planter-project-ready* (if b true false))
-  b)
