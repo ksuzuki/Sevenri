@@ -88,6 +88,7 @@
       (doseq [text [cfgtx outtx]]
         (.setFont text font)
         (.setEditable text false)))
+    (.setText outtx "\n")
     (.add cfgpn cfgtx)
     (.add outpn outtx)
     ;;

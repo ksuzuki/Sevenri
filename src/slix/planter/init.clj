@@ -67,6 +67,12 @@
 
 (defn setup-planter
   [slix]
+  (when-not leiningen.core/*planter-init*
+    #_(lg "planter: setup-planter: reloading lancet and leiningen")
+    (require 'lancet :reload)
+    (require 'leiningen.core :reload)
+    (intern 'leiningen.core '*planter-init* true))
+  ;;
   (when-let [pn (get-project slix)]
     (create-lein-agent slix)
     (invoke-later slix #(init-ui pn))))

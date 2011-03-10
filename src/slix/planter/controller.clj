@@ -4,6 +4,21 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(when-not (find-ns 'lancet)
+  (create-ns 'lancet)
+  (intern 'lancet 'ant-project nil)
+  (intern 'lancet 'get-ant-project (fn [& args])))
+
+(when-not (find-ns 'leiningen.core)
+  (create-ns 'leiningen.core)
+  (intern 'leiningen.core '*original-pwd* "")
+  (intern 'leiningen.core '-main (fn [& args]))
+  (intern 'leiningen.core '*planter-init* false))
+
+(use 'leiningen.core)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn get-project-name
   [slix-or-frame]
   (when-let [slix (get-slix slix-or-frame)]
@@ -70,3 +85,52 @@
   [slix-or-frame task]
   (lein-agent-busy slix-or-frame)
   (send (get-lein-agent slix-or-frame) task))
+
+;;;;
+
+(defn create-lein-task
+  [slix-or-frame out-txtpn proj-name task-name & task-args]
+  (let [slix (get-slix slix-or-frame)
+        opwd (str (get-project-path (project-name-to-map proj-name)))
+        task (str task-name)
+        args (seq (map str task-args))
+        ltcl (.getContextClassLoader (Thread/currentThread))
+        [lein-baos lein-ops] (get-out-ps)
+        [ant-baos ant-ops] (get-out-ps)]
+    (fn [_]
+      (let [ct (Thread/currentThread)
+            cl (.getContextClassLoader ct)]
+        ;; Inherit the planter's class loader or lein crashes.
+        (.setContextClassLoader ct ltcl)
+        (binding [*ns* nil]
+          (in-ns 'leiningen.core)
+          (binding [*out* (java.io.OutputStreamWriter. lein-ops)
+                    *original-pwd* opwd
+                    lancet/ant-project (lancet/get-ant-project ant-ops ant-ops)]
+            (try
+              (let [result (apply -main task args)]
+                (lg "result:" result))
+              (catch Exception e
+                (log-exception e)))))
+        ;; Restore the original cl or mysterious ThreadDeath occurs.
+        (.setContextClassLoader ct cl))
+      ;;
+      (let [doc (.getDocument out-txtpn)
+            off (max 0 (dec (.getLength doc)))
+            ams (.toString ant-baos)
+            lms (.toString lein-baos)]
+        (invoke-later slix #(do
+                              (.insertString doc
+                                             off
+                                             (str "=== " proj-name ": " task " ===\n"
+                                                  "[ant output]\n" (when-not (empty? ams) ams)
+                                                  "[lein output]\n" (if (empty? lms) "\n" lms)
+                                                  "\n")
+                                             nil)
+                              (.setCaretPosition out-txtpn (max 0 (dec (.getLength doc)))))))
+      false)))
+
+(defn do-lein-compile
+  [frame out-txtpn proj-name]
+  (let [task (create-lein-task frame out-txtpn proj-name "compile")]
+    (send-task-to-lein-agent frame task)))

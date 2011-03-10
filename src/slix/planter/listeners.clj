@@ -12,8 +12,10 @@
       (let [accmd (.getActionCommand e)
             cpbtn (.getSource e)]
         (when (= accmd "Compile")
-          (let [pn (get-project-name (:frame controls))]
-            (lg "Compile" pn)))))))
+          (let [fr (:frame controls)
+                ot (:output-text controls)
+                pn (get-project-name fr)]
+            (do-lein-compile fr ot pn)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
