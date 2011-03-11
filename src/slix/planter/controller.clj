@@ -1,6 +1,8 @@
 (ns slix.planter.controller
   (:use [sevenri config log slix utils]
-        [slix.planter core defs io]))
+        [slix.planter core defs io])
+  (:import (java.io PipedInputStream PipedOutputStream PrintStream)
+           (java.io BufferedReader InputStreamReader)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -16,6 +18,14 @@
   (intern 'leiningen.core '*planter-init* false))
 
 (use 'leiningen.core)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn debug-in-repl
+  []
+  (let [ds 'slix.planter.debug]
+    (require ds)
+    (in-ns ds)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -76,8 +86,11 @@
   [slix-or-frame]
   (send (get-lein-agent slix-or-frame) (fn [_] false)))
 
+(defn force-lein-agent-free
+  [slix-or-frame]
+  (restart-agent (get-lien-agent slix-or-frame) false))
+
 (defn is-lein-agent-busy?
-  "FIX ME"
   [slix-or-frame]
   @(get-lein-agent slix-or-frame))
 
@@ -95,40 +108,54 @@
         task (str task-name)
         args (seq (map str task-args))
         ltcl (.getContextClassLoader (Thread/currentThread))
-        [lein-baos lein-ops] (get-out-ps)
-        [ant-baos ant-ops] (get-out-ps)]
+        ;;
+        ant-pos (PipedOutputStream.)
+        ant-prs (PrintStream. ant-pos)
+        ant-bfr (BufferedReader. (InputStreamReader. (PipedInputStream. ant-pos)))
+        [lein-baos lein-oprs] (get-out-ps)
+        ;;
+        doc (.getDocument out-txtpn)
+        eof (fn [d] (max 0 (dec (.getLength doc))))
+        ins (fn [s]
+              (.insertString doc (eof doc) s nil)
+              (.setCaretPosition out-txtpn (eof doc)))]
     (fn [_]
+      ;; Print a start of task msg and start an ant output msg printer.
+      (invoke-later slix #(ins (str "=== " proj-name ": " task " ===\n")))
+      (future (loop [l (.readLine ant-bfr)]
+                (if l
+                  (do
+                    (when-not (empty? l)
+                      (invoke-later slix #(ins (str l "\n"))))
+                    (recur (.readLine ant-bfr)))
+                  #_(lg "eof on ant-bfr"))))
+      ;; Run this lein task.
       (let [ct (Thread/currentThread)
             cl (.getContextClassLoader ct)]
         ;; Inherit the planter's class loader or lein crashes.
         (.setContextClassLoader ct ltcl)
         (binding [*ns* nil]
           (in-ns 'leiningen.core)
-          (binding [*out* (java.io.OutputStreamWriter. lein-ops)
+          (binding [*out* (java.io.OutputStreamWriter. lein-oprs)
                     *original-pwd* opwd
-                    lancet/ant-project (lancet/get-ant-project ant-ops ant-ops)]
+                    lancet/ant-project (lancet/get-ant-project ant-prs ant-prs)]
             (try
               (let [result (apply -main task args)]
-                (lg "result:" result))
+                #_(lg "lein result:" result))
               (catch Exception e
                 (log-exception e)))))
         ;; Restore the original cl or mysterious ThreadDeath occurs.
         (.setContextClassLoader ct cl))
-      ;;
-      (let [doc (.getDocument out-txtpn)
-            off (max 0 (dec (.getLength doc)))
-            ams (.toString ant-baos)
-            lms (.toString lein-baos)]
-        (invoke-later slix #(do
-                              (.insertString doc
-                                             off
-                                             (str "=== " proj-name ": " task " ===\n"
-                                                  "[ant output]\n" (when-not (empty? ams) ams)
-                                                  "[lein output]\n" (if (empty? lms) "\n" lms)
-                                                  "\n")
-                                             nil)
-                              (.setCaretPosition out-txtpn (max 0 (dec (.getLength doc)))))))
+      ;; Close the ant output pipe, which should end the ant output msg
+      ;; printer started above. Then print out the lein msg.
+      (.close ant-pos)
+      (let [lms (.toString lein-baos)]
+        (invoke-later slix #(ins (str (if (empty? lms) "\n" (str lms "\n"))))))
+      ;; This lein task is finished. Return false to signify the lein agent
+      ;; is NOT busy.
       false)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn do-lein-compile
   [frame out-txtpn proj-name]

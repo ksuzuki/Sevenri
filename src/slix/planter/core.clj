@@ -311,28 +311,3 @@
 (defn setup-manager?
   [_]
   (build-project? 'slix.planter))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-out-ps
-  []
-  (let [baos (java.io.ByteArrayOutputStream.)
-        ops (java.io.PrintStream. baos)]
-    [baos ops]))
-
-(defmacro def-out-ps
-  [n]
-  (let [[baos ops] (get-out-ps)
-        baosn (symbol (format "baos%d" n))
-        opsn (symbol (format "ops%d" n))]
-    `(do
-       (def ~baosn ~baos)
-       (def ~opsn ~ops))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn debug-in-repl
-  []
-  (let [ds 'slix.planter.debug]
-    (require ds)
-    (in-ns ds)))

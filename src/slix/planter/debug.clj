@@ -11,9 +11,11 @@
 
 (ns slix.planter.debug
   (:use [sevenri config core log]
-        [slix.planter core]))
+        [slix.planter core io]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def *opwd* "")
 
 (def *lbs* (java.io.ByteArrayOutputStream.))
 (def *los* (java.io.OutputStreamWriter. (java.io.PrintStream. *lbs*)))
@@ -21,7 +23,14 @@
 (def *abs* (java.io.ByteArrayOutputStream.))
 (def *aos* (java.io.PrintStream. *abs*))
 
-(def *opwd* "")
+(defmacro def-out-ps
+  [n]
+  (let [[baos ops] (get-out-ps)
+        baosn (symbol (format "baos%d" n))
+        opsn (symbol (format "ops%d" n))]
+    `(do
+       (def ~baosn ~baos)
+       (def ~opsn ~ops))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

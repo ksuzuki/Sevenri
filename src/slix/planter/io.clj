@@ -47,3 +47,10 @@
   (when-let [pn (load-project-name slix)]
     {:project pn}))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-out-ps
+  []
+  (let [baos (java.io.ByteArrayOutputStream.)
+        oprs (java.io.PrintStream. baos)]
+    [baos oprs]))
