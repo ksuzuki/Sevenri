@@ -40,6 +40,7 @@
         ;;
         edtbt (JButton. "Edit")
         cplbt (JButton. "Compile")
+        tstbt (JButton. "Test")
         jarbt (JButton. "Jar")
         btnbx (Box. BoxLayout/X_AXIS)
         macbx (JComboBox. (into-array *more-actions*))
@@ -65,18 +66,19 @@
         ;;
         panel (JPanel. (BorderLayout.))]
     ;;
-    (let [ds (Dimension. 510 320)]
+    (let [ds (Dimension. (first *min-frame-size*) (second *min-frame-size*))]
       (doto frame
         (.setMinimumSize ds)
         (.setPreferredSize ds)))
     ;;
-    (let [d (Dimension. (first *button-size*) (second *button-size*))]
-      (doseq [b [edtbt cplbt jarbt]]
+    (let [d (Dimension. (first *button-size*) (second *button-size*))
+          a (get-action-listener ctrls)]
+      (doseq [b [edtbt cplbt tstbt jarbt]]
+        (.addActionListener b a)
         (.setMinimumSize b d)
         (.setMaximumSize b d)
         (.setPreferredSize b d)
         (.add btnbx b)))
-    (.addActionListener cplbt (get-compile-listener ctrls))
     (.addItemListener macbx (get-more-actions-listener ctrls))
     (.addItemListener prjns (get-project-name-listener ctrls))
     (doto toppl

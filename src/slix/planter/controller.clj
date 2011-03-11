@@ -88,18 +88,18 @@
 
 (defn force-lein-agent-free
   [slix-or-frame]
-  (restart-agent (get-lien-agent slix-or-frame) false))
+  (restart-agent (get-lein-agent slix-or-frame) false))
 
 (defn is-lein-agent-busy?
   [slix-or-frame]
   @(get-lein-agent slix-or-frame))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn send-task-to-lein-agent
   [slix-or-frame task]
   (lein-agent-busy slix-or-frame)
   (send (get-lein-agent slix-or-frame) task))
-
-;;;;
 
 (defn create-lein-task
   [slix-or-frame out-txtpn proj-name task-name & task-args]
@@ -150,14 +150,12 @@
       ;; printer started above. Then print out the lein msg.
       (.close ant-pos)
       (let [lms (.toString lein-baos)]
-        (invoke-later slix #(ins (str (if (empty? lms) "\n" (str lms "\n"))))))
+        (invoke-later slix #(ins (str (if (empty? lms) "#\n\n" (str lms "#\n\n"))))))
       ;; This lein task is finished. Return false to signify the lein agent
       ;; is NOT busy.
       false)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn do-lein-compile
-  [frame out-txtpn proj-name]
-  (let [task (create-lein-task frame out-txtpn proj-name "compile")]
+(defn do-lein
+  [frame out-txtpn proj-name cmd]
+  (let [task (create-lein-task frame out-txtpn proj-name cmd)]
     (send-task-to-lein-agent frame task)))

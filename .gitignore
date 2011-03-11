@@ -23,12 +23,14 @@ src/library/incanter/*
 src/library/slix/incantea/data
 src/library/slix/incantea/examples
 src/library/user
-src/project/slix/planter/*.jar
-src/project/slix/planter/lib/*.jar
+src/project/*
 src/sevenri/listeners/*.class
 src/slix/ced/jvm/gui/dist/*
 src/slix/sevenri/jvm/gui/dist/*
 
 # But DONOT ignore these specific dirs and files
+!src/project/protocol.clj
+!src/projext/slix/planter/project.clj
+!src/project/slix/planter/src/slix/planter/proj.clj
 !src/slix/ced/jvm/gui/dist/gui.jar
 !src/slix/sevenri/jvm/gui/dist/gui.jar

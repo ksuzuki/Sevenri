@@ -1,23 +1,27 @@
 (ns slix.planter.listeners
   (:use [sevenri log slix ui]
-        [slix.planter core controller io])
+        [slix.planter core controller defs io])
   (:import (java.awt.event ActionListener ItemEvent ItemListener)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-compile-listener
+(defn is-lein-cmd
+  [cmd]
+  (let [cmd (.toLowerCase cmd)]
+    (get *lein-commands* cmd)))
+
+(defn get-action-listener
   [controls]
   (proxy [ActionListener] []
     (actionPerformed [e]
       (let [accmd (.getActionCommand e)
             cpbtn (.getSource e)]
-        (when (= accmd "Compile")
+        (if-let [cmd (is-lein-cmd accmd)]
           (let [fr (:frame controls)
                 ot (:output-text controls)
                 pn (get-project-name fr)]
-            (do-lein-compile fr ot pn)))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+            (do-lein fr ot pn cmd))
+          (lg accmd "not implemented yet"))))))
 
 (defn get-more-actions-listener
   [controls]
@@ -27,7 +31,13 @@
             itm (.getItem e)]
         (when (and (= (.getStateChange e) ItemEvent/SELECTED)
                    (not (zero? (.getSelectedIndex src))))
-          (.setSelectedIndex src 0))))))
+          (.setSelectedIndex src 0)
+          (if-let [cmd (is-lein-cmd itm)]
+            (let [fr (:frame controls)
+                  ot (:output-text controls)
+                  pn (get-project-name fr)]
+              (do-lein fr ot pn cmd))
+            (lg "More Action:" itm "not implemented yet")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
