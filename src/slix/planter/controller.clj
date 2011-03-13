@@ -2,19 +2,24 @@
   (:use [sevenri config log slix utils]
         [slix.planter core defs io])
   (:import (java.io PipedInputStream PipedOutputStream PrintStream)
-           (java.io BufferedReader InputStreamReader)))
+           (java.io BufferedReader File InputStreamReader)
+           (java.net URL URLClassLoader)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (when-not (find-ns 'lancet)
   (create-ns 'lancet)
-  (intern 'lancet 'ant-project nil)
-  (intern 'lancet 'get-ant-project (fn [& args])))
+  (intern 'lancet 'ant-project nil))
+
+(when-not (find-ns 'lancet.core)
+  (create-ns 'lancet.core)
+  (intern 'lancet.core 'ant-project nil))
 
 (when-not (find-ns 'leiningen.core)
   (create-ns 'leiningen.core)
   (intern 'leiningen.core '*original-pwd* "")
   (intern 'leiningen.core '-main (fn [& args]))
+  (intern 'leiningen.core 'get-ant-project (fn [& args]))
   (intern 'leiningen.core '*planter-init* false))
 
 (use 'leiningen.core)
@@ -104,10 +109,13 @@
 (defn create-lein-task
   [slix-or-frame out-txtpn proj-name task-name & task-args]
   (let [slix (get-slix slix-or-frame)
-        opwd (str (get-project-path (project-name-to-map proj-name)))
         task (str task-name)
         args (seq (map str task-args))
-        ltcl (.getContextClassLoader (Thread/currentThread))
+        ;;
+        pmap (project-name-to-map proj-name)
+        opwd (str (get-project-path pmap))
+        urls (into-array URL (map #(.toURL (.toURI (File. opwd %))) ["test/" "src/"]))
+        ltcl (URLClassLoader. urls (.getContextClassLoader (Thread/currentThread)))
         ;;
         ant-pos (PipedOutputStream.)
         ant-prs (PrintStream. ant-pos)
@@ -138,7 +146,8 @@
           (in-ns 'leiningen.core)
           (binding [*out* (java.io.OutputStreamWriter. lein-oprs)
                     *original-pwd* opwd
-                    lancet/ant-project (lancet/get-ant-project ant-prs ant-prs)]
+                    lancet/ant-project (get-ant-project ant-prs ant-prs)
+                    lancet.core/ant-project (get-ant-project ant-prs ant-prs)]
             (try
               (let [result (apply -main task args)]
                 #_(lg "lein result:" result))

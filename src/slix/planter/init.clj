@@ -70,6 +70,7 @@
   (when-not leiningen.core/*planter-init*
     #_(lg "planter: setup-planter: reloading lancet and leiningen")
     (require 'lancet :reload)
+    (require 'lancet.core :reload)
     (require 'leiningen.core :reload)
     (intern 'leiningen.core '*planter-init* true))
   ;;

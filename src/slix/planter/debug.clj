@@ -37,6 +37,7 @@
 (when (is-project-built? 'slix.planter)
   (lg "planter: debug: reloading lacet and leiningen")
   (require 'lancet :reload)
+  (require 'lancet.core :reload)
   (use 'leiningen.core :reload))
 
 (defn set-pwd
@@ -71,7 +72,8 @@
        (clear-ant-out)
        (binding [*out* *los*
                  *original-pwd* *opwd*
-                 lancet/ant-project (lancet/get-ant-project *aos* *aos*)]
+                 lancet/ant-project (get-ant-project *aos* *aos*)
+                 lancet.core/ant-project (get-ant-project *aos* *aos*)]
          (apply -main tname# args#))
        (println "=== ant output ===\n" (print-ant-out))
        (println "=== lein output ===\n" (print-lein-out)))))
