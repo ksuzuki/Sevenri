@@ -18,9 +18,10 @@
 (when-not (find-ns 'leiningen.core)
   (create-ns 'leiningen.core)
   (intern 'leiningen.core '*original-pwd* "")
+  (intern 'leiningen.core '*eval-in-lein* false)
+  (intern 'leiningen.core '*exit* false)
   (intern 'leiningen.core '-main (fn [& args]))
-  (intern 'leiningen.core 'get-ant-project (fn [& args]))
-  (intern 'leiningen.core '*planter-init* false))
+  (intern 'leiningen.core 'get-ant-project (fn [& args])))
 
 (use 'leiningen.core)
 
@@ -114,11 +115,10 @@
         ;;
         pmap (project-name-to-map proj-name)
         opwd (str (get-project-path pmap))
-        urls (into-array URL (map #(.toURL (.toURI (File. opwd %))) ["test/" "src/"]))
-        ltcl (URLClassLoader. urls (.getContextClassLoader (Thread/currentThread)))
+        ltcl (.getContextClassLoader (Thread/currentThread))
         ;;
         ant-pos (PipedOutputStream.)
-        ant-prs (PrintStream. ant-pos)
+        ant-prs (PrintStream. ant-pos true)
         ant-bfr (BufferedReader. (InputStreamReader. (PipedInputStream. ant-pos)))
         [lein-baos lein-oprs] (get-out-ps)
         ;;
@@ -133,8 +133,7 @@
       (future (loop [l (.readLine ant-bfr)]
                 (if l
                   (do
-                    (when-not (empty? l)
-                      (invoke-later slix #(ins (str l "\n"))))
+                    (invoke-later slix #(ins (str l "\n")))
                     (recur (.readLine ant-bfr)))
                   #_(lg "eof on ant-bfr"))))
       ;; Run this lein task.
@@ -142,10 +141,11 @@
             cl (.getContextClassLoader ct)]
         ;; Inherit the planter's class loader or lein crashes.
         (.setContextClassLoader ct ltcl)
-        (binding [*ns* nil]
-          (in-ns 'leiningen.core)
+        (binding [*ns* (the-ns 'leiningen.core)]
           (binding [*out* (java.io.OutputStreamWriter. lein-oprs)
                     *original-pwd* opwd
+                    *eval-in-lein* false
+                    *exit* false
                     lancet/ant-project (get-ant-project ant-prs ant-prs)
                     lancet.core/ant-project (get-ant-project ant-prs ant-prs)]
             (try
@@ -159,7 +159,7 @@
       ;; printer started above. Then print out the lein msg.
       (.close ant-pos)
       (let [lms (.toString lein-baos)]
-        (invoke-later slix #(ins (str (if (empty? lms) "#\n\n" (str lms "#\n\n"))))))
+        (invoke-later slix #(ins (str lms "#\n\n"))))
       ;; This lein task is finished. Return false to signify the lein agent
       ;; is NOT busy.
       false)))

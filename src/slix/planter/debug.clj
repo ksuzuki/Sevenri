@@ -11,7 +11,8 @@
 
 (ns slix.planter.debug
   (:use [sevenri config core log]
-        [slix.planter core io]))
+        [slix.planter core defs io]
+        [slix.planter.init :only [load-lein-core]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -35,10 +36,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (when (is-project-built? 'slix.planter)
-  (lg "planter: debug: reloading lacet and leiningen")
-  (require 'lancet :reload)
-  (require 'lancet.core :reload)
-  (use 'leiningen.core :reload))
+  (load-lein-core))
 
 (defn set-pwd
   [pwd]
@@ -72,6 +70,8 @@
        (clear-ant-out)
        (binding [*out* *los*
                  *original-pwd* *opwd*
+                 *eval-in-lein* false
+                 *exit* false
                  lancet/ant-project (get-ant-project *aos* *aos*)
                  lancet.core/ant-project (get-ant-project *aos* *aos*)]
          (apply -main tname# args#))

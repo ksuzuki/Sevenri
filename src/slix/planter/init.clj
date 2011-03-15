@@ -65,14 +65,18 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn load-lein-core
+  []
+  #_(lg "planter: setup-planter: reloading lancet and leiningen")
+  (require 'lancet :reload)
+  (require 'lancet.core :reload)
+  (require 'leiningen.core :reload)
+  (lein-core-loaded true))
+
 (defn setup-planter
   [slix]
-  (when-not leiningen.core/*planter-init*
-    #_(lg "planter: setup-planter: reloading lancet and leiningen")
-    (require 'lancet :reload)
-    (require 'lancet.core :reload)
-    (require 'leiningen.core :reload)
-    (intern 'leiningen.core '*planter-init* true))
+  (when-not (lein-core-loaded)
+    (load-lein-core))
   ;;
   (when-let [pn (get-project slix)]
     (create-lein-agent slix)

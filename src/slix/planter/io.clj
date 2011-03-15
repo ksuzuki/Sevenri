@@ -52,5 +52,5 @@
 (defn get-out-ps
   []
   (let [baos (java.io.ByteArrayOutputStream.)
-        oprs (java.io.PrintStream. baos)]
+        oprs (java.io.PrintStream. baos true)]
     [baos oprs]))

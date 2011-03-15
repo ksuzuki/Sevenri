@@ -14,6 +14,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def *lein-core-loaded* false)
+
+(defn lein-core-loaded
+  ([]
+     *lein-core-loaded*)
+  ([b]
+     (def *lein-core-loaded* b)
+     b))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (def *min-frame-size* [550 340])
 (def *button-size* [96 29])
 (def *name-config-map* "name-config-map")
