@@ -40,8 +40,6 @@
   (intern 'leiningen.core '-main (fn [& args]))
   (intern 'leiningen.core 'get-ant-project (fn [& args])))
 
-(use 'leiningen.core)
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn debug-in-repl
@@ -119,6 +117,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn is-a-jutest-task?
+  [task]
+  (if (re-matches #"^jutest.*" task)
+    true
+    false))
+
 (defn create-lein-task
   [slix-or-frame out-txtpn proj-name task-name & task-args]
   (let [slix (get-slix slix-or-frame)
@@ -138,12 +142,12 @@
                  (.insertString doc (eof doc) s a)
                  (.setCaretPosition out-txtpn (eof doc))))
         ;;
-        tocntxt (when (= task "testjnt") (create-test-output-context slix ins *attr-wrn*))
+        tocntxt (when (is-a-jutest-task? task) (create-test-output-context slix ins *attr-wrn*))
         ant-pos (PipedOutputStream.)
         ant-prs (PrintStream. ant-pos true)
         ant-bfr (BufferedReader. (InputStreamReader. (PipedInputStream. ant-pos)))
         [lein-baos lein-oprs] (get-out-ps)
-        test-summary (when (= task "testjnt") (atom {}))]
+        test-summary (when (is-a-jutest-task? task) (atom {}))]
     ;; Now carete a lein agent task.
     (fn [_]
       ;; Print a start of task msg and start an ant output msg printer.
@@ -170,10 +174,10 @@
                   leiningen.core/*eval-in-lein* false
                   leiningen.core/*exit* false
                   leiningen.core/*test-summary* test-summary
-                  lancet/ant-project (get-ant-project ant-prs ant-prs)
-                  lancet.core/ant-project (get-ant-project ant-prs ant-prs)]
+                  lancet/ant-project (leiningen.core/get-ant-project ant-prs ant-prs)
+                  lancet.core/ant-project (leiningen.core/get-ant-project ant-prs ant-prs)]
           (try
-            (let [result (apply -main task args)]
+            (let [result (apply leiningen.core/-main task args)]
               #_(lg "lein result:" result))
             (catch Exception e
               (log-exception e))))

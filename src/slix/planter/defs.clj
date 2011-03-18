@@ -32,7 +32,8 @@
 (def *xref-planter-project* :planter-project)
 
 (def *lein-commands* #{"clean" "compile" "deps" "install" "jar"
-                       "new" "pom" "test" "test!" "testjnt" "uberjar"})
+                       "jutest" "jutest!"
+                       "new" "pom" "test!" "test" "uberjar"})
 
 (def *more-actions* ["More Actions..."
                      "Clean"
@@ -44,4 +45,5 @@
                      "Test!"
                      "UberJar"])
 
-(def *command-aliases* {"test" "testjnt"})
+(def *command-aliases* {"test" "jutest"
+                        "test!" "jutest!"})

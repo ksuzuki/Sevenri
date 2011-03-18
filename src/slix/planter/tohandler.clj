@@ -38,11 +38,10 @@
   (if (re-matches re-beg-testsuite xml-element)
     (let [pkg (second (re-find #"package=\"([^\"]*)\"" xml-element))
           nme (second (re-find #"name=\"([^\"]*)\"" xml-element))
-          msg (format "%sTesting %s.%s\n" (if (:testing toctxt) "\n" "") pkg nme)]
+          msg (format "\nTesting %s.%s\n" pkg nme)]
       (when-not (empty? pkg)
         (invoke-later (:slix toctxt) #((:ins toctxt) msg)))
       (assoc toctxt
-        :testing true
         :output (str (:output toctxt) xml-element "\n")))
     ;;
     (let [s (second (re-matches re-beg-xml-element xml-element))
