@@ -75,12 +75,17 @@
 
 (defn setup-planter
   [slix]
-  (when-not (lein-core-loaded)
-    (load-lein-core))
-  ;;
-  (when-let [pn (get-project slix)]
-    (create-lein-agent slix)
-    (invoke-later slix #(init-ui pn))))
+  (let [f (slix-frame slix)
+        c (.getCursor f)]
+    (.setCursor f Cursor/WAIT_CURSOR)
+    ;;
+    (when-not (lein-core-loaded)
+      (load-lein-core))
+    (when-let [pn (get-project slix)]
+      (create-lein-agent slix)
+      (invoke-later slix #(init-ui pn)))
+    ;;
+    (.setCursor f c)))
 
 (defn init-planter
   []
