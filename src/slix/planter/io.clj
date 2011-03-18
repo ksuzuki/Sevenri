@@ -1,6 +1,6 @@
 (ns slix.planter.io
   (:use [sevenri config core log slix utils])
-  (:import (java.io File)))
+  (:import (java.io ByteArrayOutputStream PrintStream)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -51,6 +51,6 @@
 
 (defn get-out-ps
   []
-  (let [baos (java.io.ByteArrayOutputStream.)
-        oprs (java.io.PrintStream. baos true)]
+  (let [baos (ByteArrayOutputStream.)
+        oprs (PrintStream. baos true)]
     [baos oprs]))

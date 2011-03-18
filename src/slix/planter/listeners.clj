@@ -7,8 +7,8 @@
 
 (defn is-lein-cmd
   [cmd]
-  (let [cmd (.toLowerCase cmd)]
-    (get *lein-commands* cmd)))
+  (let [cmd (get *lein-commands* (.toLowerCase cmd))]
+    (or (get *command-aliases* cmd) cmd)))
 
 (defn get-action-listener
   [controls]

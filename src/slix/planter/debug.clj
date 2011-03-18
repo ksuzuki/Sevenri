@@ -18,20 +18,11 @@
 
 (def *opwd* "")
 
-(def *lbs* (java.io.ByteArrayOutputStream.))
-(def *los* (java.io.OutputStreamWriter. (java.io.PrintStream. *lbs*)))
-
 (def *abs* (java.io.ByteArrayOutputStream.))
 (def *aos* (java.io.PrintStream. *abs*))
 
-(defmacro def-out-ps
-  [n]
-  (let [[baos ops] (get-out-ps)
-        baosn (symbol (format "baos%d" n))
-        opsn (symbol (format "ops%d" n))]
-    `(do
-       (def ~baosn ~baos)
-       (def ~opsn ~ops))))
+(def *lbs* (java.io.ByteArrayOutputStream.))
+(def *los* (java.io.OutputStreamWriter. (java.io.PrintStream. *lbs* true)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -43,14 +34,6 @@
   (when (and (string? pwd) (not (empty? pwd)) (.exists (java.io.File. pwd)))
     (def *opwd* pwd)))
 
-(defn print-lein-out
-  []
-  (.toString *lbs*))
-
-(defn clear-lein-out
-  []
-  (.reset *lbs*))
-
 (defn print-ant-out
   []
   (.toString *abs*))
@@ -59,6 +42,14 @@
   []
   (.reset *abs*))
 
+(defn print-lein-out
+  []
+  (.toString *lbs*))
+
+(defn clear-lein-out
+  []
+  (.reset *lbs*))
+
 (defmacro lein
   [tname & args]
   `(let [tname# (str ~tname)
@@ -66,14 +57,14 @@
      (when (and (string? *opwd*)
                 (not (empty? *opwd*))
                 (.exists (java.io.File. *opwd*)))
-       (clear-lein-out)
        (clear-ant-out)
-       (binding [*out* *los*
-                 *original-pwd* *opwd*
-                 *eval-in-lein* false
-                 *exit* false
+       (clear-lein-out)
+       (binding [clojure.core/*out* *los*
+                 leiningen.core/*original-pwd* *opwd*
+                 leiningen.core/*eval-in-lein* false
+                 leiningen.core/*exit* false
                  lancet/ant-project (get-ant-project *aos* *aos*)
                  lancet.core/ant-project (get-ant-project *aos* *aos*)]
-         (apply -main tname# args#))
+         (apply leiningen.core/-main tname# args#))
        (println "=== ant output ===\n" (print-ant-out))
        (println "=== lein output ===\n" (print-lein-out)))))
