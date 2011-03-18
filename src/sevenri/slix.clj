@@ -501,11 +501,8 @@
   [sn]
   (let [cps (let [s (conj (get-slix-jvm-and-jar-paths sn) (get-sid-classes-dir))
                   p (get-slix-project-jar-paths sn)]
-              (if p (apply conj s p) s))
-        cpn (count cps)
-        urls (make-array URL cpn)]
-    (reduce (fn [a i] (aset a i (.toURL (.toURI (cps i)))) a) urls (range cpn))
-    (clojure.lang.DynamicClassLoader. (URLClassLoader. urls (get-base-class-loader)))))
+              (if p (apply conj s p) s))]
+    (URLClassLoader. (into-array (map #(.toURL (.toURI %)) cps)) (get-base-class-loader))))
 
 (defn load-slix-class
   [slix fqcn]
