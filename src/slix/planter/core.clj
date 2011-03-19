@@ -311,3 +311,11 @@
 (defn setup-manager?
   [_]
   (build-project? 'slix.planter))
+
+(defn shutdown-manager
+  [_]
+  (when (fn? (shutdown-lein))
+    (try
+      ((shutdown-lein))
+      (catch Exception e
+        (log-severe "planter: shutdown-manager: failed:" e)))))

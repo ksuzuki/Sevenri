@@ -14,14 +14,23 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *lein-core-loaded* false)
+(def *lein-loaded* (atom false))
 
-(defn lein-core-loaded
+(defn lein-loaded
   ([]
-     *lein-core-loaded*)
+     @*lein-loaded*)
   ([b]
-     (def *lein-core-loaded* b)
+     (reset! *lein-loaded* true)
      b))
+
+(def *shutdown-lein* nil)
+
+(defn shutdown-lein
+  ([]
+     *shutdown-lein*)
+  ([fnc]
+     (when (fn? fnc)
+       (def *shutdown-lein* fnc))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -65,13 +65,19 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn load-lein-core
+(defn load-lein
   []
-  #_(lg "planter: setup-planter: reloading lancet and leiningen")
-  (require 'lancet :reload)
-  (require 'lancet.core :reload)
-  (require 'leiningen.core :reload)
-  (lein-core-loaded true))
+  (when-not (lein-loaded)
+    #_(lg "planter: setup-planter: load-lein: loading lein")
+    (lein-loaded true)
+    (doseq [l '[lancet lancet.core leiningen.core]]
+      (require l :reload))
+    ;; For some reasons, if these libs (and org.apache modules used by them)
+    ;; were not preloaded, ClassCastException would occur when binding a fresh
+    ;; ant-project to leiningen.core/ant-project and then calling
+    ;; leiningen.core/-main.
+    (doseq [l '[compile deps install test pom]]
+      (require (symbol (str "leiningen." l))))))
 
 (defn setup-planter
   [slix]
@@ -79,8 +85,7 @@
         c (.getCursor f)]
     (.setCursor f Cursor/WAIT_CURSOR)
     ;;
-    (when-not (lein-core-loaded)
-      (load-lein-core))
+    (load-lein)
     (when-let [pn (get-project slix)]
       (create-lein-agent slix)
       (invoke-later slix #(init-ui pn)))

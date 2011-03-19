@@ -15,6 +15,7 @@
  ;; query for manager
  :ready? 'ready?
  :setup? 'setup?
+ :shutdown 'shutdown
  ;; query for project
  :exists? 'exists?
  :built? 'built?

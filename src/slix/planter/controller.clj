@@ -169,20 +169,19 @@
             cl (.getContextClassLoader ct)]
         ;; Inherit the planter's class loader or lein crashes.
         (.setContextClassLoader ct ltcl)
-        (binding [clojure.core/*out* (java.io.OutputStreamWriter. lein-oprs)
-                  leiningen.core/*original-pwd* opwd
-                  leiningen.core/*eval-in-lein* false
-                  leiningen.core/*exit* false
-                  leiningen.core/*test-summary* test-summary
-                  lancet/ant-project (leiningen.core/get-ant-project ant-prs ant-prs)
-                  lancet.core/ant-project (leiningen.core/get-ant-project ant-prs ant-prs)]
-          (try
-            (let [result (apply leiningen.core/-main task args)]
-              #_(lg "lein result:" result))
-            (catch Exception e
-              (log-exception e))))
-        ;; Restore the original cl or mysterious ThreadDeath occurs.
-        (.setContextClassLoader ct cl))
+        (let [ap (leiningen.core/get-ant-project ant-prs ant-prs)]
+          (binding [clojure.core/*out* (java.io.OutputStreamWriter. lein-oprs)
+                    lancet/ant-project ap
+                    lancet.core/ant-project ap
+                    leiningen.core/*original-pwd* opwd
+                    leiningen.core/*eval-in-lein* false
+                    leiningen.core/*exit* false
+                    leiningen.core/*test-summary* test-summary]
+            (try
+              (let [result (apply leiningen.core/-main task args)]
+                #_(lg "lein result:" result))
+              (catch Exception e
+                (log-exception e))))))
       ;; Close the ant output pipe, which should end the ant output msg
       ;; printer started above. Then print out the lein msg.
       (.close ant-pos)

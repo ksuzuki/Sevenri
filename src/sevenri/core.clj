@@ -403,18 +403,25 @@
 
 (defn setup-project-manager?
   []
-  (let [pm (get-project-manager)]
+  (when-let [pm (get-project-manager)]
     (when-not (query-project :ready? pm)
       (future
         (when-not (query-project :setup? pm)
-          (log-severe "setup-project-manager?: failed to setup projet manager:" pm))))
-    true))
+          (log-severe "setup-project-manager?: failed to setup projet manager:" pm)))))
+  true)
+
+(defn shutdown-project-manager?
+  []
+  (when-let [pm (get-project-manager)]
+    (query-project :shutdown pm))
+  true)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn shutdown-core?
   []
   (and true
+       (shutdown-project-manager?)
        (remove-sevenri-lock-file?)))
 
 (defn startup-core?

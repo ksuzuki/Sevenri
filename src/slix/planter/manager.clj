@@ -28,6 +28,19 @@
   [slix-name]
   (setup? {:slix-name slix-name}))
 
+;;;;
+
+(defmulti shutdown
+  (fn [obj] (class obj)))
+
+(defmethod shutdown clojure.lang.PersistentArrayMap
+  [m]
+  (shutdown-manager (:slix-name m)))
+
+(defmethod shutdown :default
+  [slix-name]
+  (shutdown {:slix-name slix-name}))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; query I/F for project
 
