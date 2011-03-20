@@ -143,8 +143,10 @@
 
 (defn end-repl
   [event]
-  (.stop (get-slix-prop :repl-thread))
-  (.closeIO (get-slix-prop :console)))
+  ;; CloseIO then stop repl thread to suppress unnecessary ThreadDeath
+  ;; message is left printed in repl window.
+  (.closeIO (get-slix-prop :console))
+  (.stop (get-slix-prop :repl-thread)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
