@@ -169,8 +169,10 @@
             cl (.getContextClassLoader ct)]
         ;; Inherit the planter's class loader or lein crashes.
         (.setContextClassLoader ct ltcl)
-        (let [ap (leiningen.core/get-ant-project ant-prs ant-prs)]
-          (binding [clojure.core/*out* (java.io.OutputStreamWriter. lein-oprs)
+        (let [sw (java.io.OutputStreamWriter. lein-oprs)
+              ap (leiningen.core/get-ant-project ant-prs ant-prs)]
+          (binding [clojure.core/*out* sw
+                    clojure.core/*err* sw
                     lancet/ant-project ap
                     lancet.core/ant-project ap
                     leiningen.core/*original-pwd* opwd
