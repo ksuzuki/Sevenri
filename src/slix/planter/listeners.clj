@@ -11,7 +11,7 @@
     (or (get *command-aliases* cmd) cmd)))
 
 (defn get-action-listener
-  [controls]
+  [controls set-ui-wait]
   (proxy [ActionListener] []
     (actionPerformed [e]
       (let [accmd (.getActionCommand e)
@@ -20,11 +20,11 @@
           (let [fr (:frame controls)
                 ot (:output-text controls)
                 pn (get-project-name fr)]
-            (do-lein fr ot pn cmd))
+            (do-lein fr ot pn cmd set-ui-wait))
           (lg accmd "not implemented yet"))))))
 
 (defn get-more-actions-listener
-  [controls]
+  [controls set-ui-wait]
   (proxy [ItemListener] []
     (itemStateChanged [e]
       (let [src (.getSource e)
@@ -36,7 +36,7 @@
             (let [fr (:frame controls)
                   ot (:output-text controls)
                   pn (get-project-name fr)]
-              (do-lein fr ot pn cmd))
+              (do-lein fr ot pn cmd set-ui-wait))
             (lg "More Action:" itm "not implemented yet")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -52,7 +52,7 @@
         (.setCaretPosition 0)))))
 
 (defn get-project-name-listener
-  [controls]
+  [controls set-title]
   (proxy [ItemListener] []
     (itemStateChanged [e]
       (let [frm (:frame controls)

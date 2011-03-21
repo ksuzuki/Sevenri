@@ -36,6 +36,7 @@
 
 (def *min-frame-size* [550 340])
 (def *button-size* [96 29])
+(def *cursor* "cursor")
 (def *name-config-map* "name-config-map")
 (def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
 (def *xref-planter-project* :planter-project)

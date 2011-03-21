@@ -50,45 +50,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-project-name
-  [slix-or-frame]
-  (when-let [slix (get-slix slix-or-frame)]
-    (when-let [kvs (xref-with slix)]
-      (when-first [kv (filter #(= (first %) *xref-planter-project*) kvs)]
-        (second kv)))))
-
-(defn set-project-name
-  [slix-or-frame sym]
-  (when-let [slix (get-slix slix-or-frame)]
-    (add-to-xref slix *xref-planter-project* sym)
-    sym))
-
-(defn set-title
-  ([sym]
-     (set-title sym *slix*))
-  ([sym slix]
-     (set-slix-title (format "%s - %s" (slix-name slix) (str sym)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn is-project-used
-  [sym]
-  (when-let [kvs (xref-with sym)]
-    (when-first [kv (filter #(= (second %) *xref-planter-project*) kvs)]
-      (first kv))))
-
-(defn get-unused-project
-  []
-  (when-first [pn (filter #(nil? (is-project-used %))
-                          (sort (keys (get-project-name-config-map))))]
-    pn))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn create-lein-agent
   [slix-or-frame]
   (if-let [slix (get-slix slix-or-frame)]
-    (put-slix-prop slix :lein-agent (agent false))
+    (put-slix-prop slix :lein-agent (agent nil))
     (throw (IllegalArgumentException. "neither slix or frame"))))
 
 (defn get-lein-agent
@@ -99,21 +64,13 @@
       (throw (IllegalStateException. "no lein-agent")))
     (throw (IllegalArgumentException. "neither slix or frame"))))
 
-(defn lein-agent-busy
-  [slix-or-frame]
-  (send (get-lein-agent slix-or-frame) (fn [_] true)))
-
-(defn lein-agent-free
-  [slix-or-frame]
-  (send (get-lein-agent slix-or-frame) (fn [_] false)))
-
-(defn force-lein-agent-free
-  [slix-or-frame]
-  (restart-agent (get-lein-agent slix-or-frame) false))
-
 (defn is-lein-agent-busy?
   [slix-or-frame]
-  @(get-lein-agent slix-or-frame))
+  (not (nil? @(get-lein-agent slix-or-frame))))
+
+(defn restart-lein-agent
+  [slix-or-frame]
+  (restart-agent (get-lein-agent slix-or-frame) nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -124,7 +81,7 @@
     false))
 
 (defn create-lein-task
-  [slix-or-frame out-txtpn proj-name task-name & task-args]
+  [slix-or-frame tid out-txtpn proj-name task-name set-ui-wait & task-args]
   (let [slix (get-slix slix-or-frame)
         task (str task-name)
         args (seq (map str task-args))
@@ -149,66 +106,74 @@
         [lein-baos lein-oprs] (get-out-ps)
         test-summary (when (is-a-jutest-task? task) (atom {}))]
     ;; Now carete a lein agent task.
-    (fn [_]
-      ;; Print a start of task msg and start an ant output msg printer.
-      (invoke-later slix #(ins (str "=== " proj-name ": " task " ===\n") *attr-hdr*))
-      (future (loop [t tocntxt
-                     l (.readLine ant-bfr)]
-                (if l
-                  (if t
-                    (recur (handle-test-output l t) (.readLine ant-bfr))
+    (fn [id]
+      ;; Perform the task only when the preset task id matches.
+      (when (= id tid)
+        ;; Disable UI controls and show the wait cursor.
+        (set-ui-wait slix-or-frame true)
+        ;; Print a start of task msg and start an ant output msg printer.
+        (invoke-later slix #(ins (str "=== " proj-name ": " task " ===\n") *attr-hdr*))
+        (future (loop [t tocntxt
+                       l (.readLine ant-bfr)]
+                  (if l
+                    (if t
+                      (recur (handle-test-output l t) (.readLine ant-bfr))
+                      (do
+                        (invoke-later slix #(ins (str l "\n")))
+                        (recur t (.readLine ant-bfr))))
                     (do
-                      (invoke-later slix #(ins (str l "\n")))
-                      (recur t (.readLine ant-bfr))))
-                  (do
-                    #_(lg "eof on ant-bfr")
-                    #_(lg "output:" (when t (:output t)))))
-                ))
-      ;; Run this lein task.
-      (let [ct (Thread/currentThread)
-            cl (.getContextClassLoader ct)]
-        ;; Inherit the planter's class loader or lein crashes.
-        (.setContextClassLoader ct ltcl)
-        (let [sw (java.io.OutputStreamWriter. lein-oprs)
-              ap (leiningen.core/get-ant-project ant-prs ant-prs)]
-          (binding [clojure.core/*out* sw
-                    clojure.core/*err* sw
-                    lancet/ant-project ap
-                    lancet.core/ant-project ap
-                    leiningen.core/*original-pwd* opwd
-                    leiningen.core/*eval-in-lein* false
-                    leiningen.core/*exit* false
-                    leiningen.core/*test-summary* test-summary]
-            (try
-              (let [result (apply leiningen.core/-main task args)]
-                #_(lg "lein result:" result))
-              (catch Exception e
-                (log-exception e))))))
-      ;; Close the ant output pipe, which should end the ant output msg
-      ;; printer started above. Then print out the lein msg.
-      (.close ant-pos)
-      ;; Print test summary, if any.
-      (when test-summary
-        (let [ts @test-summary
-              s1 (str "\nRan " (:test ts) " tests containing "
-                      (+ (:pass ts) (:fail ts) (:error ts)) " assertions.\n")
-              s2 (str (:fail ts) " failures, " (:error ts) " errors.\n")
-              at (if (or (pos? (:fail ts)) (pos? (:error ts))) *attr-wrn* *attr-ok*)]
-          (invoke-later slix #(ins s1))
-          (invoke-later slix #(ins s2 at))
-          #_(lg "test summary:" ts)))
-      (let [lms (.toString lein-baos)]
-        (invoke-later slix #(ins (str lms "#\n\n"))))
-      ;; This lein task is finished. Return false to signify the lein agent
-      ;; is NOT busy.
-      false)))
+                      #_(lg "eof on ant-bfr")
+                      #_(lg "output:" (when t (:output t)))))
+                  ))
+        ;; Run this lein task.
+        (let [ct (Thread/currentThread)
+              cl (.getContextClassLoader ct)]
+          ;; Inherit the planter's class loader or lein crashes.
+          (.setContextClassLoader ct ltcl)
+          (let [sw (java.io.OutputStreamWriter. lein-oprs)
+                ap (leiningen.core/get-ant-project ant-prs ant-prs)]
+            (binding [clojure.core/*out* sw
+                      clojure.core/*err* sw
+                      lancet/ant-project ap
+                      lancet.core/ant-project ap
+                      leiningen.core/*original-pwd* opwd
+                      leiningen.core/*eval-in-lein* false
+                      leiningen.core/*exit* false
+                      leiningen.core/*test-summary* test-summary]
+              (try
+                (let [result (apply leiningen.core/-main task args)]
+                  #_(lg "lein result:" result))
+                (catch Exception e
+                  (log-exception e))))))
+        ;; Close the ant output pipe, which should end the ant output msg
+        ;; printer started above. Then print out the lein msg.
+        (.close ant-pos)
+        ;; Print test summary, if any.
+        (when test-summary
+          (let [ts @test-summary
+                s1 (str "\nRan " (:test ts) " tests containing "
+                        (+ (:pass ts) (:fail ts) (:error ts)) " assertions.\n")
+                s2 (str (:fail ts) " failures, " (:error ts) " errors.\n")
+                at (if (or (pos? (:fail ts)) (pos? (:error ts))) *attr-wrn* *attr-ok*)]
+            (invoke-later slix #(ins s1))
+            (invoke-later slix #(ins s2 at))
+            #_(lg "test summary:" ts)))
+        (let [lms (.toString lein-baos)]
+          (invoke-later slix #(ins (str lms "#\n\n"))))
+        ;; This lein task is finished. Return nil to signify the lein agent
+        ;; is NOT busy after enabling UI controls.
+        (set-ui-wait slix-or-frame false)
+        nil))))
 
 (defn send-task-to-lein-agent
-  [slix-or-frame task]
-  (lein-agent-busy slix-or-frame)
-  (send (get-lein-agent slix-or-frame) task))
+  [slix-or-frame tid task]
+  (let [la (get-lein-agent slix-or-frame)]
+    (doto la
+      (send (fn [id] (or id tid)))
+      (send task))))
 
 (defn do-lein
-  [frame out-txtpn proj-name cmd]
-  (let [task (create-lein-task frame out-txtpn proj-name cmd)]
-    (send-task-to-lein-agent frame task)))
+  [frame out-txtpn proj-name cmd set-ui-wait]
+  (let [tid (gensym)
+        task (create-lein-task frame tid out-txtpn proj-name cmd set-ui-wait)]
+    (send-task-to-lein-agent frame tid task)))

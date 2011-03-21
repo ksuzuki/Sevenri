@@ -1,7 +1,7 @@
 (ns slix.planter.ui
   (:use [sevenri config log slix ui]
-        [slix.planter controller defs io listeners])
-  (:import (java.awt BorderLayout Color Dimension Font)
+        [slix.planter defs io listeners])
+  (:import (java.awt BorderLayout Color Cursor Dimension Font)
            (javax.swing BorderFactory Box BoxLayout JPanel)
            (javax.swing JButton JComboBox)
            (javax.swing JList JScrollPane JSplitPane JTextPane)))
@@ -20,6 +20,17 @@
   ([controls]
      (put-slix-prop :controls controls)))
 
+(defn enable-controls
+  ([slix-or-frame]
+     (enable-controls slix-or-frame true))
+  ([slix-or-frame enable?]
+     (let [slix (get-slix slix-or-frame)
+           ctrls (get-slix-prop slix :controls)]
+       (doseq [c (map #(get ctrls %) [:edit :compile :test :jar :more-actions :project-names])]
+         (.setEnabled c enable?)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn get-font
   "This should be merged into sevenri.ui."
   []
@@ -30,6 +41,36 @@
                              (first *preferred-fonts*)
                              (second *preferred-fonts*))]
     (Font. name style size)))
+
+(defn set-title
+  ([sym]
+     (set-title sym *slix*))
+  ([sym slix]
+     (set-slix-title (format "%s - %s" (slix-name slix) (str sym)))))
+
+(defn set-cursor
+  ([slix-or-frame]
+     (let [slx (get-slix slix-or-frame)
+           frm (slix-frame slx)
+           rpn (.getRootPane frm)
+           csr (.getClientProperty rpn *cursor*)]
+       (set-cursor slx (or csr Cursor/DEFAULT_CURSOR))))
+  ([slix-or-frame cursor]
+     (let [slx (get-slix slix-or-frame)
+           frm (slix-frame slx)
+           rpn (.getRootPane frm)
+           csr (.getCursor frm)]
+       (.setCursor frm cursor)
+       (.putClientProperty rpn *cursor* csr))))
+
+(defn set-ui-wait
+  ([slix-or-frame]
+     (set-ui-wait true))
+  ([slix-or-frame wait?]
+     (enable-controls slix-or-frame (not wait?))
+     (if wait?
+       (set-cursor slix-or-frame Cursor/WAIT_CURSOR)
+       (set-cursor slix-or-frame))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -56,7 +97,9 @@
         spltr (JSplitPane. JSplitPane/VERTICAL_SPLIT true cfgsp outsp)
         ;;
         ctrls {:frame frame
+               :edit edtbt
                :compile cplbt
+               :test tstbt
                :jar jarbt
                :more-actions macbx
                :project-names prjns
@@ -72,15 +115,15 @@
         (.setPreferredSize ds)))
     ;;
     (let [d (Dimension. (first *button-size*) (second *button-size*))
-          a (get-action-listener ctrls)]
+          a (get-action-listener ctrls set-ui-wait)]
       (doseq [b [edtbt cplbt tstbt jarbt]]
         (.addActionListener b a)
         (.setMinimumSize b d)
         (.setMaximumSize b d)
         (.setPreferredSize b d)
         (.add btnbx b)))
-    (.addItemListener macbx (get-more-actions-listener ctrls))
-    (.addItemListener prjns (get-project-name-listener ctrls))
+    (.addItemListener macbx (get-more-actions-listener ctrls set-ui-wait))
+    (.addItemListener prjns (get-project-name-listener ctrls set-title))
     (doto toppl
       (.add btnbx BorderLayout/WEST)
       (.add macbx BorderLayout/EAST)

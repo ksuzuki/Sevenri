@@ -11,7 +11,7 @@
 
 (ns slix.planter.core
   (:use [sevenri config core log slix utils]
-        [slix.planter defs]
+        [slix.planter defs io]
         clojure.java.shell)
   (:import [java.io File FileFilter]))
 
@@ -319,3 +319,32 @@
       ((shutdown-lein))
       (catch Exception e
         (log-severe "planter: shutdown-manager: failed:" e)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-project-name
+  [slix-or-frame]
+  (when-let [slix (get-slix slix-or-frame)]
+    (when-let [kvs (xref-with slix)]
+      (when-first [kv (filter #(= (first %) *xref-planter-project*) kvs)]
+        (second kv)))))
+
+(defn set-project-name
+  [slix-or-frame sym]
+  (when-let [slix (get-slix slix-or-frame)]
+    (add-to-xref slix *xref-planter-project* sym)
+    sym))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn is-project-used
+  [sym]
+  (when-let [kvs (xref-with sym)]
+    (when-first [kv (filter #(= (second %) *xref-planter-project*) kvs)]
+      (first kv))))
+
+(defn get-unused-project
+  []
+  (when-first [pn (filter #(nil? (is-project-used %))
+                          (sort (keys (get-project-name-config-map))))]
+    pn))
