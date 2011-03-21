@@ -39,6 +39,7 @@
 (def *cursor* "cursor")
 (def *name-config-map* "name-config-map")
 (def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
+(def *slix-planter-project* 'slix.planter)
 (def *xref-planter-project* :planter-project)
 
 (def *lein-commands* #{"clean" "compile" "deps" "install" "jar"

@@ -21,7 +21,7 @@
                 ot (:output-text controls)
                 pn (get-project-name fr)]
             (do-lein fr ot pn cmd set-ui-wait))
-          (lg accmd "not implemented yet"))))))
+          (log-warning "planter: is-lein-cmd: unknown command:" accmd))))))
 
 (defn get-more-actions-listener
   [controls set-ui-wait]
@@ -37,7 +37,8 @@
                   ot (:output-text controls)
                   pn (get-project-name fr)]
               (do-lein fr ot pn cmd set-ui-wait))
-            (lg "More Action:" itm "not implemented yet")))))))
+            (when-first [cmd (filter #(= itm %) *more-actions*)]
+              (do-command controls set-ui-wait cmd))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -76,7 +77,7 @@
                 (set-project-name slx sel-proj)
                 (.setSelectedItem prjnames (str sel-proj))
                 (show-config controls sel-proj)
-                (invoke-later slx #(set-title sel-proj slx))))))
+                (invoke-later slx #(set-title slx sel-proj))))))
         ;;
         (doseq [l itmlsnrs]
           (.addItemListener prjnames l))))))

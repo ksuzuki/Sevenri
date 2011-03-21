@@ -288,8 +288,6 @@
       (is-project-built? sym))
     false))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn build-slix-project-and-run
   [fqsn nm args]
   (if (build-project? fqsn)
@@ -348,3 +346,11 @@
   (when-first [pn (filter #(nil? (is-project-used %))
                           (sort (keys (get-project-name-config-map))))]
     pn))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn delete-project
+  [sym]
+  (let [pdir (get-project-path sym)]
+    (when (.exists pdir)
+      (trash-dir? pdir pdir))))

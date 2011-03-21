@@ -5,6 +5,7 @@
            (java.io PipedInputStream PipedOutputStream PrintStream)
            (java.io BufferedReader File InputStreamReader)
            (java.net URL URLClassLoader)
+           (javax.swing JOptionPane)
            (javax.swing.text SimpleAttributeSet StyleConstants)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -87,7 +88,9 @@
         args (seq (map str task-args))
         ;;
         pmap (project-name-to-map proj-name)
-        opwd (str (get-project-path pmap))
+        opwd (str (if (= task "new")
+                    (get-project-parent-path pmap)
+                    (get-project-path pmap)))
         ltcl (.getContextClassLoader (Thread/currentThread))
         ;;
         doc (.getDocument out-txtpn)
@@ -109,61 +112,67 @@
     (fn [id]
       ;; Perform the task only when the preset task id matches.
       (when (= id tid)
-        ;; Disable UI controls and show the wait cursor.
-        (set-ui-wait slix-or-frame true)
-        ;; Print a start of task msg and start an ant output msg printer.
-        (invoke-later slix #(ins (str "=== " proj-name ": " task " ===\n") *attr-hdr*))
-        (future (loop [t tocntxt
-                       l (.readLine ant-bfr)]
-                  (if l
-                    (if t
-                      (recur (handle-test-output l t) (.readLine ant-bfr))
+        (try
+          ;; Disable the UI and show the wait cursor.
+          (set-ui-wait slix-or-frame)
+          ;; Print a start of task msg and start an ant output msg printer.
+          (invoke-later slix #(ins (str "=== " proj-name ": " task " ===\n") *attr-hdr*))
+          (future (loop [t tocntxt
+                         l (.readLine ant-bfr)]
+                    (if l
+                      (if t
+                        (recur (handle-test-output l t) (.readLine ant-bfr))
+                        (do
+                          (invoke-later slix #(ins (str l "\n")))
+                          (recur t (.readLine ant-bfr))))
                       (do
-                        (invoke-later slix #(ins (str l "\n")))
-                        (recur t (.readLine ant-bfr))))
-                    (do
-                      #_(lg "eof on ant-bfr")
-                      #_(lg "output:" (when t (:output t)))))
-                  ))
-        ;; Run this lein task.
-        (let [ct (Thread/currentThread)
-              cl (.getContextClassLoader ct)]
-          ;; Inherit the planter's class loader or lein crashes.
-          (.setContextClassLoader ct ltcl)
-          (let [sw (java.io.OutputStreamWriter. lein-oprs)
-                ap (leiningen.core/get-ant-project ant-prs ant-prs)]
-            (binding [clojure.core/*out* sw
-                      clojure.core/*err* sw
-                      lancet/ant-project ap
-                      lancet.core/ant-project ap
-                      leiningen.core/*original-pwd* opwd
-                      leiningen.core/*eval-in-lein* false
-                      leiningen.core/*exit* false
-                      leiningen.core/*test-summary* test-summary]
-              (try
-                (let [result (apply leiningen.core/-main task args)]
-                  #_(lg "lein result:" result))
-                (catch Exception e
-                  (log-exception e))))))
-        ;; Close the ant output pipe, which should end the ant output msg
-        ;; printer started above. Then print out the lein msg.
-        (.close ant-pos)
-        ;; Print test summary, if any.
-        (when test-summary
-          (let [ts @test-summary
-                s1 (str "\nRan " (:test ts) " tests containing "
-                        (+ (:pass ts) (:fail ts) (:error ts)) " assertions.\n")
-                s2 (str (:fail ts) " failures, " (:error ts) " errors.\n")
-                at (if (or (pos? (:fail ts)) (pos? (:error ts))) *attr-wrn* *attr-ok*)]
-            (invoke-later slix #(ins s1))
-            (invoke-later slix #(ins s2 at))
-            #_(lg "test summary:" ts)))
-        (let [lms (.toString lein-baos)]
-          (invoke-later slix #(ins (str lms "#\n\n"))))
-        ;; This lein task is finished. Return nil to signify the lein agent
-        ;; is NOT busy after enabling UI controls.
-        (set-ui-wait slix-or-frame false)
-        nil))))
+                        #_(lg "eof on ant-bfr")
+                        #_(lg "output:" (when t (:output t)))))
+                    ))
+          ;; Run this lein task.
+          (let [ct (Thread/currentThread)
+                cl (.getContextClassLoader ct)]
+            ;; Inherit the planter's class loader or lein crashes.
+            (.setContextClassLoader ct ltcl)
+            (let [sw (java.io.OutputStreamWriter. lein-oprs)
+                  ap (leiningen.core/get-ant-project ant-prs ant-prs)]
+              (binding [clojure.core/*out* sw
+                        clojure.core/*err* sw
+                        lancet/ant-project ap
+                        lancet.core/ant-project ap
+                        leiningen.core/*original-pwd* opwd
+                        leiningen.core/*eval-in-lein* false
+                        leiningen.core/*exit* false
+                        leiningen.core/*test-summary* test-summary]
+                (try
+                  (let [result (apply leiningen.core/-main task args)]
+                    #_(lg "lein result:" result))
+                  (catch Exception e
+                    (log-exception e))))))
+          ;; Close the ant output pipe, which should end the ant output msg
+          ;; printer started above. Then print out the lein msg.
+          (.close ant-pos)
+          ;; Print test summary, if any.
+          (when test-summary
+            (let [ts @test-summary
+                  s1 (str "\nRan " (:test ts) " tests containing "
+                          (+ (:pass ts) (:fail ts) (:error ts)) " assertions.\n")
+                  s2 (str (:fail ts) " failures, " (:error ts) " errors.\n")
+                  at (if (or (pos? (:fail ts)) (pos? (:error ts))) *attr-wrn* *attr-ok*)]
+              (invoke-later slix #(ins s1))
+              (invoke-later slix #(ins s2 at))
+              #_(lg "test summary:" ts)))
+          (let [lms (.toString lein-baos)]
+            (invoke-later slix #(ins (str lms "#\n\n"))))
+          ;; Enable the UI, set the original cursor back, and update project
+          ;; name if necessary.
+          (set-ui-wait slix-or-frame false (if (= task "new") proj-name nil))
+          ;; This lein task is finished. Return nil to signify the lein agent
+          ;; is NOT busy.
+          nil
+          (catch Exception e
+            (log-exception e)
+            nil))))))
 
 (defn send-task-to-lein-agent
   [slix-or-frame tid task]
@@ -177,3 +186,74 @@
   (let [tid (gensym)
         task (create-lein-task frame tid out-txtpn proj-name cmd set-ui-wait)]
     (send-task-to-lein-agent frame tid task)))
+
+(defn do-lein-new
+  [frame out-txtpn proj-name set-ui-wait]
+  (let [pmap (project-name-to-map proj-name)
+        pdir (get-project-parent-path pmap)]
+    (if (.exists (get-project-path pmap))
+      (let [msg (str proj-name " exists already.")
+            ttl "Project exists"]
+        (JOptionPane/showMessageDialog frame msg ttl JOptionPane/OK_OPTION))
+      (if (or (.exists pdir) (and (.mkdirs pdir) (.exists pdir)))
+        (let [tid (gensym)
+              task (create-lein-task frame tid out-txtpn proj-name 'new set-ui-wait (:name pmap))]
+          (send-task-to-lein-agent frame tid task))
+        (let [msg (str "Cannot create project directory:\n" pdir)
+              ttl "Cannot Create Project Directory"]
+          (JOptionPane/showMessageDialog frame msg ttl JOptionPane/YES_OPTION))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmulti do-command
+  (fn [controls set-ui-wait command]
+    (cond
+     (= command "Delete...") :delete
+     (= command "New...") :new
+     :else :default)))
+
+(defmethod do-command :default
+  [_ _ command]
+  (log-warning "planter: do-command: not implemented:" command))
+
+(defmethod do-command :delete
+  [controls set-ui-wait _]
+  (let [prj-name (symbol (.getSelectedItem (:project-names controls)))
+        conf-frm (:frame controls)
+        conf-msg (if (= prj-name *slix-planter-project*)
+                   (str prj-name " is a Sevenri system project\nand cannot be deleted.")
+                   (str "OK to delete " prj-name "?"))
+        conf-ttl (if (= prj-name *slix-planter-project*)
+                    "Cannot Delete Project"
+                    "Deleting Project")
+        response (if (= prj-name *slix-planter-project*)
+                   (JOptionPane/showMessageDialog conf-frm conf-msg conf-ttl
+                                                  JOptionPane/YES_OPTION)
+                   (JOptionPane/showConfirmDialog conf-frm conf-msg conf-ttl
+                                                  JOptionPane/YES_NO_CANCEL_OPTION))]
+    (when (and (not= prj-name *slix-planter-project*)
+               (= response JOptionPane/YES_OPTION))
+      (set-ui-wait conf-frm)
+      (delete-project prj-name)
+      (set-ui-wait conf-frm false :delete))))
+        
+(defmethod do-command :new
+  [controls set-ui-wait _]
+  (let [frame (:frame controls)
+        idmsg (str "New Project Name:")
+        idttl "New Project"
+        prj-name (JOptionPane/showInputDialog frame idmsg idttl
+                                              JOptionPane/PLAIN_MESSAGE)]
+    (when-not (empty? prj-name)
+      (let [out-txtpn (:output-text controls)
+            safe-prj-name (safesymstr prj-name)]
+        (if (= prj-name safe-prj-name)
+          (do-lein-new frame out-txtpn safe-prj-name set-ui-wait)
+          (let [cdmsg (str prj-name
+                           " contains invalid project name character(s)\n"
+                           "and this name is used instead:\n" safe-prj-name)
+                cdttl "New Project Name"
+                rspns (JOptionPane/showConfirmDialog frame cdmsg cdttl
+                                                     JOptionPane/YES_NO_CANCEL_OPTION)]
+            (when (= rspns JOptionPane/YES_OPTION)
+              (do-lein-new frame out-txtpn safe-prj-name set-ui-wait))))))))

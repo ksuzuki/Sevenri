@@ -40,31 +40,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn init-ui
-  [sym]
-  (let [nmcnfgmp (get-project-name-config-map)
-        controls (ui-controls)
-        prjnames (:project-names controls)
-        itmlstrs (seq (.getItemListeners prjnames))]
-    (doseq [l itmlstrs]
-      (.removeItemListener prjnames l))
-    ;;
-    (.putClientProperty prjnames *name-config-map* nmcnfgmp)
-    (.removeAllItems prjnames)
-    (doseq [nm (sort (keys nmcnfgmp))]
-      (.addItem prjnames (str nm)))
-    ;; Do this or the setSelectedItem call below won't work.
-    (.setSelectedIndex prjnames -1)
-    ;;
-    (doseq [l itmlstrs]
-      (.addItemListener prjnames l))
-    ;;
-    (.setSelectedItem prjnames (str sym))
-    (.setDividerLocation (:splitter controls) 0.3)
-    (set-title sym)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn load-lein
   []
   (when-not (lein-loaded)
@@ -88,7 +63,7 @@
     (load-lein)
     (when-let [pn (get-project slix)]
       (create-lein-agent slix)
-      (invoke-later slix #(init-ui pn)))
+      (invoke-later slix #(init-ui slix pn)))
     ;;
     (.setCursor f c)))
 
