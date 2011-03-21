@@ -46,6 +46,8 @@
                        "jutest" "jutest!"
                        "new" "pom" "test!" "test" "uberjar"})
 
+(def *standard-actions* ["Edit"])
+
 (def *more-actions* ["More Actions..."
                      "Clean"
                      "Delete..."

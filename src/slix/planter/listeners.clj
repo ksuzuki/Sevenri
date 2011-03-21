@@ -21,7 +21,8 @@
                 ot (:output-text controls)
                 pn (get-project-name fr)]
             (do-lein fr ot pn cmd set-ui-wait))
-          (log-warning "planter: is-lein-cmd: unknown command:" accmd))))))
+          (when-first [cmd (filter #(= accmd %) *standard-actions*)]
+            (do-command controls set-ui-wait cmd)))))))
 
 (defn get-more-actions-listener
   [controls set-ui-wait]

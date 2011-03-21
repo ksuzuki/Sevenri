@@ -1,9 +1,9 @@
 (ns slix.planter.controller
   (:use [sevenri config log slix utils]
         [slix.planter core defs io tohandler])
-  (:import (java.awt Color)
+  (:import (java.awt Color FileDialog)
            (java.io PipedInputStream PipedOutputStream PrintStream)
-           (java.io BufferedReader File InputStreamReader)
+           (java.io BufferedReader File FilenameFilter InputStreamReader)
            (java.net URL URLClassLoader)
            (javax.swing JOptionPane)
            (javax.swing.text SimpleAttributeSet StyleConstants)))
@@ -222,6 +222,7 @@
 (defmulti do-command
   (fn [controls set-ui-wait command]
     (cond
+     (= command "Edit") :edit
      (= command "Delete...") :delete
      (= command "New...") :new
      :else :default)))
@@ -229,6 +230,24 @@
 (defmethod do-command :default
   [_ _ command]
   (log-warning "planter: do-command: not implemented:" command))
+
+(defmethod do-command :edit
+  [controls _ _]
+  (let [frm (:frame controls)
+        prn (.getSelectedItem (:project-names controls))
+        dlg (FileDialog. frm "Open Project File" FileDialog/LOAD)
+        flt (proxy [FilenameFilter] []
+              (accept [dir name]
+                (if (re-find #"(.*)\.clj$" name)
+                  true
+                  false)))]
+    (doto dlg
+      (.setDirectory (str (get-project-path prn)))
+      (.setFilenameFilter flt)
+      (.show))
+    (when-let [f (.getFile dlg)]
+      (let [fp (File. (.getDirectory dlg) (str f))]
+        (open-slix-with-args {:file fp} 'ced)))))
 
 (defmethod do-command :delete
   [controls set-ui-wait _]
