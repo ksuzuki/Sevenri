@@ -115,61 +115,75 @@
         (try
           ;; Disable the UI and show the wait cursor.
           (set-ui-wait slix-or-frame)
-          ;; Print a start of task msg and start an ant output msg printer.
+          ;; Print a start of task msg and start an ant msg printer.
           (invoke-later slix #(ins (str "=== " proj-name ": " task " ===\n") *attr-hdr*))
-          (future (loop [t tocntxt
-                         l (.readLine ant-bfr)]
-                    (if l
-                      (if t
-                        (recur (handle-test-output l t) (.readLine ant-bfr))
-                        (do
-                          (invoke-later slix #(ins (str l "\n")))
-                          (recur t (.readLine ant-bfr))))
-                      (do
-                        #_(lg "eof on ant-bfr")
-                        #_(lg "output:" (when t (:output t)))))
-                    ))
-          ;; Run this lein task.
-          (let [ct (Thread/currentThread)
-                cl (.getContextClassLoader ct)]
-            ;; Inherit the planter's class loader or lein crashes.
-            (.setContextClassLoader ct ltcl)
-            (let [sw (java.io.OutputStreamWriter. lein-oprs)
-                  ap (leiningen.core/get-ant-project ant-prs ant-prs)]
-              (binding [clojure.core/*out* sw
-                        clojure.core/*err* sw
-                        lancet/ant-project ap
-                        lancet.core/ant-project ap
-                        leiningen.core/*original-pwd* opwd
-                        leiningen.core/*eval-in-lein* false
-                        leiningen.core/*exit* false
-                        leiningen.core/*test-summary* test-summary]
-                (try
-                  (let [result (apply leiningen.core/-main task args)]
-                    #_(lg "lein result:" result))
-                  (catch Exception e
-                    (log-exception e))))))
-          ;; Close the ant output pipe, which should end the ant output msg
-          ;; printer started above. Then print out the lein msg.
-          (.close ant-pos)
-          ;; Print test summary, if any.
-          (when test-summary
-            (let [ts @test-summary
-                  s1 (str "\nRan " (:test ts) " tests containing "
-                          (+ (:pass ts) (:fail ts) (:error ts)) " assertions.\n")
-                  s2 (str (:fail ts) " failures, " (:error ts) " errors.\n")
-                  at (if (or (pos? (:fail ts)) (pos? (:error ts))) *attr-wrn* *attr-ok*)]
-              (invoke-later slix #(ins s1))
-              (invoke-later slix #(ins s2 at))
-              #_(lg "test summary:" ts)))
-          (let [lms (.toString lein-baos)]
-            (invoke-later slix #(ins (str lms "#\n\n"))))
-          ;; Enable the UI, set the original cursor back, and update project
-          ;; name if necessary.
-          (set-ui-wait slix-or-frame false (if (= task "new") proj-name nil))
-          ;; This lein task is finished. Return nil to signify the lein agent
-          ;; is NOT busy.
-          nil
+          (let [amp (future
+                      (try
+                        (loop [t tocntxt
+                               l (.readLine ant-bfr)]
+                          (if l
+                            (if t
+                              (recur (handle-test-output l t) (.readLine ant-bfr))
+                              (do
+                                (invoke-later slix #(ins (str l "\n")))
+                                (recur t (.readLine ant-bfr))))
+                            (do
+                              #_(lg "eof on ant-bfr")
+                              #_(lg "output:" (when t (:output t))))))
+                        (catch Exception e)))]
+            ;; Run this lein task.
+            (let [ct (Thread/currentThread)
+                  cl (.getContextClassLoader ct)]
+              ;; Inherit the planter's class loader or lein crashes.
+              (.setContextClassLoader ct ltcl)
+              (let [sw (java.io.OutputStreamWriter. lein-oprs)
+                    ap (leiningen.core/get-ant-project ant-prs ant-prs)]
+                (binding [clojure.core/*out* sw
+                          clojure.core/*err* sw
+                          lancet/ant-project ap
+                          lancet.core/ant-project ap
+                          leiningen.core/*original-pwd* opwd
+                          leiningen.core/*eval-in-lein* false
+                          leiningen.core/*exit* false
+                          leiningen.core/*test-summary* test-summary]
+                  (try
+                    (let [result (apply leiningen.core/-main task args)]
+                      #_(lg "lein result:" result))
+                    (catch Exception e
+                      (log-exception e))))))
+            ;; Close the ant output pipe, which should end the ant msg printer
+            ;; started above. Refer the amp future object that should wait
+            ;; until the amp finish printing.
+            (.close ant-pos)
+            @amp
+            ;; Print test summary, if any.
+            (when (and test-summary @test-summary (map? @test-summary))
+              (let [ts @test-summary
+                    s1 (str "\nRan "
+                            (or (:test ts) -1)
+                            " tests containing "
+                            (+ (or (:pass ts) 0) (or (:fail ts) 0) (or (:error ts) 0))
+                            " assertions.\n")
+                    s2 (str (or (:fail ts) -1)
+                            " failures, "
+                            (or (:error ts) -1)
+                            " errors.\n")
+                    at (if (or (not (neg? (or (:fail ts) 0)))
+                               (not (neg? (or (:error ts) 0))))
+                         *attr-wrn*
+                         *attr-ok*)]
+                (invoke-later slix #(ins s1))
+                (invoke-later slix #(ins s2 at))
+                #_(lg "test summary:" ts)))
+            ;; Print lein msg.
+            (let [lms (.toString lein-baos)]
+              (invoke-later slix #(ins (str lms "#\n\n"))))
+            ;; Enable the UI, set the original cursor back, and update project
+            ;; name if necessary.
+            (set-ui-wait slix-or-frame false (if (= task "new") proj-name nil))
+            ;; This lein task is finished. Return nil to signify the lein agent
+            ;; is NOT busy.
+            nil)
           (catch Exception e
             (log-exception e)
             nil))))))
