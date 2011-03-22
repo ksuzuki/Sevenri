@@ -354,6 +354,17 @@
                 (enable-caret-update oced navf))))
           (.invokeDocWatcher doc))))))
 
+(defn ced-notify-save
+  "v := [file notify-fn]"
+  [file]
+  #_(lg "ced: ced-notify-save:" file)
+  (doseq [sv (filter (fn [[_ [f nf]]] (and (= file f) (fn? nf))) (xref-with :ced-notify-save))]
+    (try
+      (let [[_ [_ nf]] sv]
+        (nf file))
+      (catch Exception e
+        (log-exception e)))))
+
 (defn save-action
   []
   (proxy [AbstractAction] ["save"]
@@ -365,7 +376,8 @@
           (when (and (.exists file) (not (trash-file? file)))
             ;; FIX ME: need a better UI msg.
             (log-severe "ced: failed to trash file prior to save:" file))
-          (.save doc))))))
+          (.save doc)
+          (ced-notify-save file))))))
 
 (defn save-as-action
   []
@@ -412,7 +424,8 @@
                 (do
                   (.saveAs doc fpath)
                   (when-let [oplt (.getClientProperty ced *prop-ced-slix*)]
-                    (invoke-later oplt #(update-title doc))))
+                    (invoke-later oplt #(update-title doc)))
+                  (ced-notify-save fpath))
                 ;; FIX ME: need a better warning.
                 (log-warning "ced: failed to save as:" fpath)))))))))
 

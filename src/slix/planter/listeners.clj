@@ -44,14 +44,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn show-config
-  [controls project]
+  [slix controls project]
   (let [cfgtxt (:config-text controls)
         confgf (get (get-project-name-config-map) project)]
     (.setText cfgtxt "")
     (when (.exists confgf)
       (doto cfgtxt
         (.setText (slurp confgf :encoding "UTF-8"))
-        (.setCaretPosition 0)))))
+        (.setCaretPosition 0))
+      ;; Let Ced call this fn when it saves the project file.
+      (add-to-xref
+       slix
+       :ced-notify-save
+       [confgf (fn [f] (invoke-later slix #(show-config slix controls project)))]))))
 
 (defn get-project-name-listener
   [controls set-title]
@@ -70,14 +75,14 @@
           #_(lg "cur-proj:" cur-proj "sel-proj:" sel-proj)
           (.setSelectedItem prjnames (str cur-proj))
           (if (= cur-proj sel-proj)
-            (show-config controls cur-proj)
+            (show-config slx controls cur-proj)
             ;;
             (if-let [slx (is-project-used sel-proj)]
               (.toFront (slix-frame slx))
               (when-not (is-lein-agent-busy? frm)
                 (set-project-name slx sel-proj)
                 (.setSelectedItem prjnames (str sel-proj))
-                (show-config controls sel-proj)
+                (show-config slx controls sel-proj)
                 (invoke-later slx #(set-title slx sel-proj))))))
         ;;
         (doseq [l itmlsnrs]
