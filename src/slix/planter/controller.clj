@@ -221,8 +221,8 @@
                             " failures, "
                             (or (:error ts) -1)
                             " errors.\n")
-                    at (if (or (neg? (or (:fail ts) 0))
-                               (neg? (or (:error ts) 0)))
+                    at (if (or (not (zero? (or (:fail ts) -1)))
+                               (not (zero? (or (:error ts) -1))))
                          *attr-wrn*
                          *attr-ok*)]
                 (doto slix
