@@ -14,6 +14,37 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def *min-frame-size* [550 340])
+(def *button-size* [96 29])
+(def *cursor* "cursor")
+(def *name-config-map* "name-config-map")
+(def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
+(def *slix-planter-project* 'slix.planter)
+(def *xref-planter-project* :planter-project)
+
+(def *lein-commands* #{"clean" "compile" "deps" "install" "jar"
+                       "jutest" "jutest!"
+                       "new" "pom" "test!" "test" "uberjar"})
+
+(def *standard-actions* ["Edit"])
+
+(def *more-actions* ["More Actions..."
+                     "Clean"
+                     "Clone..."
+                     "Delete..."
+                     "Deps"
+                     "Install"
+                     "New..."
+                     "Pom"
+                     "Rename..."
+                     "Test!"
+                     "UberJar"])
+
+(def *command-aliases* {"test" "jutest"
+                        "test!" "jutest!"})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (def *lein-loaded* (atom false))
 
 (defn lein-loaded
@@ -31,32 +62,3 @@
   ([fnc]
      (when (fn? fnc)
        (def *shutdown-lein* fnc))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def *min-frame-size* [550 340])
-(def *button-size* [96 29])
-(def *cursor* "cursor")
-(def *name-config-map* "name-config-map")
-(def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
-(def *slix-planter-project* 'slix.planter)
-(def *xref-planter-project* :planter-project)
-
-(def *lein-commands* #{"clean" "compile" "deps" "install" "jar"
-                       "jutest" "jutest!"
-                       "new" "pom" "test!" "test" "uberjar"})
-
-(def *standard-actions* ["Edit"])
-
-(def *more-actions* ["More Actions..."
-                     "Clean"
-                     "Delete..."
-                     "Deps"
-                     "Install"
-                     "New..."
-                     "Pom"
-                     "Test!"
-                     "UberJar"])
-
-(def *command-aliases* {"test" "jutest"
-                        "test!" "jutest!"})

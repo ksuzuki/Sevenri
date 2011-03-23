@@ -65,6 +65,17 @@
       (throw (IllegalStateException. "no lein-agent")))
     (throw (IllegalArgumentException. "neither slix or frame"))))
 
+(defn reserve-lein-agent
+  [slix-or-frame new-stat]
+  (send (get-lein-agent slix-or-frame)
+        (fn [old-stat]
+          (or old-stat new-stat))))
+
+(defn send-task-to-lein-agent
+  [slix-or-frame tid task]
+  (reserve-lein-agent slix-or-frame tid)
+  (send (get-lein-agent slix-or-frame) task))
+
 (defn is-lein-agent-busy?
   [slix-or-frame]
   (not (nil? @(get-lein-agent slix-or-frame))))
@@ -75,11 +86,53 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defmulti show-dialog
+  (fn [type-kwd frame message title option] type-kwd))
+
+(defmethod show-dialog :default
+  [_ frame message title option]
+  (JOptionPane/showMessageDialog frame message title option))
+
+(defmethod show-dialog :input
+  [_ frame message title option]
+  (JOptionPane/showInputDialog frame message title option))
+
+(defmethod show-dialog :confirm
+  [_ frame message title option]
+  (JOptionPane/showConfirmDialog frame message title option))
+
+(defn print-line
+  ([slix txtpn line]
+     (print-line slix txtpn line nil))
+  ([slix txtpn line attr]
+     (let [doc (.getDocument txtpn)
+           eof (fn [d] (max 0 (dec (.getLength doc))))
+           ins (fn [s a]
+                 (.insertString doc (eof doc) s a)
+                 (.setCaretPosition txtpn (eof doc)))]
+       (invoke-later slix #(ins line attr)))))
+
+(defn form-header-line
+  [title]
+  (str "=== " title " ===\n"))
+
+(defn print-start-task
+  [slix txtpn title]
+  (print-line slix txtpn (form-header-line title) *attr-hdr*))
+
+(defn print-end-task
+  [slix txtpn]
+  (print-line slix txtpn "#\n\n"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn is-a-jutest-task?
   [task]
   (if (re-matches #"^jutest.*" task)
     true
     false))
+
+;;;;
 
 (defn create-lein-task
   [slix-or-frame tid out-txtpn proj-name task-name set-ui-wait & task-args]
@@ -93,30 +146,30 @@
                     (get-project-path pmap)))
         ltcl (.getContextClassLoader (Thread/currentThread))
         ;;
-        doc (.getDocument out-txtpn)
-        eof (fn [d] (max 0 (dec (.getLength doc))))
-        ins (fn this
-              ([s]
-                 (this s nil))
-              ([s a]
-                 (.insertString doc (eof doc) s a)
-                 (.setCaretPosition out-txtpn (eof doc))))
-        ;;
-        tocntxt (when (is-a-jutest-task? task) (create-test-output-context slix ins *attr-wrn*))
         ant-pos (PipedOutputStream.)
         ant-prs (PrintStream. ant-pos true)
         ant-bfr (BufferedReader. (InputStreamReader. (PipedInputStream. ant-pos)))
         [lein-baos lein-oprs] (get-out-ps)
+        ;;
+        ;; Set up special output context if this is a jutest task.
+        tocntxt (when (is-a-jutest-task? task)
+                  (let [pline (fn this
+                                ([s]
+                                   (this s nil))
+                                ([s a]
+                                   (print-line slix out-txtpn s a)))]
+                    (create-test-output-context pline *attr-wrn*)))
         test-summary (when (is-a-jutest-task? task) (atom {}))]
     ;; Now carete a lein agent task.
     (fn [id]
-      ;; Perform the task only when the preset task id matches.
+      ;; Perform the task only when this task is reserved on lein-agent.
       (when (= id tid)
         (try
-          ;; Disable the UI and show the wait cursor.
+          ;; Disable the UI and show the wait cursor. Then print the start of
+          ;; task msg.
           (set-ui-wait slix-or-frame)
-          ;; Print a start of task msg and start an ant msg printer.
-          (invoke-later slix #(ins (str "=== " proj-name ": " task " ===\n") *attr-hdr*))
+          (print-start-task slix out-txtpn (str proj-name ": " task))
+          ;; Start an ant msg printer.
           (let [amp (future
                       (try
                         (loop [t tocntxt
@@ -125,7 +178,7 @@
                             (if t
                               (recur (handle-test-output l t) (.readLine ant-bfr))
                               (do
-                                (invoke-later slix #(ins (str l "\n")))
+                                (print-line slix out-txtpn (str l "\n"))
                                 (recur t (.readLine ant-bfr))))
                             (do
                               #_(lg "eof on ant-bfr")
@@ -168,32 +221,26 @@
                             " failures, "
                             (or (:error ts) -1)
                             " errors.\n")
-                    at (if (or (not (neg? (or (:fail ts) 0)))
-                               (not (neg? (or (:error ts) 0))))
+                    at (if (or (neg? (or (:fail ts) 0))
+                               (neg? (or (:error ts) 0)))
                          *attr-wrn*
                          *attr-ok*)]
-                (invoke-later slix #(ins s1))
-                (invoke-later slix #(ins s2 at))
+                (doto slix
+                  (print-line out-txtpn s1)
+                  (print-line out-txtpn s2 at))
                 #_(lg "test summary:" ts)))
             ;; Print lein msg.
-            (let [lms (.toString lein-baos)]
-              (invoke-later slix #(ins (str lms "#\n\n"))))
-            ;; Enable the UI, set the original cursor back, and update project
-            ;; name if necessary.
-            (set-ui-wait slix-or-frame false (if (= task "new") proj-name nil))
+            (print-line slix out-txtpn (.toString lein-baos))
+            ;; Print the end of task msg, enable the UI, set the original
+            ;; cursor back, and update project name if necessary.
+            (print-end-task slix out-txtpn)
+            (set-ui-wait slix false (if (= task "new") proj-name nil))
             ;; This lein task is finished. Return nil to signify the lein agent
-            ;; is NOT busy.
+            ;; is free.
             nil)
           (catch Exception e
             (log-exception e)
             nil))))))
-
-(defn send-task-to-lein-agent
-  [slix-or-frame tid task]
-  (let [la (get-lein-agent slix-or-frame)]
-    (doto la
-      (send (fn [id] (or id tid)))
-      (send task))))
 
 (defn do-lein
   [frame out-txtpn proj-name cmd set-ui-wait]
@@ -207,25 +254,35 @@
         pdir (get-project-parent-path pmap)]
     (if (.exists (get-project-path pmap))
       (let [msg (str proj-name " exists already.")
-            ttl "Project exists"]
-        (JOptionPane/showMessageDialog frame msg ttl JOptionPane/OK_OPTION))
+            ttl "Project Exists"]
+        (show-dialog :message frame msg ttl JOptionPane/OK_OPTION))
       (if (or (.exists pdir) (and (.mkdirs pdir) (.exists pdir)))
         (let [tid (gensym)
               task (create-lein-task frame tid out-txtpn proj-name 'new set-ui-wait (:name pmap))]
           (send-task-to-lein-agent frame tid task))
         (let [msg (str "Cannot create project directory:\n" pdir)
               ttl "Cannot Create Project Directory"]
-          (JOptionPane/showMessageDialog frame msg ttl JOptionPane/YES_OPTION))))))
+          (show-dialog :message frame msg ttl JOptionPane/YES_OPTION))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn can-delete-project
+  "Return nil proj-name is deletable or a string explaining a reason of why
+   not deletable."
+  [prj-name]
+  (if (= prj-name (str *slix-planter-project*))
+    (str prj-name " is a Sevenri system project\nand cannot be deleted.")
+    (let [pnl (count prj-name)]
+      (when-first [sub-prj-name (filter #(and (zero? (.indexOf % prj-name))
+                                              (< pnl (count %)))
+                                        (map str (vals (xref-with *xref-planter-project*))))]
+        (str prj-name " project contains " sub-prj-name " project\nwhich is opened currently.")))))
+
+;;;;
+
 (defmulti do-command
   (fn [controls set-ui-wait command]
-    (cond
-     (= command "Edit") :edit
-     (= command "Delete...") :delete
-     (= command "New...") :new
-     :else :default)))
+    (keyword (.replace (.toLowerCase command) "..." ""))))
 
 (defmethod do-command :default
   [_ _ command]
@@ -249,23 +306,52 @@
       (let [fp (File. (.getDirectory dlg) (str f))]
         (open-slix-with-args {:file fp} 'ced)))))
 
+(defmethod do-command :clone
+  [controls set-ui-wait _]
+  (let [frame (:frame controls)
+        idmsg "repository URL:"
+        idttl "Git Clone URL"
+        gcurl (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
+    (when-not (empty? gcurl)
+      (let [[prj-name git] (.split (last (.split gcurl "/")) "\\.")]
+        (if (and (not (empty? prj-name)) (= git "git"))
+          (let [prj-dir (File. (get-project-dir) prj-name)]
+            (if (.exists prj-dir)
+              (let [msg (str prj-name " project exists already.")
+                    ttl "Project Exists"]
+                (show-dialog :message frame msg ttl JOptionPane/OK_OPTION))
+              ;; Create a delete task and send it to lein-agent to run.
+              (let [tid (gensym)
+                    slx (get-slix frame)
+                    txt (:output-text controls)
+                    tsk (fn [id]
+                          (when (= id tid)
+                            (set-ui-wait slx)
+                            (print-start-task slx txt (str "Cloning " gcurl))
+                            ;;
+                            (let [result (do-git-clone (.getParent prj-dir) gcurl)]
+                              (print-line slx txt (:out result))
+                              (when (not (empty? (:err result)))
+                                (print-line slx txt (:err result)*attr-wrn*))
+                              ;;
+                              (print-end-task slx txt)
+                              (set-ui-wait slx false prj-name))))]
+                (send-task-to-lein-agent slx tid tsk))))
+          ;;
+          (let [msg (str "Not a git repository URL?:\n" gcurl)
+                ttl "Not A Git Repo URL"]
+            (show-dialog :message frame msg ttl JOptionPane/OK_OPTION)))))))
+
 (defmethod do-command :delete
   [controls set-ui-wait _]
-  (let [prj-name (symbol (.getSelectedItem (:project-names controls)))
+  (let [prj-name (.getSelectedItem (:project-names controls))
+        undl-rsn (can-delete-project prj-name)
         conf-frm (:frame controls)
-        conf-msg (if (= prj-name *slix-planter-project*)
-                   (str prj-name " is a Sevenri system project\nand cannot be deleted.")
-                   (str "OK to delete " prj-name "?"))
-        conf-ttl (if (= prj-name *slix-planter-project*)
-                    "Cannot Delete Project"
-                    "Deleting Project")
-        response (if (= prj-name *slix-planter-project*)
-                   (JOptionPane/showMessageDialog conf-frm conf-msg conf-ttl
-                                                  JOptionPane/YES_OPTION)
-                   (JOptionPane/showConfirmDialog conf-frm conf-msg conf-ttl
-                                                  JOptionPane/YES_NO_CANCEL_OPTION))]
-    (when (and (not= prj-name *slix-planter-project*)
-               (= response JOptionPane/YES_OPTION))
+        conf-msg (or undl-rsn (str "OK to delete " prj-name "?"))
+        conf-ttl (str (if undl-rsn "Cannot Delete" "Deleting") " Project")
+        response (show-dialog (if undl-rsn :message :confirm) conf-frm conf-msg conf-ttl
+                              (if undl-rsn JOptionPane/YES_OPTION JOptionPane/YES_NO_CANCEL_OPTION))]
+    (when (and (nil? undl-rsn) (= response JOptionPane/YES_OPTION))
       (set-ui-wait conf-frm)
       (delete-project prj-name)
       (set-ui-wait conf-frm false :delete))))
@@ -273,10 +359,9 @@
 (defmethod do-command :new
   [controls set-ui-wait _]
   (let [frame (:frame controls)
-        idmsg (str "New Project Name:")
+        idmsg "New Project Name:"
         idttl "New Project"
-        prj-name (JOptionPane/showInputDialog frame idmsg idttl
-                                              JOptionPane/PLAIN_MESSAGE)]
+        prj-name (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
     (when-not (empty? prj-name)
       (let [out-txtpn (:output-text controls)
             safe-prj-name (safesymstr prj-name)]
@@ -286,7 +371,6 @@
                            " contains invalid project name character(s)\n"
                            "and this name is used instead:\n" safe-prj-name)
                 cdttl "New Project Name"
-                rspns (JOptionPane/showConfirmDialog frame cdmsg cdttl
-                                                     JOptionPane/YES_NO_CANCEL_OPTION)]
+                rspns (show-dialog :confirm frame cdmsg cdttl JOptionPane/YES_NO_CANCEL_OPTION)]
             (when (= rspns JOptionPane/YES_OPTION)
               (do-lein-new frame out-txtpn safe-prj-name set-ui-wait))))))))

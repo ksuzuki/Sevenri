@@ -1,5 +1,6 @@
 (ns slix.planter.io
-  (:use [sevenri config core log slix utils])
+  (:use [clojure.java.shell]
+        [sevenri config core log slix utils])
   (:import (java.io ByteArrayOutputStream PrintStream)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -54,3 +55,11 @@
   (let [baos (ByteArrayOutputStream.)
         oprs (PrintStream. baos true)]
     [baos oprs]))
+
+(defn do-git-clone
+  [dir repo-url]
+  (try
+    (with-sh-dir dir
+      (sh "git" "clone" repo-url))
+    (catch Exception e
+      {:exit 1 :out "" :err ("low level git-clone fn failed:" repo-url)})))

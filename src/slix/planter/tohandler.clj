@@ -14,8 +14,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn create-test-output-context
-  [slix ins warn-attr]
-  {:slix slix :ins ins :atr nil :watr warn-attr :output ""})
+  [pline warn-attr]
+  {:print-line pline :attr nil :wattr warn-attr :output ""})
 
 (defmulti handle-test-output
   (fn [output-line toctxt]
@@ -24,6 +24,12 @@
      (re-matches re-beg-xml-element output-line) :beg-xml-element
      (re-matches re-end-xml-element output-line) :end-xml-element
      :else :default)))
+
+(defmethod handle-test-output :default
+  [output-line toctxt]
+  ((:print-line toctxt) (str output-line "\n") (:attr toctxt))
+  (assoc toctxt
+         :output (str (:output toctxt) output-line "\n")))
 
 (defmethod handle-test-output :xml-header
   [xml-header toctxt]
@@ -40,31 +46,25 @@
           nme (second (re-find #"name=\"([^\"]*)\"" xml-element))
           msg (format "\nTesting %s.%s\n" pkg nme)]
       (when-not (empty? pkg)
-        (invoke-later (:slix toctxt) #((:ins toctxt) msg)))
+        ((:print-line toctxt) msg))
       (assoc toctxt
         :output (str (:output toctxt) xml-element "\n")))
     ;;
     (let [s (second (re-matches re-beg-xml-element xml-element))
-          w (or (re-matches re-beg-failure xml-element)
-                 (re-matches re-beg-error xml-element))
-          a (when w (:watr toctxt))]
+          a (when (or (re-matches re-beg-failure xml-element)
+                      (re-matches re-beg-error xml-element))
+              (:wattr toctxt))]
       (when s
-        (invoke-later (:slix toctxt) #((:ins toctxt) (str s "\n") a)))
+        ((:print-line toctxt) (str s "\n") a))
       (assoc toctxt
-        :atr a
+        :attr a
         :output (str (:output toctxt) xml-element "\n")))))
 
 (defmethod handle-test-output :end-xml-element
   [xml-element toctxt]
   (let [s (second (re-matches re-end-xml-element xml-element))]
     (when s
-      (invoke-later (:slix toctxt) #((:ins toctxt) (str s "\n") (:atr toctxt))))
+      ((:print-line toctxt) (str s "\n") (:attr toctxt)))
     (assoc toctxt
-      :atr nil
+      :attr nil
       :output (str (:output toctxt) xml-element "\n"))))
-
-(defmethod handle-test-output :default
-  [output-line toctxt]
-  (invoke-later (:slix toctxt) #((:ins toctxt) (str output-line "\n") (:atr toctxt)))
-  (assoc toctxt
-         :output (str (:output toctxt) output-line "\n")))
