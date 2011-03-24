@@ -34,9 +34,9 @@
                      "Delete..."
                      "Deps"
                      "Install"
+                     "Move..."
                      "New..."
                      "Pom"
-                     "Rename..."
                      "Test!"
                      "UberJar"])
 

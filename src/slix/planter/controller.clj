@@ -278,6 +278,28 @@
                                         (map str (vals (xref-with *xref-planter-project*))))]
         (str prj-name " project contains " sub-prj-name " project\nwhich is opened currently.")))))
 
+(defn project-exists-ui?
+  [frame prj-name]
+  (let [safe-prj-name (safesymstr prj-name)
+        can-continue? (if (= prj-name safe-prj-name)
+                        true
+                        (let [cdmsg (str prj-name
+                                         " contains invalid project name character(s)\n"
+                                         "and this name is used instead:\n" safe-prj-name)
+                              cdttl "Safe Project Name"
+                              rspns (show-dialog :confirm frame cdmsg cdttl JOptionPane/YES_NO_CANCEL_OPTION)]
+                          (= rspns JOptionPane/YES_OPTION)))]
+    (if can-continue?
+      (let [pns (filter #(= safe-prj-name %) (map str (keys (get-project-name-config-map))))]
+        (if (seq pns)
+          (let [msg (str safe-prj-name " exists already.")
+                ttl "Project Exists"]
+            (show-dialog :message frame msg ttl JOptionPane/YES_OPTION)
+            true)
+          false))
+      ;; Pretend as though it exists.
+      true)))
+
 ;;;;
 
 (defmulti do-command
@@ -314,29 +336,28 @@
         gcurl (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
     (when-not (empty? gcurl)
       (let [[prj-name git] (.split (last (.split gcurl "/")) "\\.")]
-        (if (and (not (empty? prj-name)) (= git "git"))
-          (let [prj-dir (File. (get-project-dir) prj-name)]
-            (if (.exists prj-dir)
-              (let [msg (str prj-name " project exists already.")
-                    ttl "Project Exists"]
-                (show-dialog :message frame msg ttl JOptionPane/OK_OPTION))
-              ;; Create a delete task and send it to lein-agent to run.
-              (let [tid (gensym)
-                    slx (get-slix frame)
-                    txt (:output-text controls)
-                    tsk (fn [id]
-                          (when (= id tid)
-                            (set-ui-wait slx)
-                            (print-start-task slx txt (str "Cloning " gcurl))
-                            ;;
-                            (let [result (do-git-clone (.getParent prj-dir) gcurl)]
-                              (print-line slx txt (:out result))
-                              (when (not (empty? (:err result)))
-                                (print-line slx txt (:err result)*attr-wrn*))
-                              ;;
-                              (print-end-task slx txt)
-                              (set-ui-wait slx false prj-name))))]
-                (send-task-to-lein-agent slx tid tsk))))
+        (if (and (= git "git")
+                 (not (empty? prj-name))
+                 (not (project-exists-ui? prj-name)))
+          (let [safe-pn (safesymstr prj-name)
+                prj-dir (File. (get-project-dir) safe-pn)
+                ;; Create a clone task.
+                tid (gensym)
+                slx (get-slix frame)
+                txt (:output-text controls)
+                tsk (fn [id]
+                      (when (= id tid)
+                        (set-ui-wait slx)
+                        (print-start-task slx txt (str "Cloning " gcurl))
+                        ;;
+                        (let [result (do-git-clone (.getParent prj-dir) gcurl)]
+                          (print-line slx txt (:out result))
+                          (when (not (empty? (:err result)))
+                            (print-line slx txt (:err result)*attr-wrn*))
+                          ;;
+                          (print-end-task slx txt)
+                          (set-ui-wait slx false safe-pn))))]
+            (send-task-to-lein-agent slx tid tsk))
           ;;
           (let [msg (str "Not a git repository URL?:\n" gcurl)
                 ttl "Not A Git Repo URL"]
@@ -354,23 +375,35 @@
     (when (and (nil? undl-rsn) (= response JOptionPane/YES_OPTION))
       (set-ui-wait conf-frm)
       (delete-project prj-name)
-      (set-ui-wait conf-frm false :delete))))
+      (set-ui-wait conf-frm false :refresh))))
+
+(defmethod do-command :move
+  [controls set-ui-wait _]
+  (let [oldpn (.getSelectedItem (:project-names controls))
+        frame (:frame controls)
+        idmsg "Destination Project Name:"
+        idttl "Moving Project"
+        newpn (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
+    (when (and (not (empty? newpn))
+               (not (project-exists-ui? frame newpn)))
+      (let [safe-npn (safesymstr newpn)
+            src-pdir (get-project-path oldpn)
+            dst-pdir (get-project-path safe-npn)
+            renamed? (atom false)]
+        (set-ui-wait frame)
+        @(future (try (reset! renamed? (.renameTo src-pdir dst-pdir))))
+        (set-ui-wait frame false safe-npn)
+        (when-not renamed?
+          (let [errmsg (str "Moving " oldpn " to " safe-npn " failed.")
+                errttl "Moving Project Failed"]
+            (show-dialog :message frame errmsg errttl JOptionPane/YES_OPTION)))))))
         
 (defmethod do-command :new
   [controls set-ui-wait _]
   (let [frame (:frame controls)
         idmsg "New Project Name:"
-        idttl "New Project"
+        idttl "Creating New Project"
         prj-name (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
-    (when-not (empty? prj-name)
-      (let [out-txtpn (:output-text controls)
-            safe-prj-name (safesymstr prj-name)]
-        (if (= prj-name safe-prj-name)
-          (do-lein-new frame out-txtpn safe-prj-name set-ui-wait)
-          (let [cdmsg (str prj-name
-                           " contains invalid project name character(s)\n"
-                           "and this name is used instead:\n" safe-prj-name)
-                cdttl "New Project Name"
-                rspns (show-dialog :confirm frame cdmsg cdttl JOptionPane/YES_NO_CANCEL_OPTION)]
-            (when (= rspns JOptionPane/YES_OPTION)
-              (do-lein-new frame out-txtpn safe-prj-name set-ui-wait))))))))
+    (when (and (not (empty? prj-name))
+               (not (project-exists-ui? frame prj-name)))
+      (do-lein-new frame (:output-text controls) (safesymstr prj-name) set-ui-wait))))

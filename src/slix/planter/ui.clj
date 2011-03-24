@@ -78,7 +78,7 @@
      (when-not wait?
        (declare init-ui)
        (let [slix (get-slix slix-or-frame)]
-         (if (and (keyword? project-name) (= project-name :delete))
+         (if (and (keyword? project-name) (= project-name :refresh))
            (invoke-later slix #(init-ui slix nil))
            (when project-name
              (invoke-later slix #(init-ui slix project-name))))))))
