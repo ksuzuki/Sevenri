@@ -12,7 +12,8 @@
 (ns slix.planter.init
   (:use [sevenri log slix]
         [slix.planter controller core defs io ui])
-  (:import (java.awt Cursor)))
+  (:import (java.awt Cursor)
+           (javax.swing JOptionPane)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -39,6 +40,16 @@
         nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn can-load-lein?
+  []
+  (if (lein-loaded)
+    true
+    (try
+      (require 'lancet :reload)
+      true
+      (catch Exception e
+        false))))
 
 (defn load-lein
   []
@@ -67,28 +78,67 @@
     ;;
     (.setCursor f c)))
 
+(defn is-planter-project-ready
+  "-1 when failed, 0 when canceled, 1 when ready."
+  [slix]
+  (let [ao? (alt-open-slix? slix)
+        frm (slix-frame slix)
+        cur (.getCursor frm)
+        msg (if (and (lein-loaded) (not ao?))
+              ;; lein-loaded but Planter project isn't ready, so...
+              (str "Plater project may be deleted accidentally.\n"
+                   "Please cancel and try rebuilding it by alt-opening Planter.")
+              (str "Planter project is being built. Please wait for a while.\n"
+                   "If this takes too long, you can cancel and try again."))
+        ttl "Loading Planter Project"
+        jop (JOptionPane. msg JOptionPane/WARNING_MESSAGE)
+        dlg (.createDialog jop frm ttl)
+        wtc (future (when ao?
+                      (build-project? 'slix.planter))
+                    (loop [pb? (is-project-built? 'slix.planter)]
+                      (if pb?
+                        (.hide dlg)
+                        (do
+                          (Thread/sleep 500)
+                          (recur (is-project-built? 'slix.planter))))))]
+    ;;
+    (.setCursor frm Cursor/WAIT_CURSOR)
+    (.setOptions jop (into-array ["Cancel"]))
+    (when-not (future-done? wtc)
+      (.show dlg))
+    (.setCursor frm cur)
+    ;;
+    (when-not (future-done? wtc)
+      (future-cancel wtc))
+    (if (= (.getValue jop) "Cancel")
+      0
+      (if (is-project-built? 'slix.planter)
+        1
+        -1))))
+
 (defn init-planter
   []
-  (if (is-project-built? 'slix.planter)
+  (if (and (is-project-built? 'slix.planter) (can-load-lein?))
+    ;; Planter project is ready and classpath to it is set.
     (setup-planter *slix*)
-    (let [slx *slix*
-          frm (slix-frame)
-          ao? (alt-open-slix?)]
-      (future
-        (let [oc (.getCursor frm)]
-          (.setCursor frm Cursor/WAIT_CURSOR)
-          ;;
-          (when ao?
-            (let [bp? (build-project? 'slix.planter)
-                  msg (if bp? "succeeded" "failed")]
-              (when bp?
-                (setup-planter slx))
-              (lg "slix.planter: init: building the planter project" msg)))
-          (let [b? (is-project-built? 'slix.planter)]
-            (when-not b?
-              (log-warning "slix.planter: init: planter project isn't ready.")
-              (Thread/sleep (* 1000 3)))
-            ;;
-            (.setCursor frm oc)
-            (when-not b?
-              (close-slix slx))))))))
+    ;;
+    (if (and (not (lein-loaded)) (< 1 (count (get-slixes 'planter))))
+      ;; Open no more Planter because the very first Planter must be busy
+      ;; preparing Planter project.
+      (close-slix *slix*)
+      ;;
+      (let [rval (is-planter-project-ready *slix*)]
+        (if (zero? rval) ;; cancelled
+          (close-slix *slix*)
+          (let [frm (slix-frame)
+                msg (if (pos? rval)
+                      "Planter project is ready.\n Please restart Planter."
+                      "Planter project is not ready.\nTry rebuilding it by alt-opening Planter.")
+                ttl (str "Planter Project Is " (when (neg? rval) "Not ") "Ready")
+                ocr (.getCursor frm)]
+            (.setCursor frm Cursor/WAIT_CURSOR)
+            (JOptionPane/showMessageDialog frm msg ttl (if (pos? rval)
+                                                         JOptionPane/INFORMATION_MESSAGE
+                                                         JOptionPane/WARNING_MESSAGE))
+            (.setCursor frm ocr)
+            (close-slix *slix*)))))))
