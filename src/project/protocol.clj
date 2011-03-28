@@ -12,7 +12,8 @@
 ;; query-project I/F; all takes a map with keys :slix-name, :name, and :arguments.
 
 {:manager 'slix.planter.manager ;; must be fully qualified
- ;; query for manager
+ :slix 'planter ;; name of slix providing this manager I/F
+  ;; query for manager
  :ready? 'ready?
  :setup? 'setup?
  :shutdown 'shutdown

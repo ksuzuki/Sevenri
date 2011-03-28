@@ -594,6 +594,17 @@
   ([slix body]
      (invoke-later slix body true)))
 
+(defn is-project-ready-if-exists?
+  [sn]
+  (if (= sn (get-project-manager-slix))
+    true
+  (let [fqsn (get-slix-fqns sn)]
+    (if (query-project :exists? fqsn)
+      (if (query-project :built? fqsn)
+        true
+        false)
+      true))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; load/save slix frame
 ;;;; - DONOT CALL THESE FUNCTIONS DIRECTLY. CALL VIA INVOKE-LATER OR
@@ -847,11 +858,13 @@
   ([sn]
      (open-slix sn (generate-slix-name sn)))
   ([sn name]
-     (let [sn (symbol sn)
-           name (str name)
-           cl (create-slix-class-loader sn)
-           slix {:id (gensym 'id) :sn sn :name name :cl cl :args -open-slix-args-}]
-       (-get-context-and-start-slix-creation slix))))
+     (if (is-project-ready-if-exists? sn)
+       (let [sn (symbol sn)
+             name (str name)
+             cl (create-slix-class-loader sn)
+             slix {:id (gensym 'id) :sn sn :name name :cl cl :args -open-slix-args-}]
+         (-get-context-and-start-slix-creation slix))
+       (log-warning (str "The project for slix " sn " is not ready.")))))
 
 (defn open-slix-and-wait
   "Return the dereference to the future object returned from the open-slix

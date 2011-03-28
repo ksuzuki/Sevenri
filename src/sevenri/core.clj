@@ -130,22 +130,30 @@
   (File. (get-src-project-dir) (str (get-default :src :project :protocol-file-name))))
 
 (defn get-project-protocol
-  []
-  (let [ppf (get-project-protocol-file)]
-    (if (.exists ppf)
-      (try
-        (load-string (slurp ppf :encoding "UTF-8"))
-        (catch Exception e
-          (log-severe "get-project-protocol: failed to read protocol file")
-          nil))
-      (do
-        (log-severe "get-project-protocol: protocol file missing")
-        nil))))
+  ([]
+     (get-project-protocol nil))
+  ([kwd]
+     (let [ppf (get-project-protocol-file)]
+       (if (.exists ppf)
+         (try
+           (let [ppm (load-string (slurp ppf :encoding "UTF-8"))]
+             (if (keyword? kwd)
+               (get ppm kwd)
+               ppm))
+           (catch Exception e
+             (log-severe "get-project-protocol: failed to read protocol file")
+             nil))
+         (do
+           (log-severe "get-project-protocol: protocol file missing")
+           nil)))))
 
 (defn get-project-manager
   []
-  (when-let [protocol (get-project-protocol)]
-    (:manager protocol)))
+  (get-project-protocol :manager))
+
+(defn get-project-manager-slix
+  []
+  (get-project-protocol :slix))
 
 (defn query-project
   ([query-kwd slix-name]

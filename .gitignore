@@ -30,7 +30,11 @@ src/slix/sevenri/jvm/gui/dist/*
 
 # But DONOT ignore these specific dirs and files
 !src/project/protocol.clj
+!src/project/slix/documenter/project.clj
+!src/project/slix/documenter/src/slix/documenter/proj.cj
+!src/project/slix/incantea/project.clj
+!src/project/slix/incantea/src/slix/incantea/proj.cj
 !src/project/slix/planter/project.clj
-!src/project/slix/planter/src/slix/planter/proj.clj
+!src/project/slix/planter/src/slix/planter/proj.cj
 !src/slix/ced/jvm/gui/dist/gui.jar
 !src/slix/sevenri/jvm/gui/dist/gui.jar
