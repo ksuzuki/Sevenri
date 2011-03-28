@@ -231,6 +231,11 @@
                 #_(lg "test summary:" ts)))
             ;; Print lein msg.
             (print-line slix out-txtpn (.toString lein-baos))
+            ;; Special setup for a new slix project.
+            (when (and (= task "new")
+                       (project-exists? pmap))
+              (when-not (setup-slix-project? pmap)
+                (print-line slix out-txtpn "Setup for slix project failed" *attr-wrn*)))
             ;; Print the end of task msg, enable the UI, set the original
             ;; cursor back, and update project name if necessary.
             (print-end-task slix out-txtpn)
