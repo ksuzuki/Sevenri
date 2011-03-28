@@ -4,7 +4,7 @@
         :author ["Kei Suzuki"]
         :update true}
   :dependencies [;; base requirements
-                 [org.clojure/clojure "1.2.0"]
+                 [org.clojure/clojure "1.2.1"]
                  [org.clojure/clojure-contrib "1.2.0"]
                  [swank-clojure "1.2.1"]
                  ;; for NetBeans generated UI modules
