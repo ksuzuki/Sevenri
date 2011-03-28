@@ -11,7 +11,7 @@
 
 (in-ns 'slix.incantea.ui)
 
-(use '[slix.incantea defs listeners ui])
+(use '[slix.incantea defs listeners])
 (import '(java.awt BorderLayout)
         '(java.util Vector)
         '(javax.swing JInternalFrame JPanel)
