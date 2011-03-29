@@ -66,17 +66,22 @@
       (require (symbol (str "leiningen." l))))))
 
 (defn setup-planter
+  "Lein is ready to use. Setup a lein agent. Also, if build-and-run is
+   requested, do that and then close. Otherwise, register the fn in case
+   it's requested."
   [slix]
   (let [f (slix-frame slix)
         c (.getCursor f)]
     (.setCursor f Cursor/WAIT_CURSOR)
-    ;;
     (load-lein)
     (when-let [pn (get-project slix)]
       (create-lein-agent slix)
       (invoke-later slix #(init-ui slix pn)))
+    (.setCursor f c)
     ;;
-    (.setCursor f c)))
+    (if-let [bprm (*build-project-and-run* (slix-args slix))]
+      (do-build-project-and-run slix (ui-controls slix) set-ui-wait bprm true)
+      (add-do-build-project-and-run-to-xref slix (ui-controls slix) set-ui-wait))))
 
 (defn is-planter-project-ready
   "-1 when failed, 0 when canceled, 1 when ready."

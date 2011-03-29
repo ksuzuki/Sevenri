@@ -415,22 +415,21 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn build-project-and-run-if-requested
-  [controls set-ui-wait]
-  (when-let [bprm (*build-project-and-run* (slix-args))]
-    (let [slix *slix*
-          frame (slix-frame slix)
-          {:keys [sn nm args]} bprm
-          proj-name (get-slix-fqns sn)]
-      #_(lg "build project:" proj-name "and run:" sn "with name:" name " and args:" args)
-      (future
+(defn do-build-project-and-run
+  [slix controls set-ui-wait bprm init-close?]
+  (let [{:keys [slix-name name args]} bprm
+        proj-name (get-slix-fqns slix-name)]
+    #_(lg "build project:" proj-name "and run:" slix-name "with name:" name " and args:" args)
+    (future
+      (let [frm (slix-frame slix)]
         (if-not (project-exists? proj-name)
           (let [msg (str proj-name " project doesnot exist.")
                 ttl "Project Not Exist"]
-            (JOptionPane/showMessageDialog frame msg ttl JOptionPane/ERROR_MESSAGE))
+            (JOptionPane/showMessageDialog frm msg ttl JOptionPane/ERROR_MESSAGE))
           ;;
           (do
-            (invoke-later slix #(.setSelectedItem (:project-names controls) (str proj-name)))
+            (when init-close?
+              (invoke-later slix #(.setSelectedItem (:project-names controls) (str proj-name))))
             (invoke-later slix #(.doClick (:jar controls)))
             ;;
             (Thread/sleep 500)
@@ -438,16 +437,23 @@
               (when busy? (recur (is-lein-agent-busy? slix))))
             ;;
             (if-not (is-project-built? proj-name)
-              (let [msg (str "Failed to build " proj-name " project.")
+              (let [msg (str "Building " proj-name " project failed.")
                     ttl "Build Failed"]
-                (JOptionPane/showMessageDialog frame msg ttl JOptionPane/ERROR_MESSAGE))
+                (JOptionPane/showMessageDialog frm msg ttl JOptionPane/ERROR_MESSAGE))
               ;;
               (do
                 (if args
-                  (if nm
-                    (open-slix-with-args args sn nm)
-                    (open-slix-with-args args sn))
-                  (if nm
-                    (open-slix sn nm)
-                    (open-slix sn)))
-                (close-slix slix)))))))))
+                  (if name
+                    (open-slix-with-args args slix-name name)
+                    (open-slix-with-args args slix-name))
+                  (if name
+                    (open-slix slix-name name)
+                    (open-slix slix-name)))
+                (when init-close?
+                  (close-slix slix))))))))))
+
+(defn add-do-build-project-and-run-to-xref
+  [slix controls set-ui-wait]
+  (add-to-xref slix *build-project-and-run*
+               (fn [bprm]
+                 (do-build-project-and-run slix controls set-ui-wait bprm false))))

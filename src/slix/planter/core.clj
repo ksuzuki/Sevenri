@@ -289,10 +289,22 @@
     false))
 
 (defn build-project-and-run
+  "If there is a platner opening the target project, let it build the
+   project and run the requested slix. Otherwise, open a new planter and let
+   it do that."
   [fqsn nm args]
-  (let [sn (get-slix-name-from-fqns fqsn)
-        pn (generate-slix-name 'planter "BPR")]
-    (open-slix-with-args {*build-project-and-run* {:sn sn :nm nm :args args}} 'planter pn)))
+  (let [slix-name (get-slix-name-from-fqns fqsn)
+        bldprjrun {:slix-name slix-name :name nm :args args}
+        plntr-slx (when-let [kvs (xref-with fqsn)]
+                  (when-first [kv (filter #(= (second %) *xref-planter-project*) kvs)]
+                    (first kv)))]
+    (if plntr-slx
+      (let [do-bpr (*build-project-and-run* (xref-with plntr-slx))]
+        (assert (fn? do-bpr))
+        (do-bpr bldprjrun))
+      (let [bprm {*build-project-and-run* bldprjrun}
+            plnm (generate-slix-name 'planter "BPR")]
+        (open-slix-with-args bprm 'planter plnm)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
