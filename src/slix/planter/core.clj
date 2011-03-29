@@ -288,17 +288,11 @@
       (is-project-built? sym))
     false))
 
-(defn build-slix-project-and-run
+(defn build-project-and-run
   [fqsn nm args]
-  (if (build-project? fqsn)
-    (let [sn (get-slix-name-from-fqns fqsn)]
-      (if args
-        (if nm
-          (open-slix-with-args args sn nm)
-          (open-slix-with-args args sn))
-        (if nm
-          (open-slix sn nm)
-          (open-slix sn))))))
+  (let [sn (get-slix-name-from-fqns fqsn)
+        pn (generate-slix-name 'planter "BPR")]
+    (open-slix-with-args {*build-project-and-run* {:sn sn :nm nm :args args}} 'planter pn)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

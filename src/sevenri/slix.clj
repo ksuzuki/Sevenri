@@ -842,19 +842,23 @@
 (def -open-slix-args- nil)
 
 (defn generate-slix-name
-  [sn]
-  (let [Name (apply str (.toUpperCase (str (first (str sn)))) (rest (str sn)))]
-    (if-not (or (-is-slix-opening? Name) (get-slix Name))
-      Name
-      (loop [X 1]
-        (let [NameX (str Name X)]
-          (if-not (get-slix NameX)
-            NameX
-            (recur (inc X))))))))
+  ([sn]
+     (generate-slix-name sn nil))
+  ([sn pfx]
+     (let [Name (str (apply str (.toUpperCase (str (first (str sn)))) (rest (str sn))) pfx)]
+       (if-not (or (-is-slix-opening? Name) (get-slix Name))
+         Name
+         (loop [X 1]
+           (let [NameX (str Name X)]
+             (if-not (get-slix NameX)
+               NameX
+               (recur (inc X)))))))))
 
 (defn open-slix
   "Return a future oject that creates a slix instance using slix name sn
-   and notifies open events to it. Instance name is optional."
+   and notifies open events to it. Instance name is optional.
+   If the opening slix requires associating project and it is not built,
+   return a future object that delegates the open task to query-project."
   ([sn]
      (open-slix sn (generate-slix-name sn)))
   ([sn name]
@@ -864,7 +868,9 @@
              cl (create-slix-class-loader sn)
              slix {:id (gensym 'id) :sn sn :name name :cl cl :args -open-slix-args-}]
          (-get-context-and-start-slix-creation slix))
-       (log-warning (str "The project for slix " sn " is not ready.")))))
+       (future
+         (query-project :build-and-run (get-slix-fqns sn) name -open-slix-args-)
+         :sevenri.event/slix-open-after-building-project))))
 
 (defn open-slix-and-wait
   "Return the dereference to the future object returned from the open-slix

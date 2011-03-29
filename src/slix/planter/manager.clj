@@ -98,6 +98,6 @@
 
 (defn build-and-run
   ([m]
-     (build-slix-project-and-run (:slix-name m) (:name m) (:arguments m)))
+     (build-project-and-run (:slix-name m) (:name m) (:arguments m)))
   ([slix-name name args]
      (build-and-run {:slix-name slix-name :name name :arguments args})))

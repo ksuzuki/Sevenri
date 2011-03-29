@@ -412,3 +412,42 @@
     (when (and (not (empty? prj-name))
                (not (project-exists-ui? frame prj-name)))
       (do-lein-new frame (:output-text controls) (safesymstr prj-name) set-ui-wait))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn build-project-and-run-if-requested
+  [controls set-ui-wait]
+  (when-let [bprm (*build-project-and-run* (slix-args))]
+    (let [slix *slix*
+          frame (slix-frame slix)
+          {:keys [sn nm args]} bprm
+          proj-name (get-slix-fqns sn)]
+      #_(lg "build project:" proj-name "and run:" sn "with name:" name " and args:" args)
+      (future
+        (if-not (project-exists? proj-name)
+          (let [msg (str proj-name " project doesnot exist.")
+                ttl "Project Not Exist"]
+            (JOptionPane/showMessageDialog frame msg ttl JOptionPane/ERROR_MESSAGE))
+          ;;
+          (do
+            (invoke-later slix #(.setSelectedItem (:project-names controls) (str proj-name)))
+            (invoke-later slix #(.doClick (:jar controls)))
+            ;;
+            (Thread/sleep 500)
+            (loop [busy? (is-lein-agent-busy? slix)]
+              (when busy? (recur (is-lein-agent-busy? slix))))
+            ;;
+            (if-not (is-project-built? proj-name)
+              (let [msg (str "Failed to build " proj-name " project.")
+                    ttl "Build Failed"]
+                (JOptionPane/showMessageDialog frame msg ttl JOptionPane/ERROR_MESSAGE))
+              ;;
+              (do
+                (if args
+                  (if nm
+                    (open-slix-with-args args sn nm)
+                    (open-slix-with-args args sn))
+                  (if nm
+                    (open-slix sn nm)
+                    (open-slix sn)))
+                (close-slix slix)))))))))

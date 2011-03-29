@@ -20,7 +20,8 @@
   [event]
   (add-ui)
   (set-slix-visible)
-  (init-planter))
+  (init-planter)
+  (build-project-and-run-if-requested (ui-controls) set-ui-wait))
 
 (defn saving
   [event]

@@ -143,6 +143,7 @@
 (define-slix-event-id ::slix-frame-loaded)
 (define-slix-event-id ::slix-opened)
 (define-slix-event-id ::slix-open-canceled)
+(define-slix-event-id ::slix-open-after-building-project)
 (define-slix-error-event-id ::slix-error-open)
 
 (define-slix-event-id ::slix-saving)

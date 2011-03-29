@@ -21,6 +21,7 @@
 (def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
 (def *slix-planter-project* 'slix.planter)
 (def *xref-planter-project* :planter-project)
+(def *build-project-and-run* :build-project-and-run)
 
 (def *lein-commands* #{"clean" "compile" "deps" "install" "jar"
                        "jutest" "jutest!"
