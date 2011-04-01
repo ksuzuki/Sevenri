@@ -101,6 +101,7 @@
            prjns (JComboBox.)
            toppl (JPanel. (BorderLayout.))
            ;;
+           txtbd (BorderFactory/createLineBorder Color/white 2)
            cfgtx (JTextPane.)
            cfgpn (JPanel. (BorderLayout.))
            cfgsp (JScrollPane. cfgpn)
@@ -147,6 +148,7 @@
        ;;
        (let [font (get-font)]
          (doseq [text [cfgtx outtx]]
+           (.setBorder text txtbd)
            (.setFont text font)
            (.setEditable text false)))
        (.setText outtx "\n")
