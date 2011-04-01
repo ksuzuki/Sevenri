@@ -149,7 +149,9 @@
         ant-pos (PipedOutputStream.)
         ant-prs (PrintStream. ant-pos true)
         ant-bfr (BufferedReader. (InputStreamReader. (PipedInputStream. ant-pos)))
-        [lein-baos lein-oprs] (get-out-ps)
+        lin-pos (PipedOutputStream.)
+        lin-psw (java.io.OutputStreamWriter. (PrintStream. lin-pos true))
+        lin-bfr (BufferedReader. (InputStreamReader. (PipedInputStream. lin-pos)))
         ;;
         ;; Set up special output context if this is a jutest task.
         tocntxt (when (is-a-jutest-task? task)
@@ -160,7 +162,9 @@
                                    (print-line slix out-txtpn s a)))]
                     (create-test-output-context pline *attr-wrn*)))
         test-summary (when (is-a-jutest-task? task) (atom {}))]
-    ;; Now carete a lein agent task.
+    ;;
+    ;; Now carete a lein agent task fn.
+    ;;
     (fn [id]
       ;; Perform the task only when this task is reserved on lein-agent.
       (when (= id tid)
@@ -169,27 +173,34 @@
           ;; task msg.
           (set-ui-wait slix-or-frame)
           (print-start-task slix out-txtpn (str proj-name ": " task))
-          ;; Start an ant msg printer.
-          (let [amp (future
-                      (try
-                        (loop [t tocntxt
-                               l (.readLine ant-bfr)]
-                          (if l
-                            (if t
-                              (recur (handle-test-output l t) (.readLine ant-bfr))
-                              (do
-                                (print-line slix out-txtpn (str l "\n"))
-                                (recur t (.readLine ant-bfr))))
-                            (do
-                              #_(lg "eof on ant-bfr")
-                              #_(lg "output:" (when t (:output t))))))
-                        (catch Exception e)))]
+          ;; Start ant and lein msg printers.
+          (let [amp (future (try
+                              (loop [t tocntxt
+                                     l (.readLine ant-bfr)]
+                                (if l
+                                  (if t
+                                    (recur (handle-test-output l t) (.readLine ant-bfr))
+                                    (do
+                                      (print-line slix out-txtpn (str l "\n"))
+                                      (recur t (.readLine ant-bfr))))
+                                  (do
+                                    #_(lg "eof on ant-bfr")
+                                    #_(lg "output:" (when t (:output t))))))
+                              (catch Exception e)))
+                lmp (future (try
+                              (loop [l (.readLine lin-bfr)]
+                                (if l
+                                  (do
+                                    (print-line slix out-txtpn (str l "\n"))
+                                    (recur (.readLine lin-bfr)))
+                                  #_(lg "eof on lin-bfr")))
+                              (catch Exception e)))]
             ;; Run this lein task.
             (let [ct (Thread/currentThread)
                   cl (.getContextClassLoader ct)]
               ;; Inherit the planter's class loader or lein crashes.
               (.setContextClassLoader ct ltcl)
-              (let [sw (java.io.OutputStreamWriter. lein-oprs)
+              (let [sw lin-psw
                     ap (leiningen.core/get-ant-project ant-prs ant-prs)]
                 (binding [clojure.core/*out* sw
                           clojure.core/*err* sw
@@ -204,11 +215,6 @@
                       #_(lg "lein result:" result))
                     (catch Exception e
                       (log-exception e))))))
-            ;; Close the ant output pipe, which should end the ant msg printer
-            ;; started above. Refer the amp future object that should wait
-            ;; until the amp finish printing.
-            (.close ant-pos)
-            @amp
             ;; Print test summary, if any.
             (when (and test-summary @test-summary (map? @test-summary))
               (let [ts @test-summary
@@ -229,8 +235,12 @@
                   (print-line out-txtpn s1)
                   (print-line out-txtpn s2 at))
                 #_(lg "test summary:" ts)))
-            ;; Print lein msg.
-            (print-line slix out-txtpn (.toString lein-baos))
+            ;; Close the ant and lein output pipes, which should end their
+            ;; msg printers started above. Refer the amp future object that
+            ;; should wait until the amp finish printing, and then do the
+            ;; same for lmp.
+            (do (.close ant-pos) @amp)
+            (do (.close lin-pos) @lmp)
             ;; Special setup for a new slix project.
             (when (and (= task "new")
                        (project-exists? pmap))
