@@ -121,6 +121,9 @@
                   :splitter spltr}
            ;;
            panel (JPanel. (BorderLayout.))]
+       (doseq [c (vals ctrls)]
+         (when (or (instance? JButton c) (instance? JComboBox c) (instance? JTextPane c))
+           (add-default-key-listener c)))
        ;;
        (let [ds (Dimension. (first *min-frame-size*) (second *min-frame-size*))]
          (doto frame
@@ -184,7 +187,9 @@
          (.setSelectedItem prjnames (str sym))
          (.setSelectedIndex prjnames 0))
        (.setDividerLocation (:splitter controls) 0.3)
-       (set-title slix (.getSelectedItem prjnames)))))
+       (set-title slix (.getSelectedItem prjnames))
+       ;;
+       (.requestFocusInWindow prjnames))))
 
 (defn remove-ui
   ([]

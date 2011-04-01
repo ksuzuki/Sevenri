@@ -34,3 +34,8 @@
 (defn saved
   [event]
   (restore-ui))
+
+(defn closing
+  [event]
+  (when (is-lein-agent-busy? *slix*)
+    (event-response-donot-close)))
