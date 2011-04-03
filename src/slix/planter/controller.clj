@@ -67,7 +67,9 @@
   (if-let [slix (get-slix slix-or-frame)]
     (if-let [la (get-slix-prop slix :lein-agent)]
       la
-      (throw (IllegalStateException. "no lein-agent")))
+      (do
+        (log-warning "no lein-agent")
+        (atom nil)))
     (throw (IllegalArgumentException. "neither slix or frame"))))
 
 (defn reserve-lein-agent
