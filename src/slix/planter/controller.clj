@@ -10,6 +10,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def *attr-std* (let [a (SimpleAttributeSet.)]
+                  (StyleConstants/setForeground a Color/black)
+                  a))
+
 (def *attr-hdr* (let [a (SimpleAttributeSet.)]
                   (StyleConstants/setForeground a Color/blue)
                   a))
@@ -38,6 +42,7 @@
   (intern 'leiningen.core '*eval-in-lein* false)
   (intern 'leiningen.core '*exit* false)
   (intern 'leiningen.core '*test-summary* nil)
+  (intern 'leiningen.core '*help-excluding-tasks* nil)
   (intern 'leiningen.core '-main (fn [& args]))
   (intern 'leiningen.core 'get-ant-project (fn [& args])))
 
@@ -132,6 +137,51 @@
     true
     false))
 
+(defn create-piped-streams-and-reader
+  ([]
+     (create-piped-streams-and-reader false))
+  ([writer?]
+     (let [pos (PipedOutputStream.)
+           prs (PrintStream. pos true)
+           rdr (BufferedReader. (InputStreamReader. (PipedInputStream. pos)))]
+       [pos (if writer? (java.io.OutputStreamWriter. prs) prs) rdr])))
+
+(defn msg-printer
+  ([slix txtpn reader attr]
+     (msg-printer slix txtpn reader attr nil))
+  ([slix txtpn reader attr test-outctxt]
+     (future (try
+               (loop [t test-outctxt
+                      l (.readLine reader)]
+                 (when l
+                   (if t
+                     (recur (handle-test-output l t) (.readLine reader))
+                     (do
+                       (print-line slix txtpn (str l "\n") attr)
+                       (recur t (.readLine reader))))))
+               (catch Exception e)))))
+
+(defn print-test-summary
+  [slix txtpn test-summary]
+  #_(lg "planter: print-test-summary:" test-summary)
+  (let [ts test-summary
+        s1 (str "\nRan "
+                (or (:test ts) -1)
+                " tests containing "
+                (+ (or (:pass ts) 0) (or (:fail ts) 0) (or (:error ts) 0))
+                " assertions.\n")
+        s2 (str (or (:fail ts) -1)
+                " failures, "
+                (or (:error ts) -1)
+                " errors.\n")
+        at (if (or (not (zero? (or (:fail ts) -1)))
+                   (not (zero? (or (:error ts) -1))))
+             *attr-wrn*
+             *attr-ok*)]
+    (doto slix
+      (print-line txtpn s1)
+      (print-line txtpn s2 at))))
+
 ;;;;
 
 (defn create-lein-task
@@ -145,13 +195,17 @@
                     (get-project-parent-path pmap)
                     (get-project-path pmap)))
         ltcl (.getContextClassLoader (Thread/currentThread))
+        ldjs (when (and (not= task "new")
+                        (.exists (File. (get-project-path pmap) "lib/dev")))
+               (for [f (file-seq (File. (get-project-path pmap) "lib/dev"))
+                     :when (re-matches #".*\.jar$" (.getName f))]
+                 (.toURL f)))
         ;;
-        ant-pos (PipedOutputStream.)
-        ant-prs (PrintStream. ant-pos true)
-        ant-bfr (BufferedReader. (InputStreamReader. (PipedInputStream. ant-pos)))
-        lin-pos (PipedOutputStream.)
-        lin-psw (java.io.OutputStreamWriter. (PrintStream. lin-pos true))
-        lin-bfr (BufferedReader. (InputStreamReader. (PipedInputStream. lin-pos)))
+        [ant-oso ant-pso ant-rdo] (create-piped-streams-and-reader)
+        [ant-ose ant-pse ant-rde] (create-piped-streams-and-reader)
+        ;;
+        [lin-oso lin-pso lin-rdo] (create-piped-streams-and-reader true)
+        [lin-ose lin-pse lin-rde] (create-piped-streams-and-reader true)
         ;;
         ;; Set up special output context if this is a jutest task.
         tocntxt (when (is-a-jutest-task? task)
@@ -174,76 +228,42 @@
           (set-ui-wait slix-or-frame)
           (print-start-task slix out-txtpn (str proj-name ": " task))
           ;; Start ant and lein msg printers.
-          (let [amp (future (try
-                              (loop [t tocntxt
-                                     l (.readLine ant-bfr)]
-                                (if l
-                                  (if t
-                                    (recur (handle-test-output l t) (.readLine ant-bfr))
-                                    (do
-                                      (print-line slix out-txtpn (str l "\n"))
-                                      (recur t (.readLine ant-bfr))))
-                                  (do
-                                    #_(lg "eof on ant-bfr")
-                                    #_(lg "output:" (when t (:output t))))))
-                              (catch Exception e)))
-                lmp (future (try
-                              (loop [l (.readLine lin-bfr)]
-                                (if l
-                                  (do
-                                    (print-line slix out-txtpn (str l "\n"))
-                                    (recur (.readLine lin-bfr)))
-                                  #_(lg "eof on lin-bfr")))
-                              (catch Exception e)))]
+          (let [ampo (msg-printer slix out-txtpn ant-rdo *attr-std* tocntxt)
+                ampe (msg-printer slix out-txtpn ant-rde *attr-wrn* tocntxt)
+                lmpo (msg-printer slix out-txtpn lin-rdo *attr-std*)
+                lmpe (msg-printer slix out-txtpn lin-rde *attr-wrn*)]
             ;; Run this lein task.
             (let [ct (Thread/currentThread)
                   cl (.getContextClassLoader ct)]
               ;; Inherit the planter's class loader or lein crashes.
-              (.setContextClassLoader ct ltcl)
-              (let [sw lin-psw
-                    ap (leiningen.core/get-ant-project ant-prs ant-prs)]
-                (binding [clojure.core/*out* sw
-                          clojure.core/*err* sw
+              (.setContextClassLoader ct (if (seq ldjs)
+                                           (URLClassLoader. (into-array ldjs) ltcl)
+                                           ltcl))
+              (let [ap (leiningen.core/get-ant-project ant-pso ant-pse)]
+                (binding [clojure.core/*out* lin-pso
+                          clojure.core/*err* lin-pse
                           lancet/ant-project ap
                           lancet.core/ant-project ap
                           leiningen.core/*original-pwd* opwd
                           leiningen.core/*eval-in-lein* false
                           leiningen.core/*exit* false
-                          leiningen.core/*test-summary* test-summary]
+                          leiningen.core/*test-summary* test-summary
+                          leiningen.core/*help-excluding-tasks* *excluding-tasks*]
                   (try
                     (let [result (apply leiningen.core/-main task args)]
                       #_(lg "lein result:" result))
                     (catch Exception e
-                      (log-exception e))))))
+                      #_(log-exception e))))))
             ;; Print test summary, if any.
             (when (and test-summary @test-summary (map? @test-summary))
-              (let [ts @test-summary
-                    s1 (str "\nRan "
-                            (or (:test ts) -1)
-                            " tests containing "
-                            (+ (or (:pass ts) 0) (or (:fail ts) 0) (or (:error ts) 0))
-                            " assertions.\n")
-                    s2 (str (or (:fail ts) -1)
-                            " failures, "
-                            (or (:error ts) -1)
-                            " errors.\n")
-                    at (if (or (not (zero? (or (:fail ts) -1)))
-                               (not (zero? (or (:error ts) -1))))
-                         *attr-wrn*
-                         *attr-ok*)]
-                (doto slix
-                  (print-line out-txtpn s1)
-                  (print-line out-txtpn s2 at))
-                #_(lg "test summary:" ts)))
+              (print-test-summary slix out-txtpn @test-summary))
             ;; Close the ant and lein output pipes, which should end their
-            ;; msg printers started above. Refer the amp future object that
-            ;; should wait until the amp finish printing, and then do the
-            ;; same for lmp.
-            (do (.close ant-pos) @amp)
-            (do (.close lin-pos) @lmp)
+            ;; msg printers started above. Refer the future objects that
+            ;; should wait until they finish printing.
+            (do (.close ant-pso) @ampo (.close ant-pse) @ampe)
+            (do (.close lin-pso) @lmpo (.close lin-pse) @lmpo)
             ;; Special setup for a new slix project.
-            (when (and (= task "new")
-                       (project-exists? pmap))
+            (when (and (= task "new") (project-exists? pmap))
               (when-not (setup-slix-project? pmap)
                 (print-line slix out-txtpn "Setup for slix project failed" *attr-wrn*)))
             ;; Print the end of task msg, enable the UI, set the original

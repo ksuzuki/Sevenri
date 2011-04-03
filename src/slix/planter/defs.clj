@@ -22,8 +22,9 @@
 (def *slix-planter-project* 'slix.planter)
 (def *xref-planter-project* :planter-project)
 (def *build-project-and-run* :build-project-and-run)
+(def *excluding-tasks* '[interactive javac repl run swank test test! upgrade version])
 
-(def *lein-commands* #{"clean" "compile" "deps" "install" "jar"
+(def *lein-commands* #{"clean" "compile" "deps" "help" "install" "jar"
                        "jutest" "jutest!"
                        "new" "pom" "test!" "test" "uberjar"})
 
@@ -34,6 +35,7 @@
                      "Clone..."
                      "Delete..."
                      "Deps"
+                     "Help"
                      "Install"
                      "Move..."
                      "New..."
