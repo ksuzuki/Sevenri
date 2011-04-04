@@ -488,6 +488,10 @@
   []
   *base-class-loader*)
 
+(defn get-system-event-queue
+  []
+  *system-event-queue*)
+
 (defn get-slix-jvm-and-jar-paths
   [sn]
   (let [pa [(get-slix-dir sn (get-default :src :slix :jvm :dir-name))]]
@@ -1261,6 +1265,12 @@
     (reset-base-class-loader (.getContextClassLoader (Thread/currentThread))))
   true)
 
+(defn- -acquire-system-event-queue?
+  []
+  (when-not *system-event-queue*
+    (reset-system-event-queue (.getSystemEventQueue (java.awt.Toolkit/getDefaultToolkit))))
+  true)
+
 (defn create-sid-slix-dirs?
   []
   (get-sid-classes-dir)
@@ -1309,6 +1319,7 @@
   (with-create-sn-get-dir
     (and true
          (-acquire-base-class-loader?)
+         (-acquire-system-event-queue?)
          (create-sid-slix-dirs?)
          (create-src-library-dirs?)
          (cache-slix-sns?)

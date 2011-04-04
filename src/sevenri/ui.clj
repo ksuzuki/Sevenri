@@ -13,7 +13,8 @@
   (:use [sevenri config defs event log refs])
   (:import (clojure.lang IProxy)
            (java.awt AWTEvent Color Component EventQueue Font Toolkit)
-           (java.awt.event AWTEventListener FocusEvent KeyAdapter KeyEvent WindowEvent)
+           (java.awt.event AWTEventListener FocusEvent InvocationEvent
+                           KeyAdapter KeyEvent WindowEvent)
            (javax.swing BorderFactory JLabel PopupFactory)
            (javax.swing JInternalFrame JFrame)
            (java.util.logging Level)))
@@ -24,7 +25,7 @@
 (using-fns ui slix
            [is-slix? slix-frame
             put-slix-prop get-slix-prop remove-slix-prop
-            get-slixes close-slix get-slix-sevenri])
+            get-system-event-queue get-slixes close-slix get-slix-sevenri])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -55,10 +56,12 @@
               lcx (- (.getWidth sdm) wdt)
               lcy (- (.getHeight sdm) hgt)
               pup (.getPopup (PopupFactory/getSharedInstance) nil lbl lcx lcy)]
-          (future
-            (.show pup)
-            (Thread/sleep (* 1000 sec))
-            (.hide pup)))))))
+          (.postEvent (ui-using-get-system-event-queue-slix)
+                      (InvocationEvent. (Object.)
+                                        #(future
+                                           (.show pup)
+                                           (Thread/sleep (* 1000 sec))
+                                           (.hide pup)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

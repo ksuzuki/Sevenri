@@ -12,11 +12,6 @@
 (ns sevenri.defs)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; main
-
-(def quit-lock (proxy [Object][]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; config
 
 (def *sid-dir* nil)
@@ -114,6 +109,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; main
 
+(def quit-lock (proxy [Object][]))
+
 (def *ok-to-quit-fn* nil)
 
 (defn reset-ok-to-quit-fn
@@ -134,6 +131,12 @@
 (defn reset-base-class-loader
   [loader]
   (def *base-class-loader* loader))
+
+(def *system-event-queue* nil)
+
+(defn reset-system-event-queue
+  [event-queue]
+  (def *system-event-queue* event-queue))
 
 (def *slix-sevenri-can-close* false)
 
