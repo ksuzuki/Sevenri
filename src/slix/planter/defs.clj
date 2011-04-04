@@ -50,7 +50,7 @@
 
 (def *lein-loaded* (atom false))
 
-(defn lein-loaded
+(defn lein-loaded?
   ([]
      @*lein-loaded*)
   ([b]

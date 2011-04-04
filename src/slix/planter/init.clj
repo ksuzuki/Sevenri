@@ -43,7 +43,7 @@
 
 (defn can-load-lein?
   []
-  (if (lein-loaded)
+  (if (lein-loaded?)
     true
     (try
       (require 'lancet :reload)
@@ -53,9 +53,9 @@
 
 (defn load-lein
   []
-  (when-not (lein-loaded)
+  (when-not (lein-loaded?)
     #_(lg "planter: setup-planter: load-lein: loading lein")
-    (lein-loaded true)
+    (lein-loaded? true)
     (doseq [l '[lancet lancet.core leiningen.core]]
       (require l :reload))
     ;; For some reasons, if these libs (and org.apache modules used by them)
@@ -74,8 +74,8 @@
         c (.getCursor f)]
     (.setCursor f Cursor/WAIT_CURSOR)
     (load-lein)
+    (create-lein-agent slix)
     (when-let [pn (get-project slix)]
-      (create-lein-agent slix)
       (invoke-later slix #(init-ui slix pn)))
     (.setCursor f c)
     ;;
@@ -89,7 +89,7 @@
   (let [ao? (alt-open-slix? slix)
         frm (slix-frame slix)
         cur (.getCursor frm)
-        msg (if (and (lein-loaded) (not ao?))
+        msg (if (and (lein-loaded?) (not ao?))
               ;; lein-loaded but Planter project isn't ready, so...
               (str "Plater project may be deleted accidentally.\n"
                    "Please cancel and try rebuilding it by alt-opening Planter.")
@@ -127,7 +127,7 @@
     ;; Planter project is ready and classpath to it is set.
     (setup-planter *slix*)
     ;;
-    (if (and (not (lein-loaded)) (< 1 (count (get-slixes 'planter))))
+    (if (and (not (lein-loaded?)) (< 1 (count (get-slixes 'planter))))
       ;; Open no more Planter because the very first Planter must be busy
       ;; preparing Planter project.
       (close-slix *slix*)
