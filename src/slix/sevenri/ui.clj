@@ -10,27 +10,60 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.sevenri.ui
-  (:use [sevenri core slix ui]
-        [slix.sevenri defs lists])
-  (:import (java.awt Cursor)))
+  (:use [sevenri config core slix ui]
+        [slix.sevenri defs])
+  (:import (java.awt Cursor Dimension Toolkit)
+           (slix.sevenri.gui MainPanel)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn post-frame-created
+  []
+  (let [fr (slix-frame)
+        cp (.getContentPane fr)
+        mp (MainPanel.)]
+    (.add cp mp)
+    (let [minw (get-default :frame :width)
+          minh (get-default :frame :height)
+          stdw 400
+          stdh 250
+          ssiz (.getScreenSize (Toolkit/getDefaultToolkit))
+          posx (max 0 (- (.width ssiz) stdw))]
+    (doto fr
+      (.setMinimumSize (Dimension. minw minh))
+      (.setSize stdw stdh)
+      (.setLocation posx 0)))))
+
+(defn get-main-panel-components
+  [frame]
+  (let [mp (.getComponent (.getContentPane frame) 0)]
+    {:mainPanel mp
+     :lblSevenri (.getLblSevenri mp)
+     :spDivider (.getSpDivider mp) :lstSn (.getLstSn mp) :lstName (.getLstName mp)}))
+
+(defn enable-main-panel
+  [frame enable?]
+  (.setEnabled (:mainPanel (get-main-panel-components frame)) enable?))
+
 (defn setup-main-panel
+  [list-listeners]
+  (let [mpcs (get-main-panel-components (slix-frame))
+        [sn-list-listener sn-list-mouse-listener
+         nm-list-listener nm-list-mouse-listener] list-listeners]
+    (.setText (:lblSevenri mpcs) (get-sevenri-name-and-version))
+    (.addListSelectionListener (:lstSn mpcs) sn-list-listener)
+    (.addMouseListener (:lstSn mpcs) sn-list-mouse-listener)
+    (.addListSelectionListener (:lstName mpcs) nm-list-listener)
+    (.addMouseListener (:lstName mpcs) nm-list-mouse-listener)
+    (doseq [c [(:lstSn mpcs) (:lstName mpcs)]]
+      (add-default-key-listener c))))
+
+(defn update-divider
   ([]
-     (setup-main-panel false))
-  ([update-divider-only?]
+     (update-divider 0.35))
+  ([pos]
      (let [mpcs (get-main-panel-components (slix-frame))]
-       (if update-divider-only?
-         (.setDividerLocation (:spDivider mpcs) (double 0.35))
-         (do
-           (.setText (:lblSevenri mpcs) (get-sevenri-name-and-version))
-           (.addListSelectionListener (:lstSn mpcs) (get-sn-list-listener))
-           (.addMouseListener (:lstSn mpcs) (get-sn-list-mouse-listener))
-           (.addListSelectionListener (:lstName mpcs) (get-name-list-listener))
-           (.addMouseListener (:lstName mpcs) (get-name-list-mouse-listener))
-           (doseq [c [(:lstSn mpcs) (:lstName mpcs)]]
-             (add-default-key-listener c)))))))
+       (.setDividerLocation (:spDivider mpcs) (double pos)))))
 
 (defn show-slixes-event-cursor
   [show?]

@@ -11,20 +11,13 @@
 
 (ns slix.sevenri.lists
   (:use [sevenri config core log slix utils]
-        [slix.sevenri defs]
+        [slix.sevenri defs ui]
         [clojure.java io])
   (:import (java.awt Cursor)
            (java.awt.event InputEvent MouseAdapter)
            (javax.swing.event ListSelectionListener)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-main-panel-components
-  [frame]
-  (let [mp (.getComponent (.getContentPane frame) 0)]
-    {:mainPanel mp
-     :lblSevenri (.lblSevenri mp)
-     :spDivider (.spDivider mp) :lstSn (.lstSn mp) :lstName (.lstName mp)}))
 
 (defn get-selected-indices
   [old-selections new-selections]

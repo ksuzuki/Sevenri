@@ -11,11 +11,8 @@
 
 (ns ^{:slix true :singleton true}
   slix.sevenri
-  (:use [sevenri config core event log os slix ui utils])
-  (:use [slix.sevenri aotlist lists ui])
-  (:import (java.awt Dimension Toolkit)
-           (java.io File)
-           (slix.sevenri.gui MainPanel)))
+  (:use [sevenri config event log os slix ui utils])
+  (:use [slix.sevenri aotlist lists ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -32,44 +29,38 @@
 
 (defn aot-compile-slixes
   []
-  (let [wmsg "sevenri: aot-compile-slixes: aot-compile failed for:"]
-    (doseq [sn *aot-compile-list*]
-      (if (aot-compile? sn 'aot)
-        (when-let [aot-os (cond
-                           (is-mac?) 'aot-mac
-                           :else nil)]
-          (when (.exists (File. (get-slix-dir sn) (str (nssym2path aot-os) ".clj")))
-            (when-not (aot-compile? sn aot-os)
-              (log-warning wmsg aot-os))))
-        (log-warning wmsg sn)))))
+  (let [frame (slix-frame)]
+    (future
+      (let [msg "sevenri: aot-compile-slixes: aot-compile failed for:"]
+        (enable-main-panel frame false)
+        ;;
+        (doseq [sn *aot-compile-list*]
+          (if (aot-compile? sn 'aot)
+            (when-let [aot-os (cond
+                               (is-mac?) 'aot-mac
+                               :else nil)]
+              (when (.exists (java.io.File. (get-slix-dir sn) (str (nssym2path aot-os) ".clj")))
+                (when-not (aot-compile? sn aot-os)
+                  (log-warning msg aot-os))))
+            (log-warning msg sn)))
+        ;; 
+        (enable-main-panel frame true)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix event handlers
 
 (defn frame-created
   [event]
-  (let [fr (slix-frame)
-        cp (.getContentPane fr)
-        mp (MainPanel.)]
-    (.add cp mp)
-    (let [minw (get-default :frame :width)
-          minh (get-default :frame :height)
-          stdw 400
-          stdh 250
-          ssiz (.getScreenSize (Toolkit/getDefaultToolkit))
-          posx (max 0 (- (.width ssiz) stdw))]
-    (doto fr
-      (.setMinimumSize (Dimension. minw minh))
-      (.setSize stdw stdh)
-      (.setLocation posx 0)))))
+  (post-frame-created))
 
 (defn opened
   [event]
-  (setup-main-panel)
-  (update-lists)
+  (setup-main-panel [(get-sn-list-listener) (get-sn-list-mouse-listener)
+                     (get-name-list-listener) (get-name-list-mouse-listener)])
   (set-slix-visible)
-  (setup-main-panel true)
+  (update-divider)
   (aot-compile-slixes)
+  (update-lists)
   (add-to-xref *slix* :update-lists-fn #'update-lists))
 
 (defn saving
