@@ -78,6 +78,7 @@
    txtpn
    (proxy [KeyAdapter] []
      (keyPressed [e]
-       (let [kc (.getKeyCode e)]
-         (when (and (= kc KeyEvent/VK_C) (pos? (bit-and (.getModifiers e) KeyEvent/CTRL_MASK)))
+       (let [kc (.getKeyCode e)
+             km (.getModifiers e)]
+         (when (and (= kc KeyEvent/VK_C) (pos? (bit-and km KeyEvent/CTRL_MASK)))
            (restart-repl slix start-repl)))))))

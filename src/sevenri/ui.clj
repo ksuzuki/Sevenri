@@ -340,16 +340,13 @@
 
 (defmacro invoke-awt-utils-static-method
   ([^String method]
-     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method
-                                   nil)
+     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method nil)
                nil nil))
-  ([^String method arg1]
-     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method
-                                   (into-array Class (vector (class ~arg1))))
+  ([^String method arg1 ca-arg1]
+     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method ~ca-arg1)
                nil (into-array Object (vector ~arg1))))
-  ([^String method arg1 arg2]
-     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method
-                                   (into-array Class (vector (class ~arg1) (class ~arg2))))
+  ([^String method arg1 arg2 ca-arg12]
+     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method ~ca-arg12)
                nil (into-array Object (vector ~arg1 ~arg2)))))
 
 (defmacro is-awt-utils-feature-supported?
@@ -357,14 +354,19 @@
      `(if (is-awt-utilities-available?)
         (invoke-awt-utils-static-method ~feature)
         false))
-  ([^String feature arg1]
+  ([^String feature arg1 ca-arg1]
      `(if (is-awt-utilities-available?)
-        (invoke-awt-utils-static-method ~feature ~arg1)
+        (invoke-awt-utils-static-method ~feature ~arg1 ~ca-arg1)
         false))
-  ([^String feature arg1 arg2]
+  ([^String feature arg1 arg2 ca-arg12]
      `(if (is-awt-utilities-available?)
-        (invoke-awt-utils-static-method ~feature ~arg1 ~arg2)
+        (invoke-awt-utils-static-method ~feature ~arg1 ~arg2 ~ca-arg12)
         false)))
+
+(defn is-translucency-supported?
+  [translucency]
+  (is-awt-utils-feature-supported? "isTranslucencySupported"
+                                   translucency (into-array Class [(class translucency)])))
 
 (defmacro get-AWTUtilities-Translucency
   []
@@ -377,22 +379,19 @@
     (apply hash-map (interleave ks vs))))
 
 (defmacro invoke-awt-utils-feature
-  ([^String feature arg1]
+  ([^String feature arg1 ca-arg1]
      `(if (is-awt-utilities-available?)
-        (invoke-awt-utils-static-method ~feature ~arg1)))
-  ([^String feature arg1 arg2]
+        (invoke-awt-utils-static-method ~feature ~arg1 ~ca-arg1)))
+  ([^String feature arg1 arg2 ca-arg2]
      `(if (is-awt-utilities-available?)
-        (invoke-awt-utils-static-method ~feature ~arg1 ~arg2))))
+        (invoke-awt-utils-static-method ~feature ~arg1 ~arg2 ~ca-arg2))))
 
 ;;;;
 
 (defn is-translucency-capable?
   [gconfig]
-  (is-awt-utils-feature-supported? "isTranslucencyCapable" gconfig))
-
-(defn is-translucency-supported?
-  [translucency]
-  (is-awt-utils-feature-supported? "isTranslucencySupported" translucency))
+  (is-awt-utils-feature-supported? "isTranslucencyCapable"
+                                   gconfig (into-array Class [(class gconfig)])))
 
 (defn is-perpixel-transparent-supported?
   []
@@ -408,27 +407,33 @@
 
 (defn get-window-opacity
   [window]
-  (invoke-awt-utils-feature "getWindowOpacity" window))
-
-(defn get-window-shape
-  [window]
-  (invoke-awt-utils-feature "getWindowShape" window))
-
-(defn set-component-mixing-cutout-shape
-  [component shape]
-  (invoke-awt-utils-feature "setComponentMixingCutoutShape" component shape))
+  (invoke-awt-utils-feature "getWindowOpacity"
+                            window (into-array Class [java.awt.Window])))
 
 (defn set-window-opacity
   [window fval]
-  (invoke-awt-utils-feature "setWindowOpacity" window fval))
+  (invoke-awt-utils-feature "setWindowOpacity"
+                            window fval (into-array Class [java.awt.Window Float/TYPE])))
 
 (defn set-window-opaque
   [window bval]
-  (invoke-awt-utils-feature "setWindowOpaque" window bval))
+  (invoke-awt-utils-feature "setWindowOpaque"
+                            window bval (into-array Class [java.awt.Window Boolean/TYPE])))
+
+(defn get-window-shape
+  [window]
+  (invoke-awt-utils-feature "getWindowShape"
+                            window (into-array Class [java.awt.Window])))
 
 (defn set-window-shape
   [window shape]
-  (invoke-awt-utils-feature "setWindowShape" window shape))
+  (invoke-awt-utils-feature "setWindowShape"
+                            window shape (into-array Class [java.awt.Window java.awt.Shape])))
+
+(defn set-component-mixing-cutout-shape
+  [component shape]
+  (invoke-awt-utils-feature "setComponentMixingCutoutShape"
+                            component shape (into-array Class [java.awt.Component java.awt.Shape])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

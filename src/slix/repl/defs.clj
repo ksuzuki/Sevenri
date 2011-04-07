@@ -20,3 +20,6 @@
 (def *text-caret-color* Color/yellow)
 (def *text-background-color* (Color. 50 50 100))
 (def *text-foreground-color* Color/white)
+(def *opacity-default* 0.90)
+(def *opacity-delta* 0.02)
+(def *prop-opacity* "opacity")
