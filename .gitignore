@@ -6,6 +6,7 @@ scratch*
 foo*
 bar*
 *_.clj
+Sevenri.app/
 
 # Ignore these specific dirs and files
 /.sevenri
@@ -15,7 +16,6 @@ bar*
 /pom.xml
 /sid
 /temp
-Sevenri.app/Icon*
 doc/apidocs/J2SE/*
 doc/apidocs/JavaEE/*
 src/library/clojure/*

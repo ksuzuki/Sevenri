@@ -1,0 +1,11 @@
+#!/bin/bash
+sa=./Sevenri.app
+
+if [ -a $sa ]; then
+	rm -rf $sa
+fi
+
+osacompile -o $sa -x tools/Sevenri.scpt >/dev/null 2>&1
+cp tools/Sevenri-icon.icns $sa/Contents/Resources/applet.icns
+
+lein deps
