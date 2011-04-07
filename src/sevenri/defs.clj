@@ -40,6 +40,13 @@
                               (catch Exception e
                                 false)))
 
+(def *awt-utilities-available* (try
+                                 (if (Class/forName "com.sun.awt.AWTUtilities")
+                                   true
+                                   false)
+                                 (catch Exception e
+                                   false)))
+
 ;;;;
 
 (def *system-app-context* nil)

@@ -21,6 +21,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn is-awt-utilities-available?
+  []
+  *awt-utilities-available*)
+
 ;; These fns are resolved at the startup time.
 (using-fns ui slix
            [is-slix? slix-frame
@@ -327,6 +331,104 @@
      `(save-dynaclass-listeners ~'*slix* ~cagrv-vec))
   ([slix cagrv-vec]
      `(save-dynaclass-listeners ~slix ~cagrv-vec)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmacro get-AWTUtilities-class
+  []
+  `(Class/forName "com.sun.awt.AWTUtilities"))
+
+(defmacro invoke-awt-utils-static-method
+  ([^String method]
+     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method
+                                   nil)
+               nil nil))
+  ([^String method arg1]
+     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method
+                                   (into-array Class (vector (class ~arg1))))
+               nil (into-array Object (vector ~arg1))))
+  ([^String method arg1 arg2]
+     `(.invoke (.getDeclaredMethod (get-AWTUtilities-class) ~method
+                                   (into-array Class (vector (class ~arg1) (class ~arg2))))
+               nil (into-array Object (vector ~arg1 ~arg2)))))
+
+(defmacro is-awt-utils-feature-supported?
+  ([^String feature]
+     `(if (is-awt-utilities-available?)
+        (invoke-awt-utils-static-method ~feature)
+        false))
+  ([^String feature arg1]
+     `(if (is-awt-utilities-available?)
+        (invoke-awt-utils-static-method ~feature ~arg1)
+        false))
+  ([^String feature arg1 arg2]
+     `(if (is-awt-utilities-available?)
+        (invoke-awt-utils-static-method ~feature ~arg1 ~arg2)
+        false)))
+
+(defmacro get-AWTUtilities-Translucency
+  []
+  `(Class/forName "com.sun.awt.AWTUtilities$Translucency"))
+
+(defn get-awt-utils-translucencies
+  []
+  (let [vs (.getEnumConstants (get-AWTUtilities-Translucency))
+        ks (map #(keyword (str %)) vs)]
+    (apply hash-map (interleave ks vs))))
+
+(defmacro invoke-awt-utils-feature
+  ([^String feature arg1]
+     `(if (is-awt-utilities-available?)
+        (invoke-awt-utils-static-method ~feature ~arg1)))
+  ([^String feature arg1 arg2]
+     `(if (is-awt-utilities-available?)
+        (invoke-awt-utils-static-method ~feature ~arg1 ~arg2))))
+
+;;;;
+
+(defn is-translucency-capable?
+  [gconfig]
+  (is-awt-utils-feature-supported? "isTranslucencyCapable" gconfig))
+
+(defn is-translucency-supported?
+  [translucency]
+  (is-awt-utils-feature-supported? "isTranslucencySupported" translucency))
+
+(defn is-perpixel-transparent-supported?
+  []
+  (is-translucency-supported? (:PERPIXEL_TRANSPARENT (get-awt-utils-translucencies))))
+
+(defn is-translucent-supported?
+  []
+  (is-translucency-supported? (:TRANSLUCENT (get-awt-utils-translucencies))))
+
+(defn is-perpixel-translucent-supported?
+  []
+  (is-translucency-supported? (:PERPIXEL_TRANSLUCENT (get-awt-utils-translucencies))))
+
+(defn get-window-opacity
+  [window]
+  (invoke-awt-utils-feature "getWindowOpacity" window))
+
+(defn get-window-shape
+  [window]
+  (invoke-awt-utils-feature "getWindowShape" window))
+
+(defn set-component-mixing-cutout-shape
+  [component shape]
+  (invoke-awt-utils-feature "setComponentMixingCutoutShape" component shape))
+
+(defn set-window-opacity
+  [window fval]
+  (invoke-awt-utils-feature "setWindowOpacity" window fval))
+
+(defn set-window-opaque
+  [window bval]
+  (invoke-awt-utils-feature "setWindowOpaque" window bval))
+
+(defn set-window-shape
+  [window shape]
+  (invoke-awt-utils-feature "setWindowShape" window shape))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
