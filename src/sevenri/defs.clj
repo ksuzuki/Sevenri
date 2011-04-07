@@ -32,10 +32,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; jvm
 
-(def *Sun-awt-is-available* (if (and (Class/forName "sun.awt.AppContext")
-                                     (Class/forName "sun.awt.SunToolkit"))
-                              true
-                              false))
+(def *Sun-awt-is-available* (try
+                              (if (and (Class/forName "sun.awt.AppContext")
+                                       (Class/forName "sun.awt.SunToolkit"))
+                                true
+                                false)
+                              (catch Exception e
+                                false)))
 
 ;;;;
 

@@ -21,15 +21,19 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defmacro invoke-sun-awt-static-method
+  [^String class ^String method]
+  `(.invoke (.getDeclaredMethod (Class/forName ~class) ~method nil) nil nil))
+
 (defn get-app-context
  []
  (when *Sun-awt-is-available*
-   (sun.awt.AppContext/getAppContext)))
+   (invoke-sun-awt-static-method "sun.awt.AppContext" "getAppContext")))
 
 (defn get-app-contexts
  []
  (when *Sun-awt-is-available*
-   (sun.awt.AppContext/getAppContexts)))
+   (invoke-sun-awt-static-method "sun.awt.AppContext" "getAppContexts")))
 
 (defn get-system-app-context
   []
@@ -52,7 +56,7 @@
          @app-context)))
   ([app-context]
      (when *Sun-awt-is-available*
-       (reset! app-context (sun.awt.SunToolkit/createNewAppContext)))))
+       (reset! app-context (invoke-sun-awt-static-method "sun.awt.SunToolkit" "createNewAppContext")))))
 
 (defn dispose-app-context
   [app-context]
