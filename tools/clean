@@ -1,11 +1,13 @@
 #!/bin/bash
 lein clean
+
 rm -rf .sevenri/ lib/
 find src/sevenri -name '*.class' -delete
-for d in "documenter" "incantea" "planter"
+for d in "documenter" "incantea"
 do
     pushd src/project/slix/$d >/dev/null
-    lein clean
+    lein clean >/dev/null
     rm -rf lib/
 	popd >/dev/null
 done
+
