@@ -34,6 +34,9 @@
         (.setEditorKitForContentType (.getContentType kit) kit)
         (.setContentType (.getContentType kit))
         (.setFont fnt)
+        (.setForeground *foreground-color*)
+        (.setBackground *background-color*)
+        (.setCaretColor *caret-color*)
         (.setEditable true)
         (map-input-to-action)
         (add-ced-listeners-and-properties mpl (if (identical? ced cd1) cd2 cd1))))
@@ -111,11 +114,10 @@
         (.setBlinkRate 500)
         (.setAdjustVisibility false))
       (.setCaret cd2 crt2))
-    ;; Remember *slix* and enable double buffering and input methods.
+    ;; Remember *slix* and enable input methods.
     (doseq [cd [cd1 cd2]]
       (doto cd
         (.putClientProperty *prop-ced-slix* *slix*)
-        (.setDoubleBuffered true)
         (.enableInputMethods true)))
     ;; Setup the doc watcher.
     (setup-doc-watcher doc mid)

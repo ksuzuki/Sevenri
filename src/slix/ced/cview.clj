@@ -55,14 +55,14 @@
   "The rendering pos range is actually [p0, p1). Also when rendering using
    Utilities/drawTabbedText, a color has to be set prior to call the fn,
    or you get blank."
-  (let [doc (.getDocument this)
-        ced (.getContainer this)
-        fgc (.getForeground ced)
-        seg (Segment.)
+  (let [ced (.getContainer this)
         ppp (.getClientProperty ced *prop-ced-ppp-info*)
         [pp0 pp1] (if (and ppp (not (second ppp)))
                     (or (first ppp) [Long/MAX_VALUE -1])
                     [Long/MAX_VALUE -1])]
     (if (or (< pp1 p0) (<= p1 pp0))
-      (drawTextSegment this g x y doc fgc seg p0 p1)
-      (drawParenText this g x y p0 p1 doc fgc seg pp0 pp1))))
+      (.superDrawUnselectedText this g x y p0 p1)
+      (let [doc (.getDocument this)
+            fgc (.getForeground ced)
+            seg (Segment.)]
+        (drawParenText this g x y p0 p1 doc fgc seg pp0 pp1)))))

@@ -16,11 +16,15 @@
 
 (def *content-type* "text/clj")
 (def *file-encoding* "UTF-8")
-(def *paren-highlight-color* Color/magenta)
-(def *popup-bg-color* (Color. 255 255 204))
 (def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
 (def *tab-size* 8)
 (def *warning-sec* 4)
+
+(def *foreground-color* Color/black)
+(def *background-color* Color/white)
+(def *caret-color* Color/black)
+(def *paren-highlight-color* Color/magenta)
+(def *popup-bg-color* (Color. 255 255 204))
 
 (def *prop-ced-caret-listener* "caret-listener")
 (def *prop-ced-column-number* "column-number")
