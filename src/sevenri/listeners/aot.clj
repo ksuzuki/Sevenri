@@ -10,4 +10,4 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns sevenri.listeners.aot
-  (:use [sevenri.listeners awtehandler defwinlistener defkeylistener]))
+  (:use [sevenri.listeners awtehandler defwinlistener defkeylistener evtdelegator]))

@@ -10,11 +10,14 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns sevenri.ui
+  (:require [clojure.set :as cljset])
   (:use [sevenri config defs event log refs])
   (:import (clojure.lang IProxy)
            (java.awt AWTEvent Color Component EventQueue Font Toolkit)
            (java.awt.event AWTEventListener FocusEvent InvocationEvent
                            KeyAdapter KeyEvent WindowEvent)
+           (java.beans EventHandler)
+           (java.lang.reflect Proxy)
            (javax.swing BorderFactory JLabel PopupFactory)
            (javax.swing JInternalFrame JFrame)
            (java.util.logging Level)))
@@ -236,103 +239,6 @@
     (.addKeyListener comp dkl)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; dynaclass := clojure.lang.IProxy | AnonymousClass
-
-(defmacro create-listener-access-triplet-vector
-  [base]
-  (let [adr# (symbol (format ".add%sListener" base))
-        gtr# (symbol (format ".get%sListeners" base))
-        rmr# (symbol (format ".remove%sListener" base))]
-    `[(fn [~'c ~'o] (~adr# ~'c ~'o))
-      (fn [~'c] (~gtr# ~'c))
-      (fn [~'c ~'o] (~rmr# ~'c ~'o))]))
-
-(defn clear-saved-dynaclass-listeners
-  [slix]
-  (ui-using-remove-slix-prop-slix slix *saved-dynaclass-listeners*))
-
-(defn restore-saved-dynaclass-listeners
-  "[ [comp [[adder dc-listeners]*]* ]"
-  [slix]
-  (when-let [calv-vec (ui-using-get-slix-prop-slix slix *saved-dynaclass-listeners*)]
-    (when (seq calv-vec)
-      (doseq [[comp alv-vec] calv-vec]
-        (when (instance? Component comp)
-          (doseq [[adr dls] alv-vec]
-            (doseq [dl dls]
-              (when (and (fn? adr) (or (instance? IProxy dl)
-                                       (.isAnonymousClass (class dl))))
-                (adr comp dl))))))
-      (clear-saved-dynaclass-listeners slix))))
-
-(defn remove-dynaclass-listeners
-  "In:  comp [[adder getter remover]*]
-   Out: [comp [[adder dc-objects]*]] or nil."
-  [comp agrv-vec]
-  (when (and (instance? Component comp) (seq agrv-vec))
-    (let [alv-vec (reduce (fn [alvv [adr gtr rmr]]
-                            (if (and (fn? adr) (fn? gtr) (fn? rmr))
-                              (let [ls (gtr comp)]
-                                (if (seq ls)
-                                  (loop [i (dec (alength ls))
-                                         dls nil]
-                                    (if (<= 0 i)
-                                      (let [l (aget ls i)]
-                                        (if (or (instance? IProxy l)
-                                                (.isAnonymousClass (class l)))
-                                          (do
-                                            (rmr comp l)
-                                            (recur (dec i) (cons l dls)))
-                                          (recur (dec i) dls)))
-                                      (if (seq dls)
-                                        (conj alvv [adr dls])
-                                        alvv)))
-                                  alvv))
-                              alvv))
-                          []
-                          agrv-vec)]
-      (when (seq alv-vec)
-        [comp alv-vec]))))
-
-(defn save-dynaclass-listeners
-  "In:  [ [comp [[adder getter remover]*]]* ]
-   Out: [ [comp [[adder dc-listeners]*]]* ]"
-  [slix cagrv-vec]
-  (when (ui-using-is-slix?-slix slix)
-    (let [calv-vec (reduce (fn [calvv [comp agrvv]]
-                             (if (and comp agrvv)
-                               (if-let [calv (remove-dynaclass-listeners comp agrvv)]
-                                 (conj calvv calv)
-                                 calvv)
-                               calvv))
-                           []
-                           cagrv-vec)]
-      (when (seq calv-vec)
-        (ui-using-put-slix-prop-slix slix *saved-dynaclass-listeners* calv-vec)))))
-
-;;; shorter, macro versions
-
-(defmacro listener-triplet
-  [listener]
-  `(create-listener-access-triplet-vector ~listener))
-
-(defmacro clear-dyna-listeners
-  ([]
-     `(restore-saved-dynaclass-listeners ~'*slix*))
-  ([slix]
-     `(restore-saved-dynaclass-listeners ~slix)))
-
-(defmacro remove-dyna-listeners
-  [comp agrv-vec]
-  `(remove-dynaclass-listeners ~comp ~agrv-vec))
-
-(defmacro save-dyna-listeners
-  ([cagrv-vec]
-     `(save-dynaclass-listeners ~'*slix* ~cagrv-vec))
-  ([slix cagrv-vec]
-     `(save-dynaclass-listeners ~slix ~cagrv-vec)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro get-AWTUtilities-class
   []
@@ -437,6 +343,216 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn- -get-event-delegator-class
+  []
+  *event-delegator-class*)
+
+(defn- -get-event-delegator-persistence-delegate
+  []
+  (.invoke (.getMethod (-get-event-delegator-class) "getPersistenceDelegate" nil) nil nil))
+
+(defn- -get-event-delegator
+  ([]
+     (-get-event-delegator (gensym "ed")))
+  ([id]
+     (let [ctor (.getConstructor (-get-event-delegator-class) (into-array Class [String]))]
+       (.newInstance ctor (into-array [(str id)])))))
+
+(defn- -set-event-handler-to-delegator
+  ([handler]
+     (-set-event-handler-to-delegator handler (-get-event-delegator)))
+  ([handler event-delegator]
+     (when (and (fn? handler)
+                (instance? (-get-event-delegator-class) event-delegator))
+       (.setHandler event-delegator handler)
+       event-delegator)))
+
+;;;;
+
+(defn set-event-delegator-persistence-delegate
+  [xml-encoder]
+  (let [ed (-get-event-delegator-class)
+        pd (-get-event-delegator-persistence-delegate)]
+    (.setPersistenceDelegate xml-encoder ed pd)))
+
+(defn set-event-handlers
+  "Set an event handler for an event listener method to an event delegator.
+   In listener-intf-id-method-handler-vec consistes two items; the first item
+   is listener interface in question and the second item is a map of handling
+   id and a pair of listener method and handler in vector.
+   Each pair of listener method and handler is bound to the handling id, and
+   the event delegator with the same id is assigned the handler for the
+   listener method. When no event delegator for and id is found, a new event
+   delegator with the id is created and assigned the corresponding handler
+   for method.
+   If remove-unref-delegators? is true, the delegators of which ids not
+   specified in listener-intf-id-method-handler-vec are removed.
+
+   listener-intf-id-method-handler-vec := [ listener-intf id-method-hander-map ]
+   id-method-handler-map := { id1 [listener-method-a handler-a],
+                              id2 [listener-method-b handler-b],
+                               :           :              :
+                              idn [listener-method-x handler-x] }
+
+   listener-intf is such like 'java.awt.event.ActionListener'. listener-method
+   is like 'actionPerformed'. listener-method can be nil. In that case the
+   corresponding handler receives the event object for all listener methods
+   defined by listener-intf."
+  ([comp listener-intf-id-method-handler-vec]
+     (set-event-handlers comp listener-intf-id-method-handler-vec false))
+  ([comp listener-intf-id-method-handler-vec remove-unref-delegators?]
+     (let [comp-class (.getClass comp)
+           [listener-intf id-method-handler-map] listener-intf-id-method-handler-vec
+           intf-name (last (.split (str (.getName listener-intf)) "\\."))
+           listener-intf-array (into-array [listener-intf])
+           ;;
+           add-listener-name (str "add" intf-name)
+           add-listener-method (.getMethod comp-class add-listener-name listener-intf-array)
+           get-listeners-name (str "get" intf-name "s")
+           get-listeners-method (.getMethod comp-class get-listeners-name nil)
+           remove-listener-name (str "remove" intf-name)
+           remove-listener-method (.getMethod comp-class remove-listener-name listener-intf-array)
+           ;;
+           get-handler-target (fn [l] (.getTarget (Proxy/getInvocationHandler l)))
+           event-delegator-listeners (filter #(and (instance? Proxy %)
+                                                   (Proxy/isProxyClass (.getClass %))
+                                                   (instance? (-get-event-delegator-class) (get-handler-target %)))
+                                             (.invoke get-listeners-method comp (into-array [])))
+           id-delegator-map (reduce (fn [m l]
+                                      (let [ed (get-handler-target l)]
+                                        (assoc m (.getId ed) ed)))
+                                    {}
+                                    event-delegator-listeners)
+           method-handler-ids (apply hash-set (keys id-method-handler-map))
+           delegator-ids (apply hash-set (keys id-delegator-map))
+           unset-method-handler-ids (cljset/difference method-handler-ids delegator-ids)
+           unref-delegator-ids (cljset/difference delegator-ids method-handler-ids)]
+       #_(lg "nid-delegator-map:" id-delegator-map "\n"
+           "unset-method-handler-ids:" unset-method-handler-ids "\n"
+           "unref-delegator-ids:" unref-delegator-ids)
+       ;; Assign handler to delegator
+       (doseq [[id delegator] id-delegator-map]
+         (when-let [method-handler (get id-method-handler-map id)]
+           (let [[method handler] method-handler]
+             (-set-event-handler-to-delegator handler delegator))))
+       ;; Add new event delegator for unset handler/method.
+       (when (seq unset-method-handler-ids)
+         (doseq [id unset-method-handler-ids]
+           (let [[method handler] (get id-method-handler-map id)
+                 delegator (-set-event-handler-to-delegator handler (-get-event-delegator id))
+                 ;; Specify "" for the 4th arg to get whole event object in the handler.
+                 delegator-listener (EventHandler/create listener-intf delegator "handleEvent" "" method)]
+             ;; Clojure's .invoke is expecting args in array...
+             (.invoke add-listener-method comp (into-array [delegator-listener])))))
+       ;; Remove unreferened delegators if requested.
+       (when (and remove-unref-delegators? (seq unref-delegator-ids))
+         (doseq [id unref-delegator-ids]
+           (doseq [event-delegator-listener event-delegator-listeners]
+             (when (= id (.getId (get-handler-target event-delegator-listener)))
+               (.invoke remove-listener-method comp (into-array [event-delegator-listener])))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Deprecated
+
+;;;; dynaclass := clojure.lang.IProxy | AnonymousClass
+
+(defmacro create-listener-access-triplet-vector
+  [base]
+  (let [adr# (symbol (format ".add%sListener" base))
+        gtr# (symbol (format ".get%sListeners" base))
+        rmr# (symbol (format ".remove%sListener" base))]
+    `[(fn [~'c ~'o] (~adr# ~'c ~'o))
+      (fn [~'c] (~gtr# ~'c))
+      (fn [~'c ~'o] (~rmr# ~'c ~'o))]))
+
+(defn clear-saved-dynaclass-listeners
+  [slix]
+  (ui-using-remove-slix-prop-slix slix *saved-dynaclass-listeners*))
+
+(defn restore-saved-dynaclass-listeners
+  "[ [comp [[adder dc-listeners]*]* ]"
+  [slix]
+  (when-let [calv-vec (ui-using-get-slix-prop-slix slix *saved-dynaclass-listeners*)]
+    (when (seq calv-vec)
+      (doseq [[comp alv-vec] calv-vec]
+        (when (instance? Component comp)
+          (doseq [[adr dls] alv-vec]
+            (doseq [dl dls]
+              (when (and (fn? adr) (or (instance? IProxy dl)
+                                       (.isAnonymousClass (class dl))))
+                (adr comp dl))))))
+      (clear-saved-dynaclass-listeners slix))))
+
+(defn remove-dynaclass-listeners
+  "In:  comp [[adder getter remover]*]
+   Out: [comp [[adder dc-objects]*]] or nil."
+  [comp agrv-vec]
+  (when (and (instance? Component comp) (seq agrv-vec))
+    (let [alv-vec (reduce (fn [alvv [adr gtr rmr]]
+                            (if (and (fn? adr) (fn? gtr) (fn? rmr))
+                              (let [ls (gtr comp)]
+                                (if (seq ls)
+                                  (loop [i (dec (alength ls))
+                                         dls nil]
+                                    (if (<= 0 i)
+                                      (let [l (aget ls i)]
+                                        (if (or (instance? IProxy l)
+                                                (.isAnonymousClass (class l)))
+                                          (do
+                                            (rmr comp l)
+                                            (recur (dec i) (cons l dls)))
+                                          (recur (dec i) dls)))
+                                      (if (seq dls)
+                                        (conj alvv [adr dls])
+                                        alvv)))
+                                  alvv))
+                              alvv))
+                          []
+                          agrv-vec)]
+      (when (seq alv-vec)
+        [comp alv-vec]))))
+
+(defn save-dynaclass-listeners
+  "In:  [ [comp [[adder getter remover]*]]* ]
+   Out: [ [comp [[adder dc-listeners]*]]* ]"
+  [slix cagrv-vec]
+  (when (ui-using-is-slix?-slix slix)
+    (let [calv-vec (reduce (fn [calvv [comp agrvv]]
+                             (if (and comp agrvv)
+                               (if-let [calv (remove-dynaclass-listeners comp agrvv)]
+                                 (conj calvv calv)
+                                 calvv)
+                               calvv))
+                           []
+                           cagrv-vec)]
+      (when (seq calv-vec)
+        (ui-using-put-slix-prop-slix slix *saved-dynaclass-listeners* calv-vec)))))
+
+;;; shorter, macro versions
+
+(defmacro listener-triplet
+  [listener]
+  `(create-listener-access-triplet-vector ~listener))
+
+(defmacro clear-dyna-listeners
+  ([]
+     `(restore-saved-dynaclass-listeners ~'*slix*))
+  ([slix]
+     `(restore-saved-dynaclass-listeners ~slix)))
+
+(defmacro remove-dyna-listeners
+  [comp agrv-vec]
+  `(remove-dynaclass-listeners ~comp ~agrv-vec))
+
+(defmacro save-dyna-listeners
+  ([cagrv-vec]
+     `(save-dynaclass-listeners ~'*slix* ~cagrv-vec))
+  ([slix cagrv-vec]
+     `(save-dynaclass-listeners ~slix ~cagrv-vec)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; startup/shutdown
+
 (defn add-awt-event-listeners?
   []
   (let [tk (Toolkit/getDefaultToolkit)]
@@ -493,13 +609,19 @@
   ;;
   true)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn shutdown-ui?
+(defn reset-event-delegator-class?
   []
+  (reset-event-delegator-class (get-default :src :sevenri :listeners :evtdelegator))
   true)
+
+;;;;
 
 (defn startup-ui?
   []
   (and true
-       (add-awt-event-listeners?)))
+       (add-awt-event-listeners?)
+       (reset-event-delegator-class?)))
+
+(defn shutdown-ui?
+  []
+  true)

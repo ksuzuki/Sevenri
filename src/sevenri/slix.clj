@@ -626,15 +626,14 @@
   ([slix]
      (-load-slix-frame (slix-sn slix) (slix-name slix)))
   ([sn name]
-     (let [[f s] (get-slix-file-bundle sn name)]
-       (when (and (.exists f) (.canRead f))
-         (with-open [s (BufferedInputStream. (FileInputStream. f))
-                     d (XMLDecoder. s)]
-           (try
-             (.readObject d)
-             (catch Exception e
-               (log-exception e)
-               nil)))))))
+     (try
+       (let [[f s] (get-slix-file-bundle sn name)]
+         (when (and (.exists f) (.canRead f))
+           (with-open [xd (XMLDecoder. (BufferedInputStream. (FileInputStream. f)))]
+             (.readObject xd))))
+       (catch Exception e
+         (log-exception e)
+         nil))))
 
 (defn- -presave-slix-frame
   [slix]
@@ -656,9 +655,13 @@
           (when (.exists f)
             (.delete f))
           (with-open [xe (XMLEncoder. (BufferedOutputStream. (FileOutputStream. f)))]
+            ;;
+            (set-event-delegator-persistence-delegate xe)
+            ;; Ignore any exception if not log-xml-encoder-errors?.
             (when-not log-xml-encoder-errors?
-              (let [el (proxy [ExceptionListener] [] (exceptionThrown [e]))]
-                (.setExceptionListener xe el)))
+              (.setExceptionListener xe (proxy [ExceptionListener][]
+                                          (exceptionThrown [e]))))
+            ;;
             (.writeObject xe (slix-frame slix))
             (.flush xe))
           true))
@@ -718,7 +721,7 @@
   (let [f (JFrame.)
         n (slix-name slix)]
     (doto f
-      (.setLocationByPlatform *set-location-by-platform*)
+      (.setLocationByPlatform *frame-location-by-platform*)
       (.setDefaultCloseOperation JFrame/DISPOSE_ON_CLOSE)
       (.setTitle (str n))
       (.setSize (get-default :frame :width) (get-default :frame :height)))
@@ -941,9 +944,9 @@
                  eid)
                ;; continue saving
                (let [saved? (atom false)
-                     log? (if (= res ::sevenri.event/response-suppress-xml-encoder-errors)
-                            false
-                            true)]
+                     log? (if (= res ::sevenri.event/response-log-xml-encoder-errors)
+                            true
+                            *log-xml-encoder-errors*)]
                  (invoke-and-wait slix #(reset! saved? (-save-slix-frame? slix log?)))
                  (let [eid (if @saved?
                              :sevenri.event/slix-saved
@@ -1258,6 +1261,7 @@
      (.setVisible (slix-frame slix) visible?)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; startup/shutdown
 
 (defn- -acquire-base-class-loader?
   []
@@ -1308,7 +1312,7 @@
     (aot-compile? sn 'aot false))
   true)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn shutdown-slix?
   []

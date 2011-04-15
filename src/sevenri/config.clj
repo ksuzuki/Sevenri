@@ -76,8 +76,9 @@
                  :listeners {:dir-name 'listeners
                              :aot 'sevenri.listeners.aot
                              :awtehandler 'sevenri.listeners.awtehandler
+                             :defkeylistener 'sevenri.listeners.defkeylistener
                              :defwinlistener 'sevenri.listeners.defwinlistener
-                             :defkeylistener 'sevenri.listeners.defkeylistener}}
+                             :evtdelegator 'sevenri.listeners.evtdelegator}}
         
         :slix {:dir-name 'slix
                 :jvm {:dir-name 'jvm}}}

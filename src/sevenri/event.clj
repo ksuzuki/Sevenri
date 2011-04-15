@@ -183,7 +183,7 @@
 (define-event-response ::response-donot-save)
 (define-event-response ::response-donot-close)
 
-(define-event-response ::response-suppress-xml-encoder-errors)
+(define-event-response ::response-log-xml-encoder-errors)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

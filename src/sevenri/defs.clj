@@ -130,11 +130,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix
 
-(def *set-location-by-platform* true)
+(def *frame-location-by-platform* true)
 
-(defn set-location-by-platform
+(defn reset-frame-location-by-platform
   [by-platform?]
-  (def *set-location-by-platform* by-platform?))
+  (def *frame-location-by-platform* by-platform?))
 
 (def *base-class-loader* nil)
 
@@ -150,9 +150,25 @@
 
 (def *slix-sevenri-can-close* false)
 
-(defn slix-sevenri-can-close
+(defn reset-slix-sevenri-can-close
   [can?]
   (def *slix-sevenri-can-close* can?))
+
+(def *log-xml-encoder-errors* false)
+
+(defn reset-log-xml-encoder-errors
+  [log?]
+  (def *log-xml-encoder-errors* log?))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; ui
+
+(def *event-delegator-class* nil)
+
+(defn reset-event-delegator-class
+  [evtdelegator-name]
+  (def *event-delegator-class*
+    (Class/forName (str evtdelegator-name))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup
