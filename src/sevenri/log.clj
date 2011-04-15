@@ -255,6 +255,7 @@
         true))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; startup/shutdown
 
 (defn -save-std-inouterr?
   []
@@ -302,11 +303,7 @@
   (load-exception-listeners)
   true)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn shutdown-log?
-  []
-  true)
+;;;;
 
 (defn startup-log?
   []
@@ -320,3 +317,7 @@
          (install-thread-default-uncaught-exception-handler?)
          (get-sid-sevenri-exception-dir?)
          (load-exception-listeners?))))
+
+(defn shutdown-log?
+  []
+  true)

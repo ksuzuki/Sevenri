@@ -116,6 +116,7 @@
   (System/setProperty "sun.awt.exception.handler" (str awt-exception-handler-name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; startup/shutdown
 
 (defn- -acquire-system-app-context?
   []
@@ -128,14 +129,14 @@
   (register-awt-exception-handler (get-default :src :sevenri :listeners :awtehandler))
   true)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn shutdown-jvm?
-  []
-  true)
+;;;;
 
 (defn startup-jvm?
   []
   (and true
        (-acquire-system-app-context?)
        (register-awt-exception-handler?)))
+
+(defn shutdown-jvm?
+  []
+  true)

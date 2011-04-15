@@ -130,8 +130,7 @@
       (save-dyna-listeners
        [[(slix-frame) [(listener-triplet Window)]]
         [(.getTextPane (get-slix-prop :console)) [(listener-triplet Caret)
-                                                   (listener-triplet Key)]]])
-      (create-event-response :sevenri.event/response-suppress-xml-encoder-errors))
+                                                   (listener-triplet Key)]]]))
     ;; Discard others.
     (event-response-donot-save)))
 

@@ -357,6 +357,18 @@
                 nil))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; startup/shutdown
+
+
+(defn startup
+  []
+  (startup-or-shutdown :startup))
+
+(defn shutdown
+  []
+  (startup-or-shutdown :shutdown))
+
+;;;;
 
 (defn get-sevenri-lock-file
   []
@@ -379,17 +391,7 @@
       (.delete lf))
     true))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn shutdown
-  []
-  (startup-or-shutdown :shutdown))
-
-(defn startup
-  []
-  (startup-or-shutdown :startup))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn create-sid-sevenri-dirs?
   []
@@ -424,13 +426,7 @@
     (query-project :shutdown pm))
   true)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn shutdown-core?
-  []
-  (and true
-       (shutdown-project-manager?)
-       (remove-sevenri-lock-file?)))
+;;;;
 
 (defn startup-core?
   []
@@ -442,3 +438,9 @@
                       (create-sevenri-lock-file?)))]
     (and result
          (setup-project-manager?))))
+
+(defn shutdown-core?
+  []
+  (and true
+       (shutdown-project-manager?)
+       (remove-sevenri-lock-file?)))

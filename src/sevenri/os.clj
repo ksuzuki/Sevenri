@@ -81,10 +81,7 @@
    :else nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn shutdown-os?
-  []
-  true)
+;;;; startup/shutdown
 
 (defn startup-os?
   []
@@ -92,3 +89,7 @@
        (cond
         (is-mac?) (-init-mac)
         :else true)))
+
+(defn shutdown-os?
+  []
+  true)

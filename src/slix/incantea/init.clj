@@ -181,8 +181,6 @@
   (if (:sevenri.event/info-save-on-close (get-event-info event))
     (do
       (save-state)
-      (do-views :close-all-yes)
-      (create-event-response
-       :sevenri.event/response-suppress-xml-encoder-errors))
+      (do-views :close-all-yes))
     (create-event-response
      :sevenri.event/response-donot-save)))
