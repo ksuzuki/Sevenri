@@ -146,7 +146,7 @@
                            (try
                              (deref
                               (cond
-                               open-lib? (open-slix-with-args {:file (get-slix-fqns sn)} 'ced)
+                               open-lib? (open-slix-with-args {:file (get-slix-ns sn)} 'ced)
                                alt-open? (open-slix-with-args {(get-default :slix :arguments :alt-open) true} sn)
                                :else (open-slix sn)))
                              (finally

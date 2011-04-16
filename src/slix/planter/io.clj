@@ -26,7 +26,7 @@
 
 (defn save-project-name
   [slix proj-name]
-  (with-create-sn-get-dir
+  (with-making-dir
     (let [sf (get-sid-slix-state-file slix)]
       (spit sf (str proj-name) :encoding "UTF-8"))))
 

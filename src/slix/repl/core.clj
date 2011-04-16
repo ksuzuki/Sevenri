@@ -51,7 +51,7 @@
    startup script."
   [repl-slix]
   (let [src (get-startup-script-file)
-        tgt (with-create-sn-get-dir
+        tgt (with-making-dir
               (File. (get-sid-slix-dir (slix-sn repl-slix)) (str (get-startup-script-file-name) ".clj")))]
     (when-not (.exists tgt)
       (clojure.java.io/copy src tgt))
@@ -109,7 +109,7 @@
            in (let [opon (slix-sn repl-slix)]
                 (if (= opon 'repl)
                   'user
-                  (get-slix-fqns opon)))
+                  (get-slix-ns opon)))
            sr #(start-repl* op repl-slix cn in rc)]
        ;; Remember start-in namespace, replrc, and console.
        (put-slix-prop :inns in)

@@ -553,7 +553,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
 
-(defn add-awt-event-listeners?
+(defn- -add-awt-event-listeners?
   []
   (let [tk (Toolkit/getDefaultToolkit)]
     ;; KeyEvent: move frame focus with META+` key
@@ -609,7 +609,7 @@
   ;;
   true)
 
-(defn reset-event-delegator-class?
+(defn- -reset-event-delegator-class?
   []
   (reset-event-delegator-class (get-default :src :sevenri :listeners :evtdelegator))
   true)
@@ -618,9 +618,9 @@
 
 (defn startup-ui?
   []
-  (and true
-       (add-awt-event-listeners?)
-       (reset-event-delegator-class?)))
+  (starting-up
+   -add-awt-event-listeners?
+   -reset-event-delegator-class?))
 
 (defn shutdown-ui?
   []

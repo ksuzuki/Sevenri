@@ -94,7 +94,7 @@
 (defn add-category
   [category]
   (when (string? category)
-    (with-create-sn-get-dir
+    (with-making-dir
       (let [cdir (get-doc-dir (symbol category))
             mtdc (read-metadoc cdir)]
         (when cdir
@@ -339,7 +339,7 @@
 
 (defn save-current-section-title-category
   [slix section-title-category]
-  (with-create-sn-get-dir
+  (with-making-dir
     (let [[frame-file state-file] (get-slix-file-bundle slix)
           cont (or section-title-category [])]
       (spit state-file cont :encoding "UTF-8"))))

@@ -10,7 +10,10 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns sevenri.event
-  (:use [sevenri config core defs log jvm refs]))
+  (:use [sevenri config defs log jvm refs]
+        [sevenri.core :only (lock-and-wait
+                             unlock-and-resume
+                             lock-run-and-wait)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;
@@ -308,16 +311,16 @@
 
 ;; These fns are resolved at the startup time.
 (using-fns event slix
-           [slix-sn slix-name get-slix-fqns invoke-later])
+           [slix-sn slix-name get-slix-ns invoke-later])
 
 (defn get-event-handler
-  [event-id fqns]
-  (ns-resolve fqns (symbol (name event-id))))
+  [event-id ns]
+  (ns-resolve ns (symbol (name event-id))))
 
 (defn get-slixless-event-handler
-  [event-id fqns]
+  [event-id ns]
   (when (is-slix-event? event-id)
-    (ns-resolve fqns (symbol (subs (name event-id) *slix-dash-len*)))))
+    (ns-resolve ns (symbol (subs (name event-id) *slix-dash-len*)))))
 
 (defn- -dispatch-event
   "Return a future event or nil"
@@ -333,10 +336,10 @@
        (when (is-slix-error-event? event-id)
          (reset! *last-error-event* event))
        ;; Dispatch the event.
-       (let [fqns (event-using-get-slix-fqns-slix (event-using-slix-sn-slix tgt-slix))]
+       (let [ns (event-using-get-slix-ns-slix (event-using-slix-sn-slix tgt-slix))]
          (when-let [event-handler (if (and (is-slix-event? event-id) (identical? tgt-slix src-slix))
-                                    (get-slixless-event-handler event-id fqns)
-                                    (get-event-handler event-id fqns))]
+                                    (get-slixless-event-handler event-id ns)
+                                    (get-event-handler event-id ns))]
            (let [bfn (bound-fn []
                                (let [post-event (atom event)
                                      event-lock (proxy [Object][])

@@ -10,7 +10,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns sevenri.core
-  (:use [sevenri config defs jvm log os refs startup utils])
+  (:use [sevenri config defs jvm log os refs utils])
   (:import (java.io BufferedWriter File FileOutputStream)
            (java.io InputStreamReader OutputStreamWriter)))
 
@@ -93,137 +93,63 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-src-sevenri-dir
-  [& pfxs]
-  (reduce (fn [f p] (File. f (nssym2path p)))
-          (File. (get-src-dir) (str (get-default :src :sevenri :dir-name)))
-          pfxs))
+(defn get-file
+  "Returns a .clj File object by default. If the last arg is an extension
+   like '.xml', then a File object with that extension."
+  [path & pfxs]
+  (if (and pfxs (re-matches #"^\.[^.]+" (str (last pfxs))))
+    (File. (str (apply get-dir path (butlast pfxs)) (last pfxs)))
+    (File. (str (apply get-dir path pfxs) ".clj"))))
 
-(defmacro get-sevenri-dir
-  [& pfxs]
-  `(get-src-sevenri-dir ~@pfxs))
-
-(defn get-src-sevenri-file
-  [& pfxs]
-  (File. (str (apply get-src-sevenri-dir pfxs) ".clj")))
-
-(defmacro get-sevenri-file
-  [& pfxs]
-  `(get-src-sevenri-file ~@pfxs))
-
-(defn get-sid-sevenri-dir
-  [& pfxs]
-  (apply get-dir (get-sid-dir (get-default :sid :sevenri :dir-name)) pfxs))
+(defmacro def-get-file
+  [name path]
+  (let [gnf (symbol (str "get-" name "-file"))]
+    `(defn ~gnf
+       [& ~'pfxs]
+       (apply get-file ~path ~'pfxs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-src-project-file
- [& pfxs]
- (File. (str (apply get-src-project-dir pfxs) ".clj")))
+(def-get-dir src-sevenri (get-dir (get-src-dir) (get-default :src :sevenri :dir-name)))
+(defmacro get-sevenri-dir [& pfxs] `(get-src-sevenri-dir ~@pfxs))
 
-(defmacro get-project-file
-  [& pfxs]
-  `(get-src-project-file ~@pfxs))
+(def-get-file src-sevenri (get-src-sevenri-dir))
+(defmacro get-sevenri-file [& pfxs] `(get-src-sevenri-file ~@pfxs))
 
-(defn get-project-protocol-file
-  []
-  (File. (get-src-project-dir) (str (get-default :src :project :protocol-file-name))))
+;;;;
 
-(defn get-project-protocol
-  ([]
-     (get-project-protocol nil))
-  ([kwd]
-     (let [ppf (get-project-protocol-file)]
-       (if (.exists ppf)
-         (try
-           (let [ppm (load-string (slurp ppf :encoding "UTF-8"))]
-             (if (keyword? kwd)
-               (get ppm kwd)
-               ppm))
-           (catch Exception e
-             (log-severe "get-project-protocol: failed to read protocol file")
-             nil))
-         (do
-           (log-severe "get-project-protocol: protocol file missing")
-           nil)))))
-
-(defn get-project-manager
-  []
-  (get-project-protocol :manager))
-
-(defn get-project-manager-slix
-  []
-  (get-project-protocol :slix))
-
-(defn query-project
-  ([query-kwd slix-name]
-     (query-project query-kwd slix-name nil))
-  ([query-kwd slix-name name]
-     (query-project query-kwd slix-name name nil))
-  ([query-kwd slix-name name args]
-     (when-let [prtcl (get-project-protocol)]
-       (query-project query-kwd slix-name name args prtcl)))
-  ([query-kwd slix-name name args protocol]
-     (when (and (keyword? query-kwd)
-                (or (symbol? slix-name) (string? slix-name))
-                (and (map? protocol) (:manager protocol) (get protocol query-kwd)))
-       (let [manager (symbol (:manager protocol))
-             qryfsym (symbol (get protocol query-kwd))
-             loaded? (try
-                       (require manager)
-                       true
-                       (catch Exception e
-                         (log-severe "query-project: failed to load manager:" manager)
-                         false))
-             qryfvar (when (and loaded? (find-ns manager))
-                       (ns-resolve manager qryfsym))]
-         (if (var? qryfvar)
-           (let [m (array-map :slix-name slix-name :name name :arguments args)]
-             (if (fn? (var-get qryfvar))
-               (try
-                 (qryfvar m)
-                 (catch Exception e
-                   (log-severe "query-project: fn failed:" qryfsym)
-                   nil))
-               (if-let [qrymthd (get-method (var-get qryfvar) (class m))]
-                 (try
-                   (qrymthd m)
-                   (catch Exception e
-                     (log-severe "query-project: method failed:" qryfsym)
-                     nil))
-                 (do
-                   (log-severe "query-project: no fn/method:" query-kwd)
-                   nil))))
-           (do
-             (log-severe "query-project: no fn/method:" query-kwd)
-             nil))))))
+(def-get-dir sid-sevenri (get-sid-dir (get-default :sid :sevenri :dir-name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-sid-temp-file
-  ([]
-     (get-sid-temp-file 'temp))
-  ([prefix]
-     (get-sid-temp-file prefix 'tmp))
-  ([prefix ext]
+(defn get-temp-file*
+  ([temp-root-dir]
+     (get-temp-file* temp-root-dir 'temp))
+  ([temp-root-dir prefix]
+     (get-temp-file* temp-root-dir prefix 'tmp))
+  ([temp-root-dir prefix ext]
      (let [pfxlen (count (str prefix))
            prefix (if (< 2 pfxlen)
                     (str prefix)
                     (apply str (concat (seq (str prefix)) (repeat (- 3 pfxlen) \_))))]
-       (File/createTempFile prefix (str \. ext) (get-sid-temp-dir)))))
+       (File/createTempFile prefix (str \. ext) temp-root-dir))))
 
 (defn get-temp-file
   ([]
-     (get-temp-file 'temp))
+     (get-temp-file* (get-temp-dir)))
   ([prefix]
-     (get-temp-file prefix 'tmp))
+     (get-temp-file* (get-temp-dir) prefix))
   ([prefix ext]
-     (let [pfxlen (count (str prefix))
-           prefix (if (< 2 pfxlen)
-                    (str prefix)
-                    (apply str (concat (seq (str prefix)) (repeat (- 3 pfxlen) \_))))]
-       (File/createTempFile prefix (str \. ext) (get-temp-dir)))))
+     (get-temp-file* (get-temp-dir) prefix ext)))
      
+(defn get-sid-temp-file
+  ([]
+     (get-temp-file* (get-sid-temp-dir)))
+  ([prefix]
+     (get-temp-file* (get-sid-temp-dir) prefix))
+  ([prefix ext]
+     (get-temp-file* (get-sid-temp-dir) prefix ext)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn trash-file?
@@ -301,6 +227,84 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def-get-file src-project (get-src-project-dir))
+(defmacro get-project-file [& pfxs] `(get-src-project-file ~@pfxs))
+
+(defn get-project-protocol-file
+  []
+  (File. (get-src-project-dir) (str (get-default :src :project :protocol-file-name))))
+
+(defn get-project-protocol
+  ([]
+     (get-project-protocol nil))
+  ([kwd]
+     (let [ppf (get-project-protocol-file)]
+       (if (.exists ppf)
+         (try
+           (let [ppm (load-string (slurp ppf :encoding "UTF-8"))]
+             (if (keyword? kwd)
+               (get ppm kwd)
+               ppm))
+           (catch Exception e
+             (log-severe "get-project-protocol: failed to read protocol file")
+             nil))
+         (do
+           (log-severe "get-project-protocol: protocol file missing")
+           nil)))))
+
+(defn get-project-manager
+  []
+  (get-project-protocol :manager))
+
+(defn get-project-manager-slix
+  []
+  (get-project-protocol :slix))
+
+(defn query-project
+  ([query-kwd slix-name]
+     (query-project query-kwd slix-name nil))
+  ([query-kwd slix-name name]
+     (query-project query-kwd slix-name name nil))
+  ([query-kwd slix-name name args]
+     (when-let [prtcl (get-project-protocol)]
+       (query-project query-kwd slix-name name args prtcl)))
+  ([query-kwd slix-name name args protocol]
+     (when (and (keyword? query-kwd)
+                (or (symbol? slix-name) (string? slix-name))
+                (and (map? protocol) (:manager protocol) (get protocol query-kwd)))
+       (let [manager (symbol (:manager protocol))
+             qryfsym (symbol (get protocol query-kwd))
+             loaded? (try
+                       (require manager)
+                       true
+                       (catch Exception e
+                         (log-severe "query-project: failed to load manager:" manager)
+                         false))
+             qryfvar (when (and loaded? (find-ns manager))
+                       (ns-resolve manager qryfsym))]
+         (if (var? qryfvar)
+           (let [m (array-map :slix-name slix-name :name name :arguments args)]
+             (if (fn? (var-get qryfvar))
+               (try
+                 (qryfvar m)
+                 (catch Exception e
+                   (log-severe "query-project: fn failed:" qryfsym)
+                   nil))
+               (if-let [qrymthd (get-method (var-get qryfvar) (class m))]
+                 (try
+                   (qrymthd m)
+                   (catch Exception e
+                     (log-severe "query-project: method failed:" qryfsym)
+                     nil))
+                 (do
+                   (log-severe "query-project: no fn/method:" query-kwd)
+                   nil))))
+           (do
+             (log-severe "query-project: no fn/method:" query-kwd)
+             nil))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn lock-and-wait
   ([obj]
      (lock-and-wait obj 0))
@@ -359,23 +363,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
 
-
-(defn startup
-  []
-  (startup-or-shutdown :startup))
-
-(defn shutdown
-  []
-  (startup-or-shutdown :shutdown))
-
-;;;;
-
 (defn get-sevenri-lock-file
   []
-  (with-create-sn-get-dir
+  (with-making-dir
     (File. (get-sid-sevenri-dir) (str (get-default :sid :sevenri :lock-file-name)))))
 
-(defn create-sevenri-lock-file?
+(defn- -create-sevenri-lock-file?
   []
   (let [lf (get-sevenri-lock-file)]
     (if (.exists lf)
@@ -384,7 +377,7 @@
         (spit lf "Don't disturb me")
         true))))
 
-(defn remove-sevenri-lock-file?
+(defn- -remove-sevenri-lock-file?
   []
   (let [lf (get-sevenri-lock-file)]
     (when (.exists lf)
@@ -393,25 +386,29 @@
 
 ;;;;
 
-(defn create-sid-sevenri-dirs?
+(defn- -create-sid-sevenri-dirs?
   []
   (get-sid-classes-dir)
   (get-sid-sevenri-dir)
   (get-sid-temp-dir)
   true)
 
-(defn create-other-dirs?
+(defn- -create-other-dirs?
   []
   (get-library-dir 'user)
   (get-temp-dir)
   true)
 
-(defn aot-compile-sevenri-listeners?
+(defn- -aot-compile-sevenri-listeners?
   []
-  (binding [*compile-path* (str (get-src-dir))]
-    (compile (get-default :src :sevenri :listeners :aot))))
+  (try
+    (binding [*compile-path* (str (get-src-dir))]
+      (compile (get-default :src :sevenri :listeners :aot)))
+    true
+    (catch Exception e
+      false)))
 
-(defn setup-project-manager?
+(defn- -setup-project-manager?
   []
   (when-let [pm (get-project-manager)]
     (when-not (query-project :ready? pm)
@@ -420,7 +417,7 @@
           (log-severe "setup-project-manager?: failed to setup projet manager:" pm)))))
   true)
 
-(defn shutdown-project-manager?
+(defn- -shutdown-project-manager?
   []
   (when-let [pm (get-project-manager)]
     (query-project :shutdown pm))
@@ -430,17 +427,15 @@
 
 (defn startup-core?
   []
-  (let [result (with-create-sn-get-dir
-                 (and true
-                      (create-sid-sevenri-dirs?)
-                      (create-other-dirs?)
-                      (aot-compile-sevenri-listeners?)
-                      (create-sevenri-lock-file?)))]
-    (and result
-         (setup-project-manager?))))
+  (starting-up
+   -create-sid-sevenri-dirs?
+   -create-other-dirs?
+   -aot-compile-sevenri-listeners?
+   -create-sevenri-lock-file?
+   -setup-project-manager?))
 
 (defn shutdown-core?
   []
-  (and true
-       (shutdown-project-manager?)
-       (remove-sevenri-lock-file?)))
+  (shutting-down
+   -shutdown-project-manager?
+   -remove-sevenri-lock-file?))

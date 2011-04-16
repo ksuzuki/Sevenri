@@ -25,7 +25,7 @@
 (defn launch-exceptor
   [#^Exception e fqsn file-name line-number]
   #_(lg "fqsn:" fqsn "file-name:" file-name "line-number:" line-number)
-  (if (re-find (re-pattern (str (get-slix-fqns *ced*))) (str fqsn))
+  (if (re-find (re-pattern (str (get-slix-ns *ced*))) (str fqsn))
     ;; Cannot open ced when it's the cause of the exception.
     (do-launch e (File. file-name) line-number false)
     (let [sub-path (nssym2path fqsn)

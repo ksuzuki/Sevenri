@@ -20,21 +20,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn nssym2path
+(defn ns2path
   [nssym]
-  (.replace (.replace (str nssym) \. \/) \- \_))
+  (.replace (.replace (.replaceAll (str nssym) *unsafe-sym-chars* "_") \- \_) \. \/))
 
-(defn path2nssym
+(defn path2ns
   [path]
   (symbol (.replace (.replace (str path) \/ \.) \_ \-)))
-
-(defn safesymstr
-  [sym]
-  (.replaceAll (str sym) *unsafe-sym-chars* "-"))
-
-(defn nssym2safepath
-  [nssym]
-  (nssym2path (safesymstr nssym)))
 
 (defn get-user-dir
   []
@@ -188,3 +180,22 @@
                      (> l1 l2) -1
                      :else 0))))]
     (sort comp fs)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Deprecated
+
+(defn nssym2path
+  [nssym]
+  (.replace (.replace (str nssym) \. \/) \- \_))
+
+(defn path2nssym
+  [path]
+  (symbol (.replace (.replace (str path) \/ \.) \_ \-)))
+
+(defn safesymstr
+  [sym]
+  (.replaceAll (str sym) *unsafe-sym-chars* "-"))
+
+(defn nssym2safepath
+  [nssym]
+  (nssym2path (safesymstr nssym)))

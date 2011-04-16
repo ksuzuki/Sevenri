@@ -15,7 +15,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *create-sn-get-dir* false)
+(def *making-dir* false)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -114,60 +114,50 @@
   (get-in *sevenri-defaults* ks))
 
 (defn get-dir
+  "Return a directory File object based on root and optional postfixes.
+   ns2path conversion is applied to each postfix but not to root if it's
+   a File object already. Also, if the directory doesn't exist and
+   *making-dir* is true, the directory will be created before returning."
   [root & pfxs]
-  (let [dir (if pfxs
-              (reduce (fn [d p] (File. d (nssym2path p))) root pfxs)
-              (File. (str root)))]
-    (when (and *create-sn-get-dir* (not (.exists dir)))
+  (let [rdr (if (instance? File root)
+              root
+              (File. (ns2path root)))
+        dir (reduce (fn [d p] (File. d (ns2path p))) rdr pfxs)]
+    (when (and *making-dir* (not (.exists dir)))
       (.mkdirs dir))
     dir))
 
-(defmacro with-create-sn-get-dir
+(defmacro with-making-dir
+  "Set up a context to let get-dir make directory if necessary."
   [& body]
-  `(binding [*create-sn-get-dir* true]
+  `(binding [*making-dir* true]
      ~@body))
+
+(defmacro def-get-dir
+  [name root]
+  (let [gnd (symbol (str "get-" name "-dir"))]
+    `(defn ~gnd
+       [& ~'pfxs]
+       (apply get-dir ~root ~'pfxs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-doc-dir
-  [& pfxs]
-  (apply get-dir (File. (get-user-dir) (str (get-default :doc :dir-name))) pfxs))
-  
-(defn get-lib-dir
-  [& pfxs]
-  (apply get-dir (File. (get-user-dir) (str (get-default :lib :dir-name))) pfxs))
+(def-get-dir doc (get-dir (get-user-dir) (get-default :doc :dir-name)))
 
-(defn get-src-dir
-  [& pfxs]
-  (apply get-dir (File. (get-user-dir) (str (get-default :src :dir-name))) pfxs))
+(def-get-dir lib (get-dir (get-user-dir) (get-default :lib :dir-name)))
 
-(defn get-src-library-dir
-  [& pfxs]
-  (apply get-dir (File. (get-src-dir) (str (get-default :src :library :dir-name))) pfxs))
+(def-get-dir src (get-dir (get-user-dir) (get-default :src :dir-name)))
 
-(defmacro get-library-dir
-  [& pfxs]
-  `(get-src-library-dir ~@pfxs))
+(def-get-dir src-library (get-dir (get-src-dir) (get-default :src :library :dir-name)))
+(defmacro get-library-dir [& pfxs] `(get-src-library-dir ~@pfxs))
 
-(defn get-src-project-dir
-  [& pfxs]
-  (apply get-dir (File. (get-src-dir) (str (get-default :src :project :dir-name))) pfxs))
+(def-get-dir src-project (get-dir (get-src-dir) (get-default :src :project :dir-name)))
+(defmacro get-project-dir [& pfxs] `(get-src-project-dir ~@pfxs))
 
-(defmacro get-project-dir
-  [& pfxs]
-  `(get-src-project-dir ~@pfxs))
+(def-get-dir src-resources (get-dir (get-src-dir) (get-default :src :resources :dir-name)))
+(defmacro get-resources-dir [& pfxs] `(get-src-resources-dir ~@pfxs))
 
-(defn get-src-resources-dir
-  [& pfxs]
-  (apply get-dir (File. (get-src-dir) (str (get-default :src :resources :dir-name))) pfxs))
-
-(defmacro get-resources-dir
-  [& pfxs]
-  `(get-src-resources-dir ~@pfxs))
-
-(defn get-temp-dir
-  [& pfxs]
-  (apply get-dir (File. (get-user-dir) (str (get-default :temp :dir-name))) pfxs))
+(def-get-dir temp (get-dir (get-user-dir) (get-default :temp :dir-name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -184,19 +174,10 @@
            *sid-dir*)
          (get-sid-root-dir dname (inc n))))))
 
-(defn get-sid-dir
-  [& pfxs]
-  (apply get-dir (get-sid-root-dir) pfxs))
+(def-get-dir sid (get-sid-root-dir))
 
-(defn get-sid-classes-dir
-  [& pfxs]
-  (apply get-dir (get-sid-dir (get-default :sid :classes :dir-name)) pfxs))
+(def-get-dir sid-classes (get-sid-dir (get-default :sid :classes :dir-name)))
 
-(defn get-sid-temp-dir
-  [& pfxs]
-  (apply get-dir (get-sid-dir (get-default :sid :temp :dir-name)) pfxs))
+(def-get-dir sid-temp (get-sid-dir (get-default :sid :temp :dir-name)))
 
-(defn get-sid-trash-dir
-  [& pfxs]
-  (with-create-sn-get-dir
-    (apply get-dir (get-sid-dir (get-default :sid :trash :dir-name)) pfxs)))
+(def-get-dir sid-trash (get-sid-dir (get-default :sid :trash :dir-name)))

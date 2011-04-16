@@ -37,6 +37,7 @@
             n (symbol (str o \. i))
             s (symbol (str pfx \- i \?))
             v (ns-resolve n s)]
+        (print-info (if startup "starting up:" "shutting down:") "[" (:name (meta v)) "]")
         (if (and v (fn? (var-get v)))
           (when-not (v)
             (let [m (print-str "startup-or-shutdown:" pfx "failed on" v)]

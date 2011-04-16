@@ -119,8 +119,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; main
 
-(def quit-lock (proxy [Object][]))
-
 (def *ok-to-quit-fn* nil)
 
 (defn reset-ok-to-quit-fn

@@ -450,7 +450,7 @@
 (defn do-build-project-and-run
   [slix controls set-ui-wait bprm init-close?]
   (let [{:keys [slix-name name args]} bprm
-        proj-name (get-slix-fqns slix-name)]
+        proj-name (get-slix-ns slix-name)]
     #_(lg "build project:" proj-name "and run:" slix-name "with name:" name " and args:" args)
     (future
       (let [frm (slix-frame slix)]

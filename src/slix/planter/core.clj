@@ -293,7 +293,7 @@
    project and run the requested slix. Otherwise, open a new planter and let
    it do that."
   [fqsn nm args]
-  (let [slix-name (get-slix-name-from-fqns fqsn)
+  (let [slix-name (get-slix-name-from-ns fqsn)
         bldprjrun {:slix-name slix-name :name nm :args args}
         plntr-slx (when-let [kvs (xref-with fqsn)]
                   (when-first [kv (filter #(= (second %) *xref-planter-project*) kvs)]

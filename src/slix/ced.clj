@@ -19,7 +19,7 @@
 
 (defn opening
   [event]
-  (let [file (get-file)
+  (let [file (get-ced-file)
         ocfs (filter (fn [[o cf]] (= cf file)) (xref-with :ced-file))]
     (when (seq ocfs)
       (let [slix (ffirst ocfs)

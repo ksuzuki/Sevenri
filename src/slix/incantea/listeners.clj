@@ -91,7 +91,7 @@
           (let [msg (str spl " exists already.")
                 ttl "The Spell Exists"]
             (JOptionPane/showMessageDialog frm msg ttl JOptionPane/ERROR_MESSAGE))
-          (with-create-sn-get-dir
+          (with-making-dir
            (create-new-spell-file spl)
            (update-spell-list list spl true)
            (.doClick edit)))))))

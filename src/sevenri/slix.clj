@@ -248,37 +248,39 @@
   []
   @*slix-sn-cache*)
 
-(defn get-slix-fqns
+(defn get-slix-ns
   ([sn]
      (symbol (str (get-default :tln :slix) \. sn)))
   ([sn pfx]
-     (get-slix-fqns (str sn \. pfx)))
+     (get-slix-ns (str sn \. pfx)))
   ([sn pfx & pfxs]
-     (apply get-slix-fqns sn (str pfx \. (first pfxs)) (rest pfxs))))
+     (apply get-slix-ns sn (str pfx \. (first pfxs)) (rest pfxs))))
 
-(defn get-slix-name-from-fqns
-  [fqns]
-  (when-let [rm (re-matches (re-pattern (str "^" (get-default :tln :slix) "\\.(.+)")) (str fqns))]
+(defn get-slix-name-from-ns
+  [ns]
+  (when-let [rm (re-matches (re-pattern (str "^" (get-default :tln :slix) "\\.(.+)")) (str ns))]
     (symbol (second rm))))
 
 (defn get-slix-sn-meta
   [sn]
-  (when-let [sns (find-ns (get-slix-fqns sn))]
+  (when-let [sns (find-ns (get-slix-ns sn))]
     (meta sns)))
 
-(defn get-library-slix-fqns
+(defn get-library-slix-ns
   [sn & pfxs]
-  (symbol (str (get-default :tln :library) \. (apply get-slix-fqns sn pfxs))))
+  (symbol (str (get-default :tln :library) \. (apply get-slix-ns sn pfxs))))
 
 (defn get-slix-fn
   [sn fnsym]
-  (ns-resolve (get-slix-fqns sn) fnsym))
+  (ns-resolve (get-slix-ns sn) fnsym))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-src-slix-dir
   ([]
-     (get-dir (get-src-dir) (get-default :src :slix :dir-name)))
+     (get-src-dir (get-default :src :slix :dir-name)))
   ([sn & pfxs]
-     (get-dir (get-src-dir) (nssym2path (apply get-slix-fqns sn pfxs)))))
+     (apply get-src-dir (get-slix-ns sn) pfxs)))
 
 (defmacro get-slix-dir
   ([]
@@ -288,7 +290,7 @@
 
 (defn get-src-slix-file
   [sn & pfxs]
-  (File. (get-src-dir) (str (nssym2path (apply get-slix-fqns sn pfxs)) ".clj")))
+  (apply get-file (get-src-slix-dir sn) pfxs))
 
 (defmacro get-slix-file
   [sn & pfxs]
@@ -298,7 +300,7 @@
   ([]
      (get-src-library-dir (get-default :src :library :slix :dir-name)))
   ([sn & pfxs]
-     (get-dir (get-src-library-dir) (nssym2path (apply get-slix-fqns sn pfxs)))))
+     (apply get-src-library-dir (get-slix-ns sn) pfxs)))
 
 (defmacro get-library-slix-dir
   ([]
@@ -308,43 +310,41 @@
 
 (defn get-src-library-slix-file
   [sn name & pfxs]
-  (if (seq pfxs)
-    (File. (get-src-library-dir (nssym2path (apply get-slix-fqns sn name (butlast pfxs))))
-           (str (nssym2path (last pfxs)) ".clj"))
-    (File. (get-src-library-dir (nssym2path (get-slix-fqns sn)))
-           (str (nssym2path name) ".clj"))))
+  (apply get-file (get-src-library-slix-dir sn name) pfxs))
 
 (defmacro get-library-slix-file
   [sn name & pfxs]
   `(get-src-library-slix-file ~sn ~name ~@pfxs))
 
+;;;;
+
 (defn get-sid-classes-slix-dir
   [sn & pfxs]
-  (get-dir (get-sid-classes-dir) (nssym2path (apply get-slix-fqns sn pfxs))))
+  (apply get-sid-classes-dir (get-slix-ns sn) pfxs))
 
 (defn get-sid-slix-dir
   ([]
      (get-sid-dir (get-default :sid :slix :dir-name)))
   ([sn & pfxs]
-     (get-dir (get-sid-root-dir) (apply get-slix-fqns sn pfxs))))
+     (apply get-sid-dir (get-slix-ns sn) pfxs)))
 
 (defn get-sid-slix-file
   [sn & pfxs]
-  (File. (get-sid-root-dir) (str (nssym2path (apply get-slix-fqns sn pfxs)) ".clj")))
+  (apply get-file (get-sid-slix-dir sn) pfxs))
 
 (defn get-sid-slix-save-dir
-  [sn]
-  (get-sid-slix-dir sn (get-default :sid :slix :save :dir-name)))
+  [sn & pfxs]
+  (apply get-sid-slix-dir sn (get-default :sid :slix :save :dir-name) pfxs))
 
 (defn get-sid-slix-name-dir
   ([slix]
      (get-sid-slix-name-dir (slix-sn slix) (slix-name slix)))
   ([sn name]
-     (get-dir (get-sid-slix-save-dir sn) name)))
+     (get-sid-slix-save-dir sn name)))
 
-(defn get-slix-startup-file
-  []
-  (File. (get-sid-slix-dir) (str (get-default :sid :slix :startup :file-name))))
+ (defn get-slix-startup-file
+   []
+   (File. (get-sid-slix-dir) (str (get-default :sid :slix :startup :file-name))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -499,7 +499,7 @@
 
 (defn get-slix-project-jar-paths
   [sn]
-  (query-project :get-jars (get-slix-fqns sn)))
+  (query-project :get-jars (get-slix-ns sn)))
 
 (defn create-slix-class-loader
   [sn]
@@ -524,16 +524,16 @@
        (.setContextClassLoader ct# ~slix-class-loader)
        ~@body
        (catch Exception e#
-         (log-exception e# (get-slix-fqns ~sn))
+         (log-exception e# (get-slix-ns ~sn))
          ~return-value-when-exception)
        (finally
         (.setContextClassLoader ct# ccl#)))))
 
 (defn reload-sn?
   ([sn]
-     (let [fqns (get-slix-fqns sn)]
-       (require fqns :reload)
-       (if (find-ns fqns)
+     (let [ns (get-slix-ns sn)]
+       (require ns :reload)
+       (if (find-ns ns)
          true
          false)))
   ([sn cl]
@@ -554,7 +554,7 @@
                 (recur (.getParent cl)))))
           ;;
           (let [cp (get-sid-classes-dir)
-                fqaot (get-slix-fqns sn aot)]
+                fqaot (get-slix-ns sn aot)]
             (binding [*compile-path* (str cp)]
               (compile fqaot)
               true))))
@@ -602,7 +602,7 @@
   [sn]
   (if (= sn (get-project-manager-slix))
     true
-  (let [fqsn (get-slix-fqns sn)]
+  (let [fqsn (get-slix-ns sn)]
     (if (query-project :exists? fqsn)
       (if (query-project :built? fqsn)
         true
@@ -650,7 +650,7 @@
   [slix log-xml-encoder-errors?]
   (let [postsave-slix-frame-fns (-presave-slix-frame slix)]
     (try
-      (with-create-sn-get-dir
+      (with-making-dir
         (let [[f s] (get-slix-file-bundle (slix-sn slix) (slix-name slix))]
           (when (.exists f)
             (.delete f))
@@ -876,7 +876,7 @@
              slix {:id (gensym 'id) :sn sn :name name :cl cl :args -open-slix-args-}]
          (-get-context-and-start-slix-creation slix))
        (future
-         (query-project :build-and-run (get-slix-fqns sn) name -open-slix-args-)
+         (query-project :build-and-run (get-slix-ns sn) name -open-slix-args-)
          :sevenri.event/slix-open-after-building-project))))
 
 (defn open-slix-and-wait
@@ -1275,28 +1275,28 @@
     (reset-system-event-queue (.getSystemEventQueue (java.awt.Toolkit/getDefaultToolkit))))
   true)
 
-(defn create-sid-slix-dirs?
+(defn- -create-sid-slix-dirs?
   []
   (get-sid-classes-dir)
   (get-sid-slix-dir)
   (get-sid-trash-dir)
   true)
 
-(defn create-src-library-dirs?
+(defn- -create-src-library-dirs?
   []
   (get-library-dir)
   (get-library-slix-dir)
   true)
 
-(defn cache-slix-sns?
+(defn- -cache-slix-sns?
   []
   (reset! *slix-sn-cache* (apply conj @*slix-sn-cache* (find-all-slix-sn)))
   true)
 
-(defn register-exception-listeners?
+(defn- -register-exception-listeners?
   []
   (doseq [sn (get-all-slix-sn)]
-    (when-let [nm (:exception-listener (if (find-ns (get-slix-fqns sn))
+    (when-let [nm (:exception-listener (if (find-ns (get-slix-ns sn))
                                          (get-slix-sn-meta sn)
                                          (meta sn)))]
       (if (symbol? nm)
@@ -1306,7 +1306,7 @@
           (register-exception-listener sn (last nm))))))
   true)
 
-(defn aot-compile-slixes?
+(defn- -aot-compile-slixes?
   []
   (doseq [sn (get-default :startup :aot-compile-list)]
     (aot-compile? sn 'aot false))
@@ -1314,18 +1314,17 @@
 
 ;;;;
 
+(defn startup-slix?
+  []
+  (starting-up
+   -acquire-base-class-loader?
+   -acquire-system-event-queue?
+   -create-sid-slix-dirs?
+   -create-src-library-dirs?
+   -cache-slix-sns?
+   -register-exception-listeners?
+   -aot-compile-slixes?))
+
 (defn shutdown-slix?
   []
   true)
-
-(defn startup-slix?
-  []
-  (with-create-sn-get-dir
-    (and true
-         (-acquire-base-class-loader?)
-         (-acquire-system-event-queue?)
-         (create-sid-slix-dirs?)
-         (create-src-library-dirs?)
-         (cache-slix-sns?)
-         (register-exception-listeners?)
-         (aot-compile-slixes?))))

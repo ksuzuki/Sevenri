@@ -133,9 +133,9 @@
 
 (defn startup-jvm?
   []
-  (and true
-       (-acquire-system-app-context?)
-       (register-awt-exception-handler?)))
+  (starting-up
+   -acquire-system-app-context?
+   register-awt-exception-handler?))
 
 (defn shutdown-jvm?
   []

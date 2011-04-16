@@ -60,7 +60,7 @@
                      (recur (inc col))))))))
     (StringReader. (.toString stbuffer))))
 
-(defn get-file
+(defn get-ced-file
   "Return a File object specified by a file specifier. The specifer is
    either a symbol, a string, or a File object.
    When it's a symbol, period to slash and hypen to underscore translations
@@ -73,7 +73,7 @@
    and the default scratch File object will be returned when the specified
    file doesn't exist."
   ([]
-     (get-file (:file (slix-args))))
+     (get-ced-file (:file (slix-args))))
   ([afile]
      (let [rptn (re-pattern
                  (str "^(" (apply str (butlast (interleave (get-sevenri-namespaces) (repeat \|)))) ")[./].*"))
@@ -99,7 +99,7 @@
 
 (defn load-file*
   []
-  (let [fpclj (get-file)]
+  (let [fpclj (get-ced-file)]
     (when (and fpclj (.exists fpclj))
       (.read (get-ced) (get-untabbing-string-reader fpclj) nil))
     ;;

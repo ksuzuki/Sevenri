@@ -10,7 +10,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns sevenri.os
-  (:use [sevenri config defs log]
+  (:use [sevenri config log]
         [sevenri.defs :only (*ok-to-quit-fn*)])
   (:import (java.io File)
            (javax.swing ImageIcon)))
@@ -35,6 +35,7 @@
 
 (defn- -init-mac
   []
+  (print-info "starting up: -init-mac")
   (set-mac-dock-icon)
   (System/setProperty "apple.laf.useScreenMenuBar" "true")
   (let [app (com.apple.eawt.Application/getApplication)]

@@ -10,13 +10,25 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns sevenri.main
-  (:use [sevenri core debug defs event log slix]))
+  (:use [sevenri debug event log startup]
+        [sevenri.defs :only (reset-ok-to-quit-fn)]
+        [sevenri.core :only (get-sevenri-lock-file
+                             lock-and-wait
+                             unlock-and-resume)]
+        [sevenri.slix :only (open-slix-sevenri-and-wait
+                             open-all-slixes-and-wait
+                             close-all-slixes-and-wait
+                             close-slix-sevenri-and-wait)]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def *quit-lock* (proxy [Object][]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- -open-sesami
   []
-  (startup)
+  (startup-or-shutdown :startup)
   (open-slix-sevenri-and-wait)
   (send-sevenri-starting-event)
   ;;
@@ -28,11 +40,11 @@
   []
   (try
     (when (all-slixes-ok-to-quit?)
-      (unlock-and-resume quit-lock))
+      (unlock-and-resume *quit-lock*))
     false
     (catch Exception e
       (log-exception e)
-      (unlock-and-resume quit-lock)
+      (unlock-and-resume *quit-lock*)
       false)))
 
 (defn- -close-sesami
@@ -43,7 +55,7 @@
   ;;
   (send-sevenri-quitting-event)
   (close-slix-sevenri-and-wait)
-  (shutdown))
+  (startup-or-shutdown :shutdown))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -55,8 +67,10 @@
   (try
     (when-not (.exists (get-sevenri-lock-file))
       (-open-sesami)
-      (lock-and-wait quit-lock)
+      (lock-and-wait *quit-lock*)
       (-close-sesami))
     (System/exit 0)
     (catch Exception e
-      (log-exception e))))
+      (log-exception e)
+      (when-not (.exists (get-sevenri-lock-file))
+        (System/exit 0)))))

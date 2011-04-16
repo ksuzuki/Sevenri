@@ -83,7 +83,7 @@
      (when (map? datasets)
        (let [ds (merge (read-sample-datasets) datasets)]
          (when (and (string? (:url ds)) (vector? (:names ds)))
-           (with-create-sn-get-dir
+           (with-making-dir
              (let [data-dir (get-library-slix-dir 'incantea 'data)]
                (future
                  (doseq [name (:names ds)]
@@ -121,11 +121,11 @@
   ([spell-name]
      (let [spell (norm-spell-name (str spell-name))]
        [(symbol (str *spell-ns* \. spell))
-        (get-library-slix-fqns 'incantea.spells spell)])))
+        (get-library-slix-ns 'incantea.spells spell)])))
 
 (defn get-spells-dir
   []
-  (with-create-sn-get-dir
+  (with-making-dir
    (get-library-slix-dir 'incantea.spells)))
 
 (defn get-spell-files
@@ -251,12 +251,12 @@
 
 (defn get-data-dir
   []
-  (with-create-sn-get-dir
+  (with-making-dir
    (str (get-library-slix-dir 'incantea.data))))
 
 (defn get-examples-dir
   []
-  (with-create-sn-get-dir
+  (with-making-dir
    (str (get-library-slix-dir 'incantea.examples))))
 
 (defn get-data-file

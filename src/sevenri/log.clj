@@ -74,7 +74,7 @@
 
 ;; These fns are resolved at the startup time.
 (using-fns log slix
-           [get-all-slix-sn get-slix-fqns reload-sn?])
+           [get-all-slix-sn get-slix-ns reload-sn?])
 
 (defn get-exception-listeners
   []
@@ -118,22 +118,22 @@
       (spit elfile elisteners))))
   
 (defn dispatch-exception
-  [#^Exception e efqns]
+  [#^Exception e ens]
   (doseq [elisteners (get-exception-listeners)]
     (let [[_ [sn name]] elisteners
-          fqns (log-using-get-slix-fqns-slix sn)]
+          ns (log-using-get-slix-ns-slix sn)]
       (try
         (if (and (get (log-using-get-all-slix-sn-slix) sn)
                  (log-using-reload-sn?-slix sn))
-          (if-let [hdlr (ns-resolve fqns name)]
+          (if-let [hdlr (ns-resolve ns name)]
             (when (fn? (var-get hdlr))
-              (hdlr e efqns))
+              (hdlr e ens))
             (unregister-exception-listener sn name))
           (unregister-exception-listener sn name))
         (catch Exception ex
           (unregister-exception-listener sn name)
           (declare log-exception)
-          (log-exception ex fqns))))))
+          (log-exception ex ns))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -167,11 +167,11 @@
 (defn log-exception
   ([#^Exception e]
      (log-exception e nil))
-  ([#^Exception e fqns]
+  ([#^Exception e ns]
      (when-not (instance? ThreadDeath e)
        (let [sw (StringWriter.)
              pw (PrintWriter. sw)
-             ts (str "log-exception" (when fqns (str " (" fqns ")")) ":")]
+             ts (str "log-exception" (when ns (str " (" ns ")")) ":")]
          (binding [*out* pw]
            (clojure.stacktrace/print-stack-trace e))
          (if *sevenri-logger*
@@ -179,7 +179,7 @@
            (println *sevenri-logger-header* ts (.toString sw)))))
      ;;
      (reset! *e* e)
-     (future (dispatch-exception e fqns))))
+     (future (dispatch-exception e ns))))
 
 (defn log-uncaught-exception
   [#^Thread t #^Exception e]
@@ -199,11 +199,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-sid-log-dir?
+(defn- -get-sid-log-dir?
   []
   (if (.isDirectory (get-sid-log-dir)) true false))
 
-(defn cleanup-sid-log-dir?
+(defn- -cleanup-sid-log-dir?
   []
   (loop [lfs (find-files '.lck (get-sid-log-dir))]
     (when (and (seq lfs) (.canWrite (first lfs)))
@@ -257,6 +257,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
 
+(defmacro starting-up
+  [& preds]
+  `(with-making-dir
+     (every? true? (map #(do
+                           (print-info "starting up:" (:name (meta %)))
+                           (%))
+                        (list ~@preds)))))
+
+(defmacro shutting-down
+  [& preds]
+  `(every? true? (map #(do
+                         (print-info "shutting down:" (:name (meta %)))
+                         (%))
+                      (list ~@preds))))
+
+;;;;
+
 (defn -save-std-inouterr?
   []
   (reset-standard-in-out-err *in* *out* *err*)
@@ -285,7 +302,7 @@
   []
   *thread-default-uncaught-exception-handler*)
 
-(defn install-thread-default-uncaught-exception-handler?
+(defn- -install-thread-default-uncaught-exception-handler?
   []
   (when-not *thread-default-uncaught-exception-handler*
     (reset-thread-default-uncaught-exception-handler (proxy [Thread$UncaughtExceptionHandler] []
@@ -294,11 +311,11 @@
   (Thread/setDefaultUncaughtExceptionHandler *thread-default-uncaught-exception-handler*)
   true)
 
-(defn get-sid-sevenri-exception-dir?
+(defn- -get-sid-sevenri-exception-dir?
   []
   (if (.isDirectory (get-sid-sevenri-exception-dir)) true false))
 
-(defn load-exception-listeners?
+(defn- -load-exception-listeners?
   []
   (load-exception-listeners)
   true)
@@ -307,16 +324,15 @@
 
 (defn startup-log?
   []
-  (with-create-sn-get-dir
-    (and true
-         (-save-std-inouterr?)
-         (get-sid-log-dir?)
-         (cleanup-sid-log-dir?)
-         (-get-logger?)
-         (-redirect-system-out-and-err?)
-         (install-thread-default-uncaught-exception-handler?)
-         (get-sid-sevenri-exception-dir?)
-         (load-exception-listeners?))))
+  (starting-up
+   -save-std-inouterr?
+   -get-sid-log-dir?
+   -cleanup-sid-log-dir?
+   -get-logger?
+   -redirect-system-out-and-err?
+   -install-thread-default-uncaught-exception-handler?
+   -get-sid-sevenri-exception-dir?
+   -load-exception-listeners?))
 
 (defn shutdown-log?
   []
