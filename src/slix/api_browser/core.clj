@@ -10,14 +10,14 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.api-browser.core
-  (:use [sevenri config log slix])
+  (:use [sevenri config core log slix])
   (:import (java.io File)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn load-api-doc-urls?
   []
-  (let [f (File. (get-library-slix-dir 'api-browser) (str (get-default :doc :apidoc-urls-file-name)))]
+  (let [f (get-library-slix-path 'api-browser (get-config 'doc.apidoc-urls-file-name))]
     (if (.exists f)
       (try
         (load-file (str f))
@@ -41,4 +41,3 @@
                             [(second match) (last match)]
                             [nil asym1])]
     [sym-ns (.replaceAll sym-name "\\$" ".")]))
-

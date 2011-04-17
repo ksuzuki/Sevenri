@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.jvm
+(ns ^{:doc "Sevenri interface library to Java VM depedent features"}
+  sevenri.jvm
   (:use [sevenri config defs log])
   (:import (java.awt EventQueue)))
 
@@ -124,18 +125,18 @@
     (reset-system-app-context (get-app-context)))
   true)
 
-(defn register-awt-exception-handler?
+(defn- -register-awt-exception-handler?
   []
-  (register-awt-exception-handler (get-default :src :sevenri :listeners :awtehandler))
+  (register-awt-exception-handler (get-config 'src.sevenri.listeners.awtehandler))
   true)
 
 ;;;;
 
 (defn startup-jvm?
   []
-  (starting-up
+  (-ensure-processes
    -acquire-system-app-context?
-   register-awt-exception-handler?))
+   -register-awt-exception-handler?))
 
 (defn shutdown-jvm?
   []

@@ -91,10 +91,10 @@
           (let [msg (str spl " exists already.")
                 ttl "The Spell Exists"]
             (JOptionPane/showMessageDialog frm msg ttl JOptionPane/ERROR_MESSAGE))
-          (with-making-dir
-           (create-new-spell-file spl)
-           (update-spell-list list spl true)
-           (.doClick edit)))))))
+          (do
+            (create-new-spell-file spl)
+            (update-spell-list list spl true)
+            (.doClick edit)))))))
 
 (defn action-delete
   [actions list]
@@ -113,7 +113,7 @@
             (let [msg (str spl " is opened by other slixes.")
                   ttl "Cannot Delete Spell"]
               (JOptionPane/showMessageDialog frm msg ttl JOptionPane/ERROR_MESSAGE))
-            (if (trash-file? sfile)
+            (if (trash-path? sfile)
               (update-spell-list list spl false)
               (log-severe "incantea: failed to trash:" sfile))))))))
 
@@ -181,7 +181,7 @@
      (actionPerformed [e]
        (when-let [spell-file (when-let [spell (.getSelectedItem spells)]
                                (let [f (File. (get-spells-dir)
-                                              (str (nssym2path (norm-spell-name spell)) ".clj"))]
+                                              (str (sym2path (norm-spell-name spell)) ".clj"))]
                                  (when (.exists f)
                                    f)))]
          (open-slix-with-args {:file spell-file} 'ced))

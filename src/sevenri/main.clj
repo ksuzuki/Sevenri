@@ -9,10 +9,11 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.main
-  (:use [sevenri debug event log startup]
+(ns ^{:doc "Sevenri main library - the run fn starts everything."}
+  sevenri.main
+  (:use [sevenri config debug event log startup]
         [sevenri.defs :only (reset-ok-to-quit-fn)]
-        [sevenri.core :only (get-sevenri-lock-file
+        [sevenri.core :only (create-sid-sevenri-lock-file?
                              lock-and-wait
                              unlock-and-resume)]
         [sevenri.slix :only (open-slix-sevenri-and-wait
@@ -24,7 +25,7 @@
 
 (def *quit-lock* (proxy [Object][]))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn- -open-sesami
   []
@@ -65,12 +66,12 @@
   (reset-ok-to-quit-fn ok-to-quit?)
   (run-swank-repl)
   (try
-    (when-not (.exists (get-sevenri-lock-file))
+    (create-sid)
+    (when (create-sid-sevenri-lock-file?)
       (-open-sesami)
       (lock-and-wait *quit-lock*)
       (-close-sesami))
-    (System/exit 0)
     (catch Exception e
-      (log-exception e)
-      (when-not (.exists (get-sevenri-lock-file))
-        (System/exit 0)))))
+      (log-exception e))
+    (finally
+      (System/exit 0))))

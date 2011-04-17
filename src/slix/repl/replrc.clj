@@ -23,7 +23,7 @@
 
 (defn do-replrc*
   [fnc]
-  (let [replrc (get-sid-slix-file (slix-sn) 'replrc)]
+  (let [replrc (get-sid-slix-path (slix-sn) 'replrc!clj)]
     (when (.exists replrc)
       (fnc (str replrc)))))
 
@@ -40,8 +40,8 @@
      (restore-replrc (slix-sn)))
   ([sn]
      (let [src (slix.repl.core/get-startup-script-file)
-           tgt (get-sid-slix-file sn (slix.repl.core/get-startup-script-file-name))]
-       (trash-file? tgt)
+           tgt (get-sid-slix-path sn (slix.repl.core/get-startup-script-file-name))]
+       (trash-path? tgt)
        (clojure.java.io/copy src tgt))))
 
 ;; slix fns and macros
@@ -104,7 +104,7 @@
 
 (defmacro sh
   [cmd & args]
-  `(with-sh-dir (get-user-dir)
+  `(with-sh-dir (get-user-path)
      (let [r# (apply cjsh (str ~cmd) (map str (list ~@args)))]
        (println (:out r#))
        (when-not (empty? (:err r#))
@@ -122,7 +122,7 @@
 (defn open-sevenri-users-manual
   []
   (browse-url (str "file://"
-                   (file (get-doc-dir 'Manuals.Sevenri-Users-Manual.out)
+                   (file (get-doc-path 'Manuals.Sevenri-Users-Manual.out)
                          "Table_of_Contents.html"))))
 
 (defmacro open-sum

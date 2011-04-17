@@ -9,28 +9,290 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.core
-  (:use [sevenri config defs jvm log os refs utils])
+(ns ^{:doc "Sevenri system core library"}
+  sevenri.core
+  (:use [sevenri config defs log refs utils]
+        [sevenri.os :only (get-ignorable-file-names-os)])
   (:import (java.io BufferedWriter File FileOutputStream)
            (java.io InputStreamReader OutputStreamWriter)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Symbol to/from path translation
+;;
+;; First, there is the Clojure's translation rule for translating symbol to
+;; path; period '.' to slash '/' and hyphen '-' to underscoe '_'. Then, the
+;; Sevenri own rule, that is, underscore '_' to space ' ' and exclamation
+;; '!' to period '.'.
+;; In addition, there are certain characters that are legal for symbol but
+;; not for some file systems. Those 'unsafe' chars are translated to a
+;; symbol-to-path proxy char.
+;; Translation from path to symbol goes in backward but not completely
+;; symmetrically. The symbol-to-path proxy char in path is translated to
+;; path-to-symbol proxy char, which is one of the unsafe chars, so that
+;; the symbol can be retro-translated to the original path.
 
-(def *sevenri-name* 'Sevenri)
+(def *unsafe-chars* "[*?:|<>\"\\\\]") ;; * ? : | < > " \
+(def *sym2path-proxy* "!")
+(def *path2sym-proxy* "?")
 
-(defn- -read-sevenri-version
-  []
-  (let [d (File. (get-src-dir) (str (get-default :src :sevenri :dir-name)))
-        f (File. d "version.clj")]
-    (read-string (slurp f))))
+;;;;
 
-(def *sevenri-version* (-read-sevenri-version))
+(defn sym2path
+  "Return a pathname string, not a File object."
+  [^clojure.lang.Symbol sym]
+  (-> (str sym)
+      (.replace \_ \space)
+      (.replace \- \_)
+      (.replace \. \/)
+      (.replace \! \.)
+      (.replaceAll *unsafe-chars* *sym2path-proxy*)))
+
+(defn path2sym
+  "path should be either a pathname or a File object. Return a symbol."
+  [path]
+  (-> (str path)
+      (.replace *sym2path-proxy* *path2sym-proxy*)
+      (.replace \. \!)
+      (.replace \/ \.)
+      (.replace \_ \-)
+      (.replace \space \_)
+      (symbol)))
+
+(defn obj2sym
+  "Convert object to symbol, expecting obj is a non-pathname and the result
+   would follow the Sevenri's symbol format (underscore and exclamation mean
+   space and period respectively). Use path2sym when obj is a pathname."
+  [obj]
+  (if (instance? File obj)
+    (path2sym obj)
+    (-> (.replaceAll (str obj) "\\s" "_")
+        (symbol))))
+
+;;;;
+
+(defn safesym?
+  "Return true when the symbol is reversible from sym2path."
+  [^clojure.lang.Symbol sym]
+  (= sym (path2sym (sym2path sym))))
+
+(defn safepath?
+  "Return true when the path is reversible from path2sym."
+  [path]
+  (= path (sym2path (path2sym path))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def ^{:doc "Control path creation on get-path call"} *make-path* false)
+
+;;;;
+
+(defn get-path
+  "Return a File object based on parent and optional child paths. Each path
+   is either a symbol or some object, normally a File object or string. 
+   If it's a symbol, the sym2path translation is applied. Otherwise,
+   string representation of the path is used.
+   If *make-path* is true and the target path doesn't exist, it is created
+   before returning."
+  [parent-path & child-paths]
+  (let [path (reduce (fn [p c]
+                       (File. p (if (symbol? c)
+                                  (sym2path c)
+                                  (str c))))
+                     (if (instance? File parent-path)
+                       parent-path
+                       (File. (if (symbol? parent-path)
+                                (sym2path parent-path)
+                                (str parent-path))))
+                     child-paths)]
+    (when (and *make-path* (not (.exists path)))
+      (when-not (.mkdirs path)
+        (throw (RuntimeException. (str "get-path: making path failed: " path)))))
+    path))
+
+;;;;
+
+(defn empty-path?
+  "Return true when path doesn't exist or is a directory containing no or
+   any ignorable files."
+  [path]
+  (let [path (get-path path)
+        files (.listFiles path)]
+    (if (or (nil? files) (zero? (alength files)))
+      true
+      (let [ifns (get-ignorable-file-names-os)]
+        (if (every? #(contains? ifns (.getName %)) (seq files))
+          true
+          false)))))
+
+(defn remove-path?
+  "Return true when the specified path doesn't exist or when it exists but is
+   removed successfully."
+  [path]
+  (let [p (get-path path)]
+    (if (.exists p)
+      (if (.isDirectory p)
+        (and (every? true? (map remove-path? (.listFiles p))) (.delete p))
+        (.delete p))
+      true)))
+
+;;;;
+
+(defmacro with-make-path
+  "Let get-path create the path when it doesn't exist."
+  [& body]
+  `(binding [*make-path* true]
+     ~@body))
+
+(defmacro without-make-path
+  "Do opposite of with-make-path; turn off of making path on get-path."
+  [& body]
+  `(binding [*make-path* false]
+     ~@body))
+
+;;;;
+
+(defmacro defgp
+  "Macro to define get-path variant"
+  [get-x-path parent-path]
+  `(defn ~get-x-path
+     [& ~'child-paths]
+     (apply get-path ~parent-path ~'child-paths)))
+
+(defgp get-doc-path (get-path (get-user-path) (get-config 'doc.dir-name)))
+(defgp get-lib-path (get-path (get-user-path) (get-config 'lib.dir-name)))
+(defgp get-src-path (get-path (get-user-path) (get-config 'src.dir-name)))
+
+(defgp get-src-library-path (get-path (get-src-path) (get-config 'src.library.dir-name)))
+(defmacro get-library-path [& paths] `(get-src-library-path ~@paths))
+
+(defgp get-src-project-path (get-path (get-src-path) (get-config 'src.project.dir-name)))
+(defmacro get-project-path [& paths] `(get-src-project-path ~@paths))
+
+(defgp get-src-resources-path (get-path (get-src-path) (get-config 'src.resources.dir-name)))
+(defmacro get-resources-path [& paths] `(get-src-resources-path ~@paths))
+
+(defgp get-src-sevenri-path (get-path (get-src-path) (get-config 'src.sevenri.dir-name)))
+(defmacro get-sevenri-path [& paths] `(get-src-sevenri-path ~@paths))
+
+(defgp get-temp-path (get-path (get-user-path) (get-config 'temp.dir-name)))
+
+(defgp get-sid-path *sid-path*)
+(defgp get-sid-classes-path (get-sid-path (get-config 'sid.classes.dir-name)))
+(defgp get-sid-sevenri-path (get-sid-path (get-config 'sid.sevenri.dir-name)))
+(defgp get-sid-temp-path (get-sid-path (get-config 'sid.temp.dir-name)))
+(defgp get-sid-trash-path (get-sid-path (get-config 'sid.trash.dir-name)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Temporary file creator fns
+
+(defn get-temp-file*
+  ([temp-path]
+     (get-temp-file* temp-path 'tmp))
+  ([temp-path prefix]
+     (get-temp-file* temp-path prefix '!tmp))
+  ([temp-path prefix ext]
+     ;; File/createTempFile requires prefix is at least 3 char long.
+     (let [strpfx (str prefix)
+           prefix (if (< 2 (count strpfx))
+                    strpfx
+                    (subs (.concat strpfx "___") 0 3))]
+       (File/createTempFile prefix (sym2path ext) temp-path))))
+
+(defn get-temp-file
+  "Create and return a temp file in Sevenri.Temp directory."
+  ([]
+     (get-temp-file* (get-temp-path)))
+  ([prefix]
+     (get-temp-file* (get-temp-path) prefix))
+  ([prefix ext]
+     (get-temp-file* (get-temp-path) prefix ext)))
+     
+(defn get-sid-temp-file
+  "Create and return a temp file in !sevenri.temp directory."
+  ([]
+     (get-temp-file* (get-sid-temp-path)))
+  ([prefix]
+     (get-temp-file* (get-sid-temp-path) prefix))
+  ([prefix ext]
+     (get-temp-file* (get-sid-temp-path) prefix ext)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Trashing path fns
+
+(defn trash-path?
+  "Move path into .sevenri/trash, preserving its relative path based on its
+   location."
+  ([path]
+     (let [path (get-path path)]
+       (if (re-find (re-pattern (str "^" (get-sid-path))) (.getPath path))
+         ;; A sid path is moved to a relative location in !sevenri.trash.sid.
+         (trash-path? path
+                      (get-sid-trash-path (get-config 'sid.trash.sid.dir-name)
+                                          (File. (subs (.getPath path)
+                                                       (inc (count (str (get-sid-path))))))))
+         ;; A path under the user directory is moved to a relative location in !sevenri.trash.
+         (if (re-find (re-pattern (str "^" (get-user-path))) (.getPath path))
+           (trash-path? path
+                        (get-sid-trash-path (File. (subs (.getPath path)
+                                                         (inc (count (str (get-user-path))))))))
+           ;; Any other path is moved into !sevenri.trash with its original path preserved.
+           (trash-path? path
+                        (get-sid-trash-path path))))))
+  ([src-path dst-path]
+     (let [spath (get-path src-path)
+           dpath (get-path dst-path)
+           dst-clean? (remove-path? dpath)
+           dst-parent (.getParentFile dpath)]
+         (.mkdirs dst-parent)
+         (if (and dst-clean? (.exists dst-parent))
+           (let [b (.renameTo spath dpath)]
+             (when-not b (log-warning "trash-path? failed to rename src to dst."))
+             b)
+           (do
+             (when-not dst-clean? (log-warning "trash-path? failed to clean dst."))
+             (when-not (.exists dst-parent) (log-warning "trash-path? failed to make dst."))
+             false)))))
+
+(defn clean-path?
+  "Trash the specified path. Then remove the parent path if it became empty as
+   the result of trashing. Continue the process up to upto-path."
+  ([path upto-path]
+     (let [path (get-path path)
+           upto-path (get-path upto-path)]
+       (if (neg? (.compareTo path upto-path))
+         (do
+           (log-warning "clean-path? failed: path < upto-path")
+           false)
+         (if (trash-path? path)
+           (clean-path? path (.getParentFile path) upto-path)
+           false))))
+  ([_ curr-path upto-path]
+     ;; Return true no matter what because trashing the path in question is
+     ;; completed and the rest of the task is not important.
+     (loop [curr-path (get-path curr-path)
+            upto-path (get-path upto-path)]
+       (if (pos? (.compareTo curr-path upto-path))
+         (do
+           (when (empty-path? curr-path)
+             (trash-path? curr-path))
+           (recur (.getParentFile curr-path) upto-path))
+         true))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def *sevenri-name* 'Sevenri)
+(def *sevenri-version* "0.0.0")
+
+;;;;
 
 (defn get-sevenri-name
   []
   (str *sevenri-name*))
+
+(defn read-sevenri-version
+  []
+  (let [f (get-src-sevenri-path 'version!clj)]
+    (read-string (slurp f))))
 
 (defn get-sevenri-version
   []
@@ -41,11 +303,11 @@
   []
   (str (get-sevenri-name) \- (get-sevenri-version)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn get-sevenri-namespaces
   []
-  (map #(symbol (name %)) (keys (get-default :tln))))
+  (get-config 'top-level-ns))
 
 (defmulti is-sevenri-var?
   class)
@@ -93,146 +355,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-file
-  "Returns a .clj File object by default. If the last arg is an extension
-   like '.xml', then a File object with that extension."
-  [path & pfxs]
-  (if (and pfxs (re-matches #"^\.[^.]+" (str (last pfxs))))
-    (File. (str (apply get-dir path (butlast pfxs)) (last pfxs)))
-    (File. (str (apply get-dir path pfxs) ".clj"))))
-
-(defmacro def-get-file
-  [name path]
-  (let [gnf (symbol (str "get-" name "-file"))]
-    `(defn ~gnf
-       [& ~'pfxs]
-       (apply get-file ~path ~'pfxs))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def-get-dir src-sevenri (get-dir (get-src-dir) (get-default :src :sevenri :dir-name)))
-(defmacro get-sevenri-dir [& pfxs] `(get-src-sevenri-dir ~@pfxs))
-
-(def-get-file src-sevenri (get-src-sevenri-dir))
-(defmacro get-sevenri-file [& pfxs] `(get-src-sevenri-file ~@pfxs))
-
-;;;;
-
-(def-get-dir sid-sevenri (get-sid-dir (get-default :sid :sevenri :dir-name)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-temp-file*
-  ([temp-root-dir]
-     (get-temp-file* temp-root-dir 'temp))
-  ([temp-root-dir prefix]
-     (get-temp-file* temp-root-dir prefix 'tmp))
-  ([temp-root-dir prefix ext]
-     (let [pfxlen (count (str prefix))
-           prefix (if (< 2 pfxlen)
-                    (str prefix)
-                    (apply str (concat (seq (str prefix)) (repeat (- 3 pfxlen) \_))))]
-       (File/createTempFile prefix (str \. ext) temp-root-dir))))
-
-(defn get-temp-file
-  ([]
-     (get-temp-file* (get-temp-dir)))
-  ([prefix]
-     (get-temp-file* (get-temp-dir) prefix))
-  ([prefix ext]
-     (get-temp-file* (get-temp-dir) prefix ext)))
-     
-(defn get-sid-temp-file
-  ([]
-     (get-temp-file* (get-sid-temp-dir)))
-  ([prefix]
-     (get-temp-file* (get-sid-temp-dir) prefix))
-  ([prefix ext]
-     (get-temp-file* (get-sid-temp-dir) prefix ext)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn trash-file?
-  ([file]
-     (if (re-find (re-pattern (str "^" (get-sid-root-dir))) (str file))
-       (trash-file? file
-                    (File. (get-sid-trash-dir (get-default :sid :trash :sid :dir-name))
-                           (subs (str file) (inc (count (str (get-sid-root-dir)))))))
-       (if (re-find (re-pattern (str "^" (get-user-dir))) (str file))
-         (trash-file? file
-                      (File. (get-sid-trash-dir)
-                             (subs (str file) (inc (count (str (get-user-dir)))))))
-         (trash-file? file
-                      (File. (get-sid-trash-dir) (str file))))))
-  ([src-file dst-file]
-     (if (.isDirectory src-file)
-       false
-       (let [dst-clean? (if (.exists dst-file)
-                          (.delete dst-file)
-                          true)
-             dst-parent (.getParentFile dst-file)]
-         (.mkdirs dst-parent)
-         (if (and dst-clean? (.exists dst-parent))
-           (.renameTo src-file dst-file)
-           false)))))
-
-(defn is-empty-dir?
-  [dir]
-  (let [fs (.listFiles dir)]
-    (if (or (nil? fs) (zero? (alength fs)))
-      true
-      (let [ifns (get-default :os :ignorable-file-names)]
-        (if (every? #(contains? ifns (.getName %)) (seq fs))
-          true
-          false)))))
-
-(defn delete-dir?
-  ([dir up-to]
-     ;; Delete dir.
-     (let [result (loop [fs (get-files-from-deepest dir)
-                         r true]
-                    (if (seq fs)
-                      (let [f (first fs)
-                            b (.delete f)]
-                        (when-not b
-                          (log-warning "delete-dir?: fail:" f))
-                        (recur (rest fs) (and r b)))
-                      r))]
-       (delete-dir? dir up-to result)))
-  ([dir up-to result]
-     ;; Delete empty parent dir(s) up to up-to dir.
-     (loop [pd (.getParentFile dir)]
-       (when (and pd (not= pd up-to) (< (count (str up-to)) (count (str pd))))
-         (when (is-empty-dir? pd)
-           (.delete pd))
-         (recur (.getParentFile pd))))
-     result))
-
-(defn trash-dir?
-  [dir up-to]
-  (if (.exists dir)
-    (let [fs (get-files-from-deepest dir)]
-      (loop [fs fs
-             r true]
-        (if (seq fs)
-          (let [f (first fs)
-                b (if (.isDirectory f)
-                    (.delete f)
-                    (trash-file? f))]
-            (when-not b
-              (log-warning "trash-dir: failed:" f))
-            (recur (rest fs) (and r b)))
-          (and r (delete-dir? dir up-to)))))
-    (and true (delete-dir? dir up-to true))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def-get-file src-project (get-src-project-dir))
-(defmacro get-project-file [& pfxs] `(get-src-project-file ~@pfxs))
-
 (defn get-project-protocol-file
   []
-  (File. (get-src-project-dir) (str (get-default :src :project :protocol-file-name))))
+  (get-src-project-path (get-config 'src.project.protocol-file-name)))
 
 (defn get-project-protocol
   ([]
@@ -278,7 +403,8 @@
                        (require manager)
                        true
                        (catch Exception e
-                         (log-severe "query-project: failed to load manager:" manager)
+                         (log-severe "query-project: failed to load manager:" manager
+                                     "\n" (get-stack-trace-print-lines e))
                          false))
              qryfvar (when (and loaded? (find-ns manager))
                        (ns-resolve manager qryfsym))]
@@ -288,13 +414,15 @@
                (try
                  (qryfvar m)
                  (catch Exception e
-                   (log-severe "query-project: fn failed:" qryfsym)
+                   (log-severe "query-project: fn failed:" qryfsym
+                               "\n" (get-stack-trace-print-lines e))
                    nil))
                (if-let [qrymthd (get-method (var-get qryfvar) (class m))]
                  (try
                    (qrymthd m)
                    (catch Exception e
-                     (log-severe "query-project: method failed:" qryfsym)
+                     (log-severe "query-project: method failed:" qryfsym
+                                 "\n" (get-stack-trace-print-lines e))
                      nil))
                  (do
                    (log-severe "query-project: no fn/method:" query-kwd)
@@ -302,26 +430,6 @@
            (do
              (log-severe "query-project: no fn/method:" query-kwd)
              nil))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn lock-and-wait
-  ([obj]
-     (lock-and-wait obj 0))
-  ([obj timeout]
-     (locking obj
-       (.wait obj timeout))))
-
-(defn unlock-and-resume
-  [obj]
-  (locking obj
-    (.notify obj)))
-
-(defmacro lock-run-and-wait
-  [obj #^Long timeout & body]
-  `(locking ~obj
-     ~@body
-     (.wait ~obj ~timeout)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -345,7 +453,7 @@
             {:file file :line line}
             (try
               (when-let [rdr (get-code-reader vr)]
-                (let [dst (File. (get-library-dir) (str file))]
+                (let [dst (File. (get-library-path) (str file))]
                   (.mkdirs (.getParentFile dst))
                   (with-open [wtr (BufferedWriter. (OutputStreamWriter.
                                                     (FileOutputStream. dst)
@@ -363,49 +471,61 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
 
-(defn get-sevenri-lock-file
-  []
-  (with-making-dir
-    (File. (get-sid-sevenri-dir) (str (get-default :sid :sevenri :lock-file-name)))))
+(defn lock-and-wait
+  ([obj]
+     (lock-and-wait obj 0))
+  ([obj timeout]
+     (locking obj
+       (.wait obj timeout))))
 
-(defn- -create-sevenri-lock-file?
-  []
-  (let [lf (get-sevenri-lock-file)]
-    (if (.exists lf)
-      false
-      (do
-        (spit lf "Don't disturb me")
-        true))))
+(defn unlock-and-resume
+  [obj]
+  (locking obj
+    (.notify obj)))
 
-(defn- -remove-sevenri-lock-file?
-  []
-  (let [lf (get-sevenri-lock-file)]
-    (when (.exists lf)
-      (.delete lf))
-    true))
+(defmacro lock-run-and-wait
+  [obj ^Long timeout & body]
+  `(locking ~obj
+     ~@body
+     (.wait ~obj ~timeout)))
 
 ;;;;
 
-(defn- -create-sid-sevenri-dirs?
+(defn get-sid-sevenri-lock-file
   []
-  (get-sid-classes-dir)
-  (get-sid-sevenri-dir)
-  (get-sid-temp-dir)
-  true)
+  (get-sid-sevenri-path (get-config 'sid.sevenri.lock-file-name)))
 
-(defn- -create-other-dirs?
+(defn create-sid-sevenri-lock-file?
+  "This is called from the main/run."
   []
-  (get-library-dir 'user)
-  (get-temp-dir)
+  (let [lock (get-sid-sevenri-lock-file)]
+    (if (.exists lock)
+      false
+      (do
+        (doto lock
+          (spit "Don't disturb me")
+          (.deleteOnExit))
+        true))))
+
+;;;;
+
+(defn- -create-dirs?
+  []
+  (with-make-path
+    (get-sid-classes-path)
+    (get-sid-temp-path)
+    (get-src-library-path 'user)
+    (get-temp-path))
   true)
 
 (defn- -aot-compile-sevenri-listeners?
   []
   (try
-    (binding [*compile-path* (str (get-src-dir))]
-      (compile (get-default :src :sevenri :listeners :aot)))
+    (binding [*compile-path* (str (get-src-path))]
+      (compile (get-config 'src.sevenri.listeners.aot)))
     true
     (catch Exception e
+      (log-severe "-aot-compile-sevenri-listeners? failed:\n" (get-stack-trace-print-lines e))
       false)))
 
 (defn- -setup-project-manager?
@@ -414,7 +534,7 @@
     (when-not (query-project :ready? pm)
       (future
         (when-not (query-project :setup? pm)
-          (log-severe "setup-project-manager?: failed to setup projet manager:" pm)))))
+          (log-severe "-setup-project-manager? failed:" pm)))))
   true)
 
 (defn- -shutdown-project-manager?
@@ -423,19 +543,22 @@
     (query-project :shutdown pm))
   true)
 
+(defn- -read-sevenri-version?
+  []
+  (def *sevenri-version* (read-sevenri-version))
+  true)
+
 ;;;;
 
 (defn startup-core?
   []
-  (starting-up
-   -create-sid-sevenri-dirs?
-   -create-other-dirs?
+  (-ensure-processes
+   -read-sevenri-version?
+   -create-dirs?
    -aot-compile-sevenri-listeners?
-   -create-sevenri-lock-file?
    -setup-project-manager?))
 
 (defn shutdown-core?
   []
-  (shutting-down
-   -shutdown-project-manager?
-   -remove-sevenri-lock-file?))
+  (-ensure-processes
+   -shutdown-project-manager?))

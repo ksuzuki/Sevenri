@@ -20,7 +20,7 @@
 (defn init-incanter
   []
   (when-not (System/getProperty *incanter-home*)
-    (System/setProperty *incanter-home* (str (get-library-slix-dir 'incantea)))))
+    (System/setProperty *incanter-home* (str (get-library-slix-path 'incantea)))))
 
 (defmacro use-incanter
   "Refer to Incanter libs core, charts, datasets, processing, and stats with
@@ -58,7 +58,7 @@
 
 (defn read-sample-datasets
   []
-  (let [sdf (get-library-slix-file 'incantea *sample-datasets*)]
+  (let [sdf (get-library-slix-path 'incantea *sample-datasets*)]
     (when (.exists sdf)
       (try
         (let [sd (read-string (slurp sdf :encoding "UTF-8"))]
@@ -83,22 +83,21 @@
      (when (map? datasets)
        (let [ds (merge (read-sample-datasets) datasets)]
          (when (and (string? (:url ds)) (vector? (:names ds)))
-           (with-making-dir
-             (let [data-dir (get-library-slix-dir 'incantea 'data)]
-               (future
-                 (doseq [name (:names ds)]
-                   (let [url (str (:url ds) name)
-                         out (File. data-dir (str name))]
-                     (when (or (not (.exists out)) (true? (:update? ds)))
-                       (try
-                         (with-open [istream (.openStream (java.net.URL. url))
-                                     ostream (java.io.FileOutputStream. out)]
-                           (loop [b (.read istream)]
-                             (when-not (neg? b)
-                               (.write ostream b)
-                               (recur (.read istream)))))
-                         (catch Exception e
-                           (log-warning "incantea: download-datasets failed: " url))))))))))))))
+           (let [data-dir (with-make-path (get-library-slix-path 'incantea 'data))]
+             (future
+               (doseq [name (:names ds)]
+                 (let [url (str (:url ds) name)
+                       out (File. data-dir (str name))]
+                   (when (or (not (.exists out)) (true? (:update? ds)))
+                     (try
+                       (with-open [istream (.openStream (java.net.URL. url))
+                                   ostream (java.io.FileOutputStream. out)]
+                         (loop [b (.read istream)]
+                           (when-not (neg? b)
+                             (.write ostream b)
+                             (recur (.read istream)))))
+                       (catch Exception e
+                         (log-warning "incantea: download-datasets failed: " url)))))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -125,8 +124,7 @@
 
 (defn get-spells-dir
   []
-  (with-making-dir
-   (get-library-slix-dir 'incantea.spells)))
+  (with-make-path (get-library-slix-path 'incantea.spells)))
 
 (defn get-spell-files
   []
@@ -134,13 +132,12 @@
 
 (defn get-spell-file
   [spell-name]
-  (let [spell (norm-spell-name spell-name)]
-    (File. (get-spells-dir) (str (nssym2path spell) ".clj"))))
+  (get-spells-dir) (str (norm-spell-name spell-name) '!clj))
 
 (defn get-spell-name-from-spell-file
   [spell-file]
   (let [rep (re-pattern (str "^" (get-spells-dir) "/" "(.*)\\.clj$"))]
-    (path2nssym (second (re-matches rep (str spell-file))))))
+    (path2sym (second (re-matches rep (str spell-file))))))
 
 (defn get-spell-names
   []
@@ -240,7 +237,7 @@
        (create-spell-ns spell-name spell-ns lib-spell-ns)
        (in-spell-ns spell-name spell-ns)))
   ([spell-name spell-ns]
-     (let [replrc (get-sid-slix-file 'incantea.replrc)]
+     (let [replrc (get-sid-slix-path 'incantea.replrc!clj)]
        (in-ns spell-ns)
        (use '[sevenri config core slix utils]
             '[slix.repl.core :only (repl clear-repl-content)])
@@ -251,22 +248,20 @@
 
 (defn get-data-dir
   []
-  (with-making-dir
-   (str (get-library-slix-dir 'incantea.data))))
+  (with-make-path (get-library-slix-path 'incantea.data)))
 
 (defn get-examples-dir
   []
-  (with-making-dir
-   (str (get-library-slix-dir 'incantea.examples))))
+  (with-make-path (get-library-slix-path 'incantea.examples)))
 
 (defn get-data-file
   [file-name]
-  (let [fp (File. (get-data-dir) (str file-name))]
+  (let [fp (get-data-dir (str file-name))]
     (when (.exists fp)
       (str fp))))
 
 (defn get-example-file
   [file-name]
-  (let [fp (File. (get-examples-dir) (str file-name))]
+  (let [fp (get-examples-dir (str file-name))]
     (when (.exists fp)
       (str fp))))

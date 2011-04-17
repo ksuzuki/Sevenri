@@ -11,7 +11,7 @@
 
 (ns ^{:slix true}
   slix.documenter
-  (:use [sevenri config core event log slix ui utils]
+  (:use [sevenri config core log slix ui]
         [slix.documenter init keymap ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -10,11 +10,105 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.ced.init
-  (:use [sevenri config core log os slix ui utils]
-        [slix.ced defs listeners input2action utils])
+  (:use [sevenri config core log os slix ui]
+        [slix.ced defs listeners input2action ui])
   (:import (java.awt Dimension Font)
-           (slix.ced caret cdoc ckit)
+           (java.io File FileInputStream InputStreamReader StringReader)
+           (slix.ced caret cdoc ckit undoman)
            (slix.ced.gui MainPanel)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-ced
+  ([]
+     (get-ced -1))
+  ([n]
+     (when *slix*
+       (let [frm (slix-frame)
+             cpn (.getContentPane frm)
+             mpl (.getComponent cpn 0)]
+         (if (neg? n)
+           (if-let [ced (.getClientProperty mpl *prop-mp-last-ced*)]
+             ced
+             (.ced1 mpl))
+           (cond
+            (= n 1) (.ced1 mpl)
+            :else (.ced2 mpl)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-tab-size-spaces
+  []
+  (apply str (repeat *tab-size* \space)))
+
+(defn get-untabbing-string-reader
+  [file]
+  (let [stbuffer (StringBuffer.)]
+    (with-open [fistream (FileInputStream. file)
+                isreader (InputStreamReader. fistream *file-encoding*)]
+      (loop [col 0]
+        (when (.ready isreader)
+          (let [c (.read isreader)]
+            (cond
+             (= c (int \tab)) (let [n (mod col *tab-size*)]
+                                (.append stbuffer (subs (get-tab-size-spaces) n))
+                                (recur (+ col (- *tab-size* n))))
+             (= c (int \newline)) (do
+                                    (.append stbuffer (char c))
+                                    (recur 0))
+             :else (do
+                     (.append stbuffer (char c))
+                     (recur (inc col))))))))
+    (StringReader. (.toString stbuffer))))
+
+(defn get-ced-file
+  "Return a File object specified by a file specifier. The specifer is
+   either a symbol, a string, or a File object.
+   * When it's a symbol, the sym2path translation is applied to it and then
+     a file in the src or src/slix directories is looked up, depending on
+     the prefix in the specifier.
+   * When it's a string, it should be either an absolute path or a relative
+     path from the current Sevenri directory.
+   * When it's a File object, it's taken as is.
+   Eithe way the .clj extension will be added to the specifier if missing.
+   The default scratch File object will be returned when the specified file
+   doesn't exist."
+  ([]
+     (get-ced-file (:file (slix-args))))
+  ([file]
+     (let [tlns (interleave (get-sevenri-namespaces) (repeat \|))
+           rptn (re-pattern (str "^(" (apply str (butlast tlns)) ")[./].*"))
+           path (cond
+                 (symbol? file) (if (re-matches rptn (str file))
+                                  (get-src-path file)
+                                  (get-slix-path file))
+                 (string? file) (if (.isAbsolute (File. file))
+                                  (File. file)
+                                  (File. (get-user-path) file))
+                 (instance? File file) file
+                 :else nil)
+           fclj (when path
+                  (if (re-find #"\.clj$" (str path))
+                    path
+                    (File. (str path '.clj))))]
+       ;; Fallback to the default scratch file when the specified file
+       ;; doesn't exist.
+       (if (and fclj (.exists (.getParentFile fclj)))
+         fclj
+         (get-library-path 'user (get-config 'src.library.user.scratch-file-name))))))
+
+(defn load-ced-file
+  []
+  (let [fclj (get-ced-file)]
+    (when (and fclj (.exists fclj))
+      (.read (get-ced) (get-untabbing-string-reader fclj) nil))
+    ;;
+    (let [doc (.getDocument (get-ced))
+          udm (undoman.)]
+      ;; Setup undoman and properties for doc.
+      (.setLimit udm -1) ;; no undo limit
+      (.addUndoableEditListener doc udm)
+      (.initProperties doc fclj *file-encoding* udm))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -50,7 +144,7 @@
       (.setSize 640 400)
       (.setMinimumSize (Dimension. 320 200)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn process-args
   ([ced]
@@ -133,3 +227,23 @@
       (add-ced-key-listener c frm doc))
     ;; Process args other than :file.
     (process-args cd1)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn list-all-action-mappings
+  []
+  (when-let [am (.getActionMap (get-ced))]
+    (let [ams (map #(.toString %) (seq (.allKeys am)))]
+      (sort (proxy [java.util.Comparator][]
+              (compare [k1 k2] (.compareTo k1 k2)))
+            ams))))
+
+(defn list-all-input-mappings
+  []
+  (when-let [im (.getInputMap (get-ced))]
+    (letfn [(to-hrkey [ks]
+              (.replaceAll (.replace (.toUpperCase (.toString ks)) "PRESSED " "") " " "+"))]
+      (let [kms (map (fn [ks] [(to-hrkey ks) (.get im ks)]) (seq (.allKeys im)))]
+        (sort (proxy [java.util.Comparator][]
+                (compare [k1 k2] (.compareTo (first k1) (first k2))))
+              kms)))))

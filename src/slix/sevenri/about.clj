@@ -15,7 +15,6 @@
         [slix.sevenri drawicon])
   (:import (java.awt BorderLayout Color Font Transparency)
            (java.awt.event MouseAdapter MouseEvent)
-           (java.io File)
            (javax.imageio ImageIO)
            (javax.swing JLabel JPanel SwingConstants)))
 
@@ -59,10 +58,10 @@
   (let [cg (.getGraphics canvas)
         dc (.getDeviceConfiguration cg)
         bi (.createCompatibleImage dc 512 512 Transparency/TRANSLUCENT)
-        g (.createGraphics bi)
-        fp (File. (get-sid-temp-dir) "sevenri-icon.png")]
-    (draw bi g)
-    (.dispose g)
+        gc (.createGraphics bi)
+        fp (get-sid-temp-path 'sevenri-icon!png)]
+    (draw bi gc)
+    (.dispose gc)
     (ImageIO/write bi "png" fp)))
 
 (defn add-mouse-listener
@@ -90,7 +89,8 @@
     (.add cp cv)
     (put-slix-prop :canvas cv)
     (add-mouse-listener fr cv))
-  (set-slix-title "About-Sevenri")
+  (when (= (slix-name) "Sevenri.about")
+    (set-slix-title "About Sevenri"))
   (set-slix-visible))
 
 (defn saving

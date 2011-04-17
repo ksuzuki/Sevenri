@@ -9,8 +9,9 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.log
-  (:require [clojure stacktrace])
+(ns ^{:doc "Sevenri logging facility library"}
+  sevenri.log
+  (:require [clojure.stacktrace :as cst])
   (:use [sevenri config defs refs utils])
   (:import (java.io ByteArrayInputStream ByteArrayOutputStream
                     File PrintStream PrintWriter StringWriter)
@@ -46,7 +47,11 @@
 
 (defn get-sid-log-dir
   []
-  (get-sid-dir (get-default :sid :log :dir-name)))
+  (let [dir (File. *sid-path* (str (get-config 'sid.log.dir-name)))]
+    (when-not (.exists dir)
+      (when-not (.mkdir dir)
+        (throw (RuntimeException. "get-sid-log-dir: mkdir failed"))))
+    dir))
 
 (defn get-last-exception
   []
@@ -82,11 +87,19 @@
 
 (defn get-sid-sevenri-exception-dir
   []
-  (get-dir (get-sid-dir (get-default :sid :sevenri :dir-name)) (get-default :sid :sevenri :exception :dir-name)))
+  (let [sevenri-dir (File. *sid-path* (str (get-config 'sid.sevenri.dir-name)))
+        exception-dir (File. sevenri-dir (str (get-config 'sid.sevenri.exception.dir-name)))]
+    (when-not (.exists sevenri-dir)
+      (when-not (.mkdir sevenri-dir)
+        (throw (RuntimeException. "get-sid-sevenri-exception-dir failed (sevenri-dir)"))))
+    (when-not (.exists exception-dir)
+      (when-not (.mkdir exception-dir)
+        (throw (RuntimeException. "get-sid-sevenri-exception-dir failed (exception-dir)"))))
+    exception-dir))
 
 (defn get-exception-listeners-file
   []
-  (File. (get-sid-sevenri-exception-dir) (str (get-default :sid :sevenri :exception :listeners))))
+  (File. (get-sid-sevenri-exception-dir) (str (get-config 'sid.sevenri.exception.listeners) '.clj)))
 
 (defn load-exception-listeners
   []
@@ -94,7 +107,9 @@
     (when (.exists elfile)
       (try
         (let [elisteners (read-string (slurp elfile))]
-          (reset! *exception-listeners-cache* elisteners))))))
+          (reset! *exception-listeners-cache* elisteners))
+        (catch Exception e
+          (throw (RuntimeException. "load-exception-listeners failed" e)))))))
 
 (defn register-exception-listener
   [listener-sn listener-name]
@@ -118,7 +133,7 @@
       (spit elfile elisteners))))
   
 (defn dispatch-exception
-  [#^Exception e ens]
+  [^Exception e ens]
   (doseq [elisteners (get-exception-listeners)]
     (let [[_ [sn name]] elisteners
           ns (log-using-get-slix-ns-slix sn)]
@@ -164,44 +179,60 @@
   [& msgs]
   (apply log-msgs Level/SEVERE msgs))
 
+;;;;
+
+(defn get-stack-trace-print-lines
+  [^Exception e]
+  (let [sw (StringWriter.)
+        pw (PrintWriter. sw)]
+    (binding [*out* pw]
+      (cst/print-stack-trace e))
+    (.toString sw)))
+
 (defn log-exception
-  ([#^Exception e]
+  ([^Exception e]
      (log-exception e nil))
-  ([#^Exception e ns]
+  ([^Exception e ns]
      (when-not (instance? ThreadDeath e)
-       (let [sw (StringWriter.)
-             pw (PrintWriter. sw)
-             ts (str "log-exception" (when ns (str " (" ns ")")) ":")]
-         (binding [*out* pw]
-           (clojure.stacktrace/print-stack-trace e))
+       (let [lemsg (str "log-exception" (when ns (str " (" ns ")")) ":")
+             stpls (get-stack-trace-print-lines e)]
          (if *sevenri-logger*
-           (.logp *sevenri-logger* Level/SEVERE *sevenri-logger-name* ts (.toString sw))
-           (println *sevenri-logger-header* ts (.toString sw)))))
+           (.logp *sevenri-logger* Level/SEVERE *sevenri-logger-name* lemsg stpls)
+           (println *sevenri-logger-header* lemsg stpls))))
      ;;
      (reset! *e* e)
      (future (dispatch-exception e ns))))
 
 (defn log-uncaught-exception
-  [#^Thread t #^Exception e]
+  [^Thread t ^Exception e]
   (when-not (instance? ThreadDeath e)
-    (let [sw (StringWriter.)
-          pw (PrintWriter. sw)]
-      (binding [*out* pw]
-        (clojure.stacktrace/print-stack-trace e))
+    (let [tname (.toString t)
+          stpls (get-stack-trace-print-lines e)]
       (if *sevenri-logger*
         (.logp *sevenri-logger* Level/SEVERE *sevenri-logger-name* "log-uncaught-exception"
-               (str "Uncaught exception in thread: " (.toString t) "\n" (.toString sw)))
+               (str "Uncaught exception in thread: " tname "\n" stpls))
         (println *sevenri-logger-header*
-                 "log-exception: uncaught exception in thread:" (.toString t) "\n" (.toString sw))))
+                 "log-exception: uncaught exception in thread:" tname "\n" stpls)))
     ;;
     (reset! *e* e)
     (future (dispatch-exception e nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; startup/shutdown
+
+(defmacro -ensure-processes
+  [& preds]
+  `(every? true? (map #(do
+                         (print-info (:name (meta %)))
+                         (%))
+                      (list ~@preds))))
+
+;;;;
 
 (defn- -get-sid-log-dir?
   []
-  (if (.isDirectory (get-sid-log-dir)) true false))
+  (let [dir (get-sid-log-dir)]
+    (and (.isDirectory dir) (.canWrite dir))))
 
 (defn- -cleanup-sid-log-dir?
   []
@@ -211,32 +242,38 @@
       (recur (rest lfs))))
   true)
 
-(defn get-new-log-file
+(defn- -get-new-log-file
   ([]
      (let [lfs (find-files '.log (get-sid-log-dir))
-           lfc (get-default :sid :log :file-count)]
+           lfc (get-config 'sid.log.file-count)]
        (if (< (count lfs) lfc)
-         (get-new-log-file lfs)
+         (-get-new-log-file lfs)
          (loop [lfs lfs]
            (.delete (first lfs))
            (if (< (count (rest lfs)) lfc)
-             (get-new-log-file (rest lfs))
+             (-get-new-log-file (rest lfs))
              (recur (rest lfs)))))))
   ([_]
      (let [pfx (.format (SimpleDateFormat. "yyMMdd-HHmmss") (Date.))
-           lfn (File. (get-sid-log-dir) (str (get-default :sid :log :file-body-name) \- pfx ".log"))]
+           lfn (File. (get-sid-log-dir) (str (get-config 'sid.log.file-name) \- pfx '.log))]
        lfn)))
 
 (defn- -create-logging-properties
   []
-  (let [lf (get-new-log-file)]
+  (let [lf (-get-new-log-file)]
     (reset-sevenri-log-file lf)
     (str (println-str "java.util.logging.FileHandler.pattern =" (.getCanonicalPath lf)))))
 
-(defn get-logging-properties-inputstream
+(defn- -get-logging-properties-inputstream
   [cfgs]
-  (let [rld (get-resources-dir (get-default :src :resources :logger :dir-name))
-        lcf (File. rld (str (get-default :src :resources :logger :configuration-file)))]
+  (let [ldr (reduce (fn [d p] (File. d (str (get-config p))))
+                    (get-user-path)
+                    ['src.dir-name
+                     'src.resources.dir-name
+                     'src.resources.logger.dir-name])
+        lcf (File. ldr (get-config 'src.resources.logger.config-file-name))]
+    (when-not (.exists lcf)
+      (throw (RuntimeException. "-get-logging-properties-inputstream failed")))
     (ByteArrayInputStream. (.getBytes (str (slurp lcf :encoding "UTF-8") \newline cfgs)))))
 
 (defn- -get-logger?
@@ -244,35 +281,15 @@
   (if *sevenri-logger*
     true
     (let [cfgs (-create-logging-properties)
-          logger-name (str (get-default :sid :log :logger-name))
-          logger-header (get-default :sid :log :logger-header)]
-      (with-open [is (get-logging-properties-inputstream cfgs)]
+          logger-name (str (get-config 'sid.log.logger-name))
+          logger-header (get-config 'sid.log.logger-header)]
+      (with-open [is (-get-logging-properties-inputstream cfgs)]
         (.readConfiguration (LogManager/getLogManager) is)
         (reset-sevenri-logger logger-name logger-header (Logger/getLogger logger-name))
         (when-not *sevenri-logger*
-          (throw (RuntimeException. "get a logger failed")))
+          (throw (RuntimeException. "-get-logger? failed")))
         (reset-sevenri-logger-popup Level/WARNING)
         true))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; startup/shutdown
-
-(defmacro starting-up
-  [& preds]
-  `(with-making-dir
-     (every? true? (map #(do
-                           (print-info "starting up:" (:name (meta %)))
-                           (%))
-                        (list ~@preds)))))
-
-(defmacro shutting-down
-  [& preds]
-  `(every? true? (map #(do
-                         (print-info "shutting down:" (:name (meta %)))
-                         (%))
-                      (list ~@preds))))
-
-;;;;
 
 (defn -save-std-inouterr?
   []
@@ -324,11 +341,11 @@
 
 (defn startup-log?
   []
-  (starting-up
-   -save-std-inouterr?
+  (-ensure-processes
    -get-sid-log-dir?
    -cleanup-sid-log-dir?
    -get-logger?
+   -save-std-inouterr?
    -redirect-system-out-and-err?
    -install-thread-default-uncaught-exception-handler?
    -get-sid-sevenri-exception-dir?

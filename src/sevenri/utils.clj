@@ -9,38 +9,20 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.utils
+(ns ^{:doc "Sevenri utility library"}
+  sevenri.utils
   (:import (java.io File)
            (java.lang.reflect Field Modifier Method Constructor)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def PHI (* 2 (Math/cos (/ Math/PI 5))))
-(def *unsafe-sym-chars* "[<>:\"\\|?*\\s]")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn ns2path
-  [nssym]
-  (.replace (.replace (.replaceAll (str nssym) *unsafe-sym-chars* "_") \- \_) \. \/))
-
-(defn path2ns
-  [path]
-  (symbol (.replace (.replace (str path) \/ \.) \_ \-)))
-
-(defn get-user-dir
-  []
-  (System/getProperty "user.dir"))
-
-(defn get-user-home-dir
-  []
-  (System/getProperty "user.home"))
-
-(defn get-class-path
-  []
-  (System/getProperty "java.class.path"))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn elapsed-msecs
+  [start end]
+  (/ (double (- end start)) 1000000.0))
 
 (defn expand-file-name
   "Converts filename to an absolute file. If directory is supplied, it is the
@@ -49,13 +31,13 @@
    file name; it may start with '~'. Otherwise, the value of the system property
    'user.home' is used."
   ([filename]
-     (expand-file-name filename (get-user-home-dir)))
+     (expand-file-name filename (System/getProperty "user.home")))
   ([filename directory]
      (.getCanonicalFile
       (let [filename (str filename)
             first-char (first filename)
             fsep-char (.charAt (System/getProperty "file.separator") 0)
-            user-home (get-user-home-dir)]
+            user-home (System/getProperty "user.home")]
         (cond
          (= first-char fsep-char) (File. filename)
          (= first-char \~) (File. (File. user-home) (subs filename 1))
@@ -95,7 +77,7 @@
 (defn System-properties
   ([]
          (System-properties ".*"))
-  ([#^String rgex]
+  ([^String rgex]
          (filter #(re-find (re-pattern rgex) (str %)) (seq (System/getProperties)))))
 
 (defn classpath
@@ -168,34 +150,26 @@
           (.mkdirs td)
           (clojure.java.io/copy sf tf))))))
 
-(defn get-files-from-deepest
-  "Sort files in a directory in revese order, meaning, longer paths come first."
-  [dir]
-  (let [fs (find-files true dir)
-        comp (proxy [java.util.Comparator] []
-               (compare [f1 f2]
-                 (let [l1 (count (str f1)) l2 (count (str f2))]
-                   (cond
-                     (< l1 l2) 1
-                     (> l1 l2) -1
-                     :else 0))))]
-    (sort comp fs)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Deprecated
+;;;; Deprecated - remove by 0.3.0
+
+(def -unsafe-chars- "[*?:|<>\"\\\\\\s]") ;; * ? : | < > " \ \s
+(def -sym2path-proxy- "_")
+(def -path2sym-proxy- "-")
 
 (defn nssym2path
   [nssym]
-  (.replace (.replace (str nssym) \. \/) \- \_))
+  (-> (str nssym)
+      (.replace \- \_)
+      (.replace \. \/)
+      (.replace \! \.)
+      (.replaceAll -unsafe-chars- -sym2path-proxy-)))
 
 (defn path2nssym
   [path]
-  (symbol (.replace (.replace (str path) \/ \.) \_ \-)))
-
-(defn safesymstr
-  [sym]
-  (.replaceAll (str sym) *unsafe-sym-chars* "-"))
-
-(defn nssym2safepath
-  [nssym]
-  (nssym2path (safesymstr nssym)))
+  (-> (str path)
+      (.replace \. \!)
+      (.replace \/ \.)
+      (.replace \_ \-)
+      (.replaceAll -unsafe-chars- -path2sym-proxy-)
+      (symbol)))

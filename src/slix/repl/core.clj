@@ -11,13 +11,13 @@
 
 (ns slix.repl.core
   (:require clojure.main)
-  (:use [sevenri config event log slix ui utils]
+  (:use [sevenri config core event log slix ui utils]
         [slix.repl defs listeners])
   (:import (java.io File OutputStreamWriter PrintWriter)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *startup-script* 'replrc)
+(def *startup-script* 'replrc!clj)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -27,7 +27,7 @@
 
 (defn get-startup-script-file
   []
-  (get-slix-file 'repl (get-startup-script-file-name)))
+  (get-slix-path 'repl (get-startup-script-file-name)))
 
 (defmacro repl
   [& args]
@@ -51,8 +51,7 @@
    startup script."
   [repl-slix]
   (let [src (get-startup-script-file)
-        tgt (with-making-dir
-              (File. (get-sid-slix-dir (slix-sn repl-slix)) (str (get-startup-script-file-name) ".clj")))]
+        tgt (get-sid-slix-path (slix-sn repl-slix) (get-startup-script-file-name))]
     (when-not (.exists tgt)
       (clojure.java.io/copy src tgt))
     (if (alt-open-slix?)

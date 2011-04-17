@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.debug
+(ns ^{:doc "Sevenri debug library"}
+  sevenri.debug
   (:use [sevenri config defs]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -20,12 +21,12 @@
 
 (defn run-swank-repl
   ([]
-     (when (System/getenv (get-default :debug :env-name))
+     (when (System/getenv (get-config 'debug.env-name))
        (run-swank-repl true)))
   ([run]
      (when (and run (not (is-swank-repl-running?)))
        (require 'swank.swank)
        ((ns-resolve 'swank.swank 'start-repl)
-        (get-default :debug :swank-port)
-        :encoding (get-default :debug :swank-encoding))
+        (get-config 'debug.swank-port)
+        :encoding (get-config 'debug.swank-encoding))
        (reset-swank-repl-state true))))

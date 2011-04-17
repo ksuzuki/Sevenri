@@ -9,9 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-;; slix - Sevenri library complex
-
-(ns sevenri.slix
+(ns ^{:doc "slix, Sevenri library complex"}
+  sevenri.slix
   (:use [sevenri config core defs event log jvm os refs ui utils])
   (:import (java.awt.event KeyAdapter KeyEvent)
            (java.beans ExceptionListener XMLEncoder XMLDecoder)
@@ -50,17 +49,72 @@
 ;; :args - arguments
 (slix-fn args)
 
+;;;;
+
 (defn is-slix?
   [object]
   (and (map? object)
        (every? identity [(slix-id object) (slix-sn object) (slix-name object)])))
 
-(defn alt-open-slix?
+(defn get-slix-ns
+  ([sn]
+     (symbol (str 'slix \. sn)))
+  ([sn sym]
+     (get-slix-ns (str sn \. sym)))
+  ([sn sym & syms]
+     (apply get-slix-ns sn (str sym \. (first syms)) (rest syms))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-src-slix-path
   ([]
-     (alt-open-slix? *slix*))
+     (get-src-path (get-config 'src.slix.dir-name)))
+  ([sn & paths]
+     (apply get-src-path (get-slix-ns sn) paths)))
+
+(defmacro get-slix-path
+  ([]
+     `(get-src-slix-path))
+  ([sn & paths]
+     `(get-src-slix-path ~sn ~@paths)))
+
+(defn get-src-library-slix-path
+  ([]
+     (get-src-library-path (get-config 'src.library.slix.dir-name)))
+  ([sn & paths]
+     (apply get-src-library-path (get-slix-ns sn) paths)))
+
+(defmacro get-library-slix-path
+  ([]
+     `(get-src-library-slix-path))
+  ([sn & paths]
+     `(get-src-library-slix-path ~sn ~@paths)))
+
+;;;;
+
+(defn get-sid-classes-slix-path
+  [sn & paths]
+  (apply get-sid-classes-path (get-slix-ns sn) paths))
+
+(defn get-sid-slix-path
+  ([]
+     (get-sid-path (get-config 'sid.slix.dir-name)))
+  ([sn & paths]
+     (apply get-sid-path (get-slix-ns sn) paths)))
+
+(defn get-sid-slix-save-path
+  [sn & paths]
+  (apply get-sid-slix-path sn (get-config 'sid.slix.save.dir-name) paths))
+
+(defn get-sid-slix-name-path
   ([slix]
-     (let [args (slix-args slix)]
-       (and (map? args) ((get-default :slix :arguments :alt-open) args)))))
+     (get-sid-slix-name-path (slix-sn slix) (slix-name slix)))
+  ([sn name]
+     (get-sid-slix-save-path sn name)))
+
+ (defn get-slix-startup-file
+   []
+   (get-sid-path (get-config 'sid.slix.dir-name) (get-config 'sid.slix.startup.file-name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -248,17 +302,9 @@
   []
   @*slix-sn-cache*)
 
-(defn get-slix-ns
-  ([sn]
-     (symbol (str (get-default :tln :slix) \. sn)))
-  ([sn pfx]
-     (get-slix-ns (str sn \. pfx)))
-  ([sn pfx & pfxs]
-     (apply get-slix-ns sn (str pfx \. (first pfxs)) (rest pfxs))))
-
 (defn get-slix-name-from-ns
   [ns]
-  (when-let [rm (re-matches (re-pattern (str "^" (get-default :tln :slix) "\\.(.+)")) (str ns))]
+  (when-let [rm (re-matches #"^slix\.(.+)" (str ns))]
     (symbol (second rm))))
 
 (defn get-slix-sn-meta
@@ -267,84 +313,12 @@
     (meta sns)))
 
 (defn get-library-slix-ns
-  [sn & pfxs]
-  (symbol (str (get-default :tln :library) \. (apply get-slix-ns sn pfxs))))
+  [sn & syms]
+  (symbol (str 'library \. (apply get-slix-ns sn syms))))
 
 (defn get-slix-fn
-  [sn fnsym]
-  (ns-resolve (get-slix-ns sn) fnsym))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-src-slix-dir
-  ([]
-     (get-src-dir (get-default :src :slix :dir-name)))
-  ([sn & pfxs]
-     (apply get-src-dir (get-slix-ns sn) pfxs)))
-
-(defmacro get-slix-dir
-  ([]
-     `(get-src-slix-dir))
-  ([sn & pfxs]
-     `(get-src-slix-dir ~sn ~@pfxs)))
-
-(defn get-src-slix-file
-  [sn & pfxs]
-  (apply get-file (get-src-slix-dir sn) pfxs))
-
-(defmacro get-slix-file
-  [sn & pfxs]
-  `(get-src-slix-file ~sn ~@pfxs))
-
-(defn get-src-library-slix-dir
-  ([]
-     (get-src-library-dir (get-default :src :library :slix :dir-name)))
-  ([sn & pfxs]
-     (apply get-src-library-dir (get-slix-ns sn) pfxs)))
-
-(defmacro get-library-slix-dir
-  ([]
-     `(get-src-library-slix-dir))
-  ([sn & pfxs]
-     `(get-src-library-slix-dir ~sn ~@pfxs)))
-
-(defn get-src-library-slix-file
-  [sn name & pfxs]
-  (apply get-file (get-src-library-slix-dir sn name) pfxs))
-
-(defmacro get-library-slix-file
-  [sn name & pfxs]
-  `(get-src-library-slix-file ~sn ~name ~@pfxs))
-
-;;;;
-
-(defn get-sid-classes-slix-dir
-  [sn & pfxs]
-  (apply get-sid-classes-dir (get-slix-ns sn) pfxs))
-
-(defn get-sid-slix-dir
-  ([]
-     (get-sid-dir (get-default :sid :slix :dir-name)))
-  ([sn & pfxs]
-     (apply get-sid-dir (get-slix-ns sn) pfxs)))
-
-(defn get-sid-slix-file
-  [sn & pfxs]
-  (apply get-file (get-sid-slix-dir sn) pfxs))
-
-(defn get-sid-slix-save-dir
-  [sn & pfxs]
-  (apply get-sid-slix-dir sn (get-default :sid :slix :save :dir-name) pfxs))
-
-(defn get-sid-slix-name-dir
-  ([slix]
-     (get-sid-slix-name-dir (slix-sn slix) (slix-name slix)))
-  ([sn name]
-     (get-sid-slix-save-dir sn name)))
-
- (defn get-slix-startup-file
-   []
-   (File. (get-sid-slix-dir) (str (get-default :sid :slix :startup :file-name))))
+  [sn sym]
+  (ns-resolve (get-slix-ns sn) sym))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -352,29 +326,29 @@
   "Parse clj files (except scratch) and return slix namespaces without
    'slix.' prefix."
   []
-  (let [slxdn (get-default :src :slix :dir-name)
+  (let [slxdn (get-config 'src.slix.dir-name)
         slxdt (str slxdn \.)
+        csxdt (count slxdt)
         rpclj (re-pattern (str "/" slxdn "/.*\\.clj$"))
-        rpsct (re-pattern (str ".*/" (get-default :src :slix :scratch-file-name) "$"))
+        rpsct (re-pattern (str ".*/" (sym2path (get-config 'src.slix.scratch-file-name)) "$"))
         cljfs (filter #(not (re-matches rpsct (str %)))
-                      (find-files #(re-find rpclj (str %)) (get-slix-dir)))]
+                      (find-files #(re-find rpclj (str %)) (get-slix-path)))]
     (filter identity
             (map (fn [f]
-                   (with-open [rdr (PushbackReader. (InputStreamReader. (FileInputStream. f) "UTF-8"))]
-                     (when-let [obj (try
-                                      (read rdr)
-                                      (catch Exception e
-                                        (log-severe "find-all-slix-sn failed:" f)
-                                        nil))]
-                       (let [sym1 (first obj)
-                             sym2 (second obj)
-                             str2 (str sym2)
-                             sdln (count slxdt)] ;; 'slix.'
-                         (when (and (= 'ns sym1)
-                                    (< sdln (count str2))
-                                    (= slxdt (subs str2 0 sdln))
-                                    (true? (:slix (meta sym2))))
-                           (with-meta (symbol (subs str2 sdln)) (meta sym2)))))))
+                   (try
+                     (with-open [rdr (PushbackReader. (InputStreamReader. (FileInputStream. f) "UTF-8"))]
+                       (when-let [obj (read rdr)]
+                         ;; Expect the ns macro line; (ns name docstring? attr-map? references*)
+                         (let [sym1 (first obj) ;; ns
+                               sym2 (second obj) ;; name
+                               str2 (str sym2)]
+                           (when (and (= 'ns sym1)
+                                      (< csxdt (count str2))
+                                      (= slxdt (subs str2 0 csxdt))
+                                      (true? (:slix (meta sym2))))
+                             (with-meta (symbol (subs str2 csxdt)) (meta sym2))))))
+                     (catch Exception e
+                       (log-severe "find-all-slix-sn failed:" f))))
                  cljfs))))
 
 (defn get-sid-slix-frame-file
@@ -384,9 +358,10 @@
   ([slix]
      (get-sid-slix-frame-file (slix-sn slix) (slix-name slix)))
   ([sn name]
-     (get-sid-slix-frame-file sn name (get-default :sid :slix :save :frame-file-name)))
+     (get-sid-slix-frame-file sn name (get-config 'sid.slix.save.frame-file-name)))
   ([sn name frame-file-name]
-     (File. (get-sid-slix-name-dir sn name) (str frame-file-name))))
+     (let [dir (with-make-path (get-sid-slix-name-path sn name))]
+       (get-path dir frame-file-name))))
 
 (defn get-sid-slix-state-file
   ([]
@@ -395,9 +370,10 @@
   ([slix]
      (get-sid-slix-state-file (slix-sn slix) (slix-name slix)))
   ([sn name]
-     (get-sid-slix-state-file sn name (get-default :sid :slix :save :state-file-name)))
+     (get-sid-slix-state-file sn name (get-config 'sid.slix.save.state-file-name)))
   ([sn name state-file-name]
-     (File. (get-sid-slix-name-dir sn name) (str state-file-name))))
+     (let [dir (with-make-path (get-sid-slix-name-path sn name))]
+       (get-path dir state-file-name))))
 
 (defn get-slix-file-bundle
   "Return [frame-file state-file] or nil"
@@ -424,22 +400,22 @@
 (defn get-saved-slix-names
   "Return a seq of names or nil"
   [sn]
-  (when-let [od (get-sid-slix-save-dir sn)]
+  (when-let [od (get-sid-slix-save-path sn)]
     (let [ff (proxy [FileFilter] []
-               (accept [f] (.isDirectory f)))]
+               (accept [p] (not (empty-path? p))))]
       (seq (map #(.getName %) (.listFiles od ff))))))
 
 (defn find-saved-slixes
   "Return a seq of [sn name [frame-file state-file/nil]] or nil."
   ([]
      (let [;; Find any files under sis/slix, convert them in string, and then sort them.
-           afps (sort (map str (find-files #(.isFile %) (get-sid-slix-dir))))
+           afps (sort (map str (find-files #(.isFile %) (get-sid-slix-path))))
            ;; Remove up to sis/slix and go to the next stage.
-           _sv_ (get-default :sid :slix :save :dir-name)
-           rptn (re-pattern (str "^" (get-sid-slix-dir) "/(.*/" _sv_ "/.*)$"))]
+           -sv- (get-config 'sid.slix.save.dir-name)
+           rptn (re-pattern (str "^" (get-sid-slix-path) "/(.*/" -sv- "/.*)$"))]
        (find-saved-slixes (filter identity (map #(second (re-find rptn %)) afps))
-                          (str (get-default :sid :slix :save :frame-file-name))
-                          (str (get-default :sid :slix :save :state-file-name)))))
+                          (sym2path (get-config 'sid.slix.save.frame-file-name))
+                          (sym2path (get-config 'sid.slix.save.state-file-name)))))
   ([snfiles ffname sfname]
      ;; Return a lazy-seq that consumes sn-name-files and return [sn name [f s/nil]]s.
      (lazy-seq
@@ -448,8 +424,8 @@
               sn (.getParent (.getParentFile sn_name))
               nm (.getName sn_name)
               create-item (fn [fs]
-                            (let [fsv (vec (map #(File. (File. (get-sid-slix-dir) (str sn_name)) %) fs))]
-                              [(symbol (path2nssym sn)) (str nm) (if (< (count fsv) 2) (conj fsv nil) fsv)]))]
+                            (let [fsv (vec (map #(File. (File. (get-sid-slix-path) (str sn_name)) %) fs))]
+                              [(symbol (path2sym sn)) (str nm) (if (< (count fsv) 2) (conj fsv nil) fsv)]))]
           (loop [snfiles snfiles
                  file-bundle nil]
             (if (seq snfiles)
@@ -494,7 +470,7 @@
 
 (defn get-slix-jvm-and-jar-paths
   [sn]
-  (let [pa [(get-slix-dir sn (get-default :src :slix :jvm :dir-name))]]
+  (let [pa [(get-slix-path sn (get-config 'src.slix.jvm.dir-name))]]
     (reduce (fn [a p] (conj a p)) pa (find-files '.jar (first pa)))))
 
 (defn get-slix-project-jar-paths
@@ -503,7 +479,7 @@
 
 (defn create-slix-class-loader
   [sn]
-  (let [cps (let [s (conj (get-slix-jvm-and-jar-paths sn) (get-sid-classes-dir))
+  (let [cps (let [s (conj (get-slix-jvm-and-jar-paths sn) (get-sid-classes-path))
                   p (get-slix-project-jar-paths sn)]
               (if p (apply conj s p) s))]
     (URLClassLoader. (into-array (map #(.toURL (.toURI %)) cps)) (get-base-class-loader))))
@@ -542,7 +518,7 @@
 
 (defn- -aot-compiler
   [sn aot verbose? cl-dump?]
-  (let [aotf (File. (get-slix-dir sn) (str (nssym2path aot) ".clj"))]
+  (let [aotf (get-path (get-slix-path sn) (str aot '.clj))]
     (if (.exists aotf)
       (let [cl (create-slix-class-loader sn)]
         (with-slix-context sn cl false
@@ -553,7 +529,7 @@
                 (print-seq (seq (.getURLs cl)))
                 (recur (.getParent cl)))))
           ;;
-          (let [cp (get-sid-classes-dir)
+          (let [cp (get-sid-classes-path)
                 fqaot (get-slix-ns sn aot)]
             (binding [*compile-path* (str cp)]
               (compile fqaot)
@@ -650,21 +626,20 @@
   [slix log-xml-encoder-errors?]
   (let [postsave-slix-frame-fns (-presave-slix-frame slix)]
     (try
-      (with-making-dir
-        (let [[f s] (get-slix-file-bundle (slix-sn slix) (slix-name slix))]
-          (when (.exists f)
-            (.delete f))
-          (with-open [xe (XMLEncoder. (BufferedOutputStream. (FileOutputStream. f)))]
-            ;;
-            (set-event-delegator-persistence-delegate xe)
-            ;; Ignore any exception if not log-xml-encoder-errors?.
-            (when-not log-xml-encoder-errors?
-              (.setExceptionListener xe (proxy [ExceptionListener][]
-                                          (exceptionThrown [e]))))
-            ;;
-            (.writeObject xe (slix-frame slix))
-            (.flush xe))
-          true))
+      (let [[f s] (get-slix-file-bundle (slix-sn slix) (slix-name slix))]
+        (when (.exists f)
+          (.delete f))
+        (with-open [xe (XMLEncoder. (BufferedOutputStream. (FileOutputStream. f)))]
+          ;;
+          (set-event-delegator-persistence-delegate xe)
+          ;; Ignore any exception if not log-xml-encoder-errors?.
+          (when-not log-xml-encoder-errors?
+            (.setExceptionListener xe (proxy [ExceptionListener][]
+                                        (exceptionThrown [e]))))
+          ;;
+          (.writeObject xe (slix-frame slix))
+          (.flush xe))
+        true)
       (catch Exception e
         (log-exception e)
         false)
@@ -724,7 +699,7 @@
       (.setLocationByPlatform *frame-location-by-platform*)
       (.setDefaultCloseOperation JFrame/DISPOSE_ON_CLOSE)
       (.setTitle (str n))
-      (.setSize (get-default :frame :width) (get-default :frame :height)))
+      (.setSize (get-config 'frame.width) (get-config 'frame.height)))
     f))
 
 (defn- -abort-open-slix
@@ -742,6 +717,8 @@
        (.dispose frame))
      (when-let [app-context (:app-context (slix-context slix))]
        (dispose-app-context app-context))
+     (when (empty-path? (get-sid-slix-name-path slix))
+       (clean-path? (get-sid-slix-name-path slix) (get-sid-slix-path)))
      (when post-event?
        (post-event eid slix (if (and (map? reason) (:reason reason))
                                reason
@@ -842,9 +819,13 @@
        (-get-context-and-start-slix-creation slix (create-slix-context))))
   ([slix context]
      (let [slix (assoc slix :context context)]
-       (future (-open-slix slix (get-stdio))))))
+       (future
+         (try
+           (-open-slix slix (get-stdio))
+           (catch Exception e
+             (log-exception e)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (def -open-slix-args- nil)
 
@@ -919,6 +900,13 @@
      `(binding [-open-slix-args- ~args]
         (open-slix ~sn ~name))))
 
+(defn alt-open-slix?
+  ([]
+     (alt-open-slix? *slix*))
+  ([slix]
+     (let [args (slix-args slix)]
+       (and (map? args) ((get-config 'slix.arguments.alt-open) args)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- -save-slix
@@ -980,6 +968,29 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn- -can-slix-close?
+  [slix close-on-delete? info last-global-event]
+  (if (or close-on-delete? ;; cannot deny closing with these conditions
+          (= last-global-event :sevenri.event/slixes-closing)
+          (= last-global-event :sevenri.event/sevenri-quitting))
+    ;;
+    (let [info (cond
+                (= last-global-event :sevenri.event/slixes-closing)
+                  {:sevenri.event/info-close-on-close-slixes true}
+                (= last-global-event :sevenri.event/sevenri-quitting)
+                  {:sevenri.event/info-close-on-quit-sevenri true}
+                :else info)]
+      (send-event :sevenri.event/slix-closing slix info)
+      [true nil])
+    ;;
+    (let [resps (send-event :sevenri.event/slix-closing slix info)
+          [res rsn] (get-event-response (get resps (slix-name slix)))]
+      (if (= res :sevenri.event/response-exception-occurred)
+        [false :sevenri.event/reason-exception-occurred]
+        (if (= res :sevenri.event/response-donot-close)
+          [false rsn]
+          [true nil])))))  
+
 (defn- -close-slix
   "Close slix synchronously."
   ([slix io]
@@ -988,22 +999,7 @@
      (binding [*in* (first io) *out* (second io) *err* (last io)]
        (let [info {:sevenri.event/info-close-on-delete close-on-delete?}
              lge (get-last-global-event)
-             [can-close? reason] (if (or close-on-delete? ;; cannot deny closing with these conditions
-                                         (= lge :sevenri.event/slixes-closing)
-                                         (= lge :sevenri.event/sevenri-quitting))
-                                   (let [info (cond
-                                               (= lge :sevenri.event/slixes-closing) {:sevenri.event/info-close-on-close-slixes true}
-                                               (= lge :sevenri.event/sevenri-quitting) {:sevenri.event/info-close-on-quit-sevenri true}
-                                               :else info)]
-                                     (send-event :sevenri.event/slix-closing slix info)
-                                     [true nil])
-                                   (let [resps (send-event :sevenri.event/slix-closing slix info)
-                                         [res rsn] (get-event-response (get resps (slix-name slix)))]
-                                     (if (= res :sevenri.event/response-exception-occurred)
-                                       [false :sevenri.event/reason-exception-occurred]
-                                       (if (= res :sevenri.event/response-donot-close)
-                                         [false rsn]
-                                         [true nil]))))]
+             [can-close? reason] (-can-slix-close? slix close-on-delete? info lge)]
          (if-not can-close?
            ;; close canceled or close error by exception
            (let [eid (if (= reason :sevenri.event/reason-exception-occurred)
@@ -1023,11 +1019,14 @@
                ;; closed
                (let [eid :sevenri.event/slix-closed]
                  ;; Unregister the slix. Then dispose its frame and
-                 ;; optionally its app-context.
+                 ;; optionally its app-context. Trash instance save
+                 ;; directory if it's empty.
                  (unregister-slix slix)
                  (.dispose (slix-frame slix))
                  (when-let [ac (:app-context (slix-context slix))]
                    (dispose-app-context ac))
+                 (when (empty-path? (get-sid-slix-name-path slix))
+                   (clean-path? (get-sid-slix-name-path slix) (get-sid-slix-path)))
                  ;;
                  (post-event-to slix eid slix info)
                  (post-event eid slix info)
@@ -1070,7 +1069,7 @@
                ssf (get-slix-startup-file)]
            (when (.exists ssf)
              (.delete ssf))
-           (spit ssf (print-str sns) :encoding "UTF-8"))))))
+           (spit ssf (pr-str sns) :encoding "UTF-8"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1085,7 +1084,7 @@
         (send-event eid slix)
         (-close-slix slix io true))
       (send-event eid nil info)
-      (if (trash-dir? (get-sid-slix-name-dir sn name) (get-sid-slix-dir))
+      (if (clean-path? (get-sid-slix-name-path sn name) (get-sid-slix-path))
         ;; deleted
         (let [eid :sevenri.event/slix-deleted]
           (post-event eid nil info)
@@ -1143,8 +1142,7 @@
   (let [info {:sn sn}]
     ;; creating
     (send-event :sevenri.event/slix-creating nil info)
-    (let [sod (get-slix-dir)
-          slix-file (File. sod (str (nssym2path sn) ".clj"))
+    (let [slix-file (get-slix-path (str sn '!clj))
           sn-dir (.getParentFile slix-file)]
       (if (.exists slix-file)
         ;; create failed
@@ -1165,11 +1163,13 @@
               (send-event eid nil (assoc info :reason rsn))
               eid)))))))
 
+;;;;
+
 (defn purge-slix
   "Purge slix and instance files. Return a purge event id, or nil.
    Cannot purge if instance is running."
   [sn]
-  (let [src-sn-file (get-slix-file sn)]
+  (let [src-sn-file (get-slix-path (str sn '!clj))]
     (when (.exists src-sn-file)
       (let [info {:sn sn}]
         ;; purging
@@ -1182,14 +1182,14 @@
               (post-event eid nil (assoc info :reason rsn))
               eid)
             ;; continue purging
-            (let [trash-sof? (trash-file? src-sn-file)
-                  trash-sod? (trash-dir? (get-slix-dir sn) (get-src-dir))
-                  trash-dod? (trash-dir? (get-sid-slix-dir sn) (get-sid-slix-dir))]
-              (if (and trash-sof? trash-sod? trash-dod?)
+            (let [trash-sof? (trash-path? src-sn-file)
+                  clean-sod? (clean-path? (get-slix-path sn) (get-src-path))
+                  clean-dod? (clean-path? (get-sid-slix-path sn) (get-sid-slix-path))]
+              (if (and trash-sof? clean-sod? clean-dod?)
                 ;; purged
                 (let [eid :sevenri.event/slix-purged]
                   (remove-from-slix-sn-cache sn)
-                  (delete-dir? (get-sid-classes-slix-dir sn) (get-sid-classes-dir))
+                  (clean-path? (get-sid-classes-slix-path sn) (get-sid-classes-path))
                   (post-event eid nil info)
                   eid)
                 ;; Purge failed
@@ -1198,19 +1198,16 @@
                   (post-event eid nil (assoc info
                                         :reason rsn
                                         :status {:src-sn-file trash-sof?
-                                                 :src-slix-dir trash-sod?
-                                                 :sid-slix-dir trash-dod?}))
+                                                 :src-slix-dir clean-sod?
+                                                 :sid-slix-dir clean-dod?}))
                   eid)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-slix-sevenri-sn
-  []
-  (get-default :tln :sevenri))
-
 (defn open-slix-sevenri-and-wait
   []
-  (open-slix-and-wait (get-slix-sevenri-sn) (get-sevenri-name)))
+  (let [name (get-sevenri-name)]
+    (open-slix-and-wait (.toLowerCase name) name)))
 
 (defn close-slix-sevenri-and-wait
   []
@@ -1233,7 +1230,7 @@
        (is-slix-sevenri? (slix-sn slix) (slix-name slix))
        false))
   ([sn name]
-    (if (and (= (symbol sn) (get-slix-sevenri-sn))
+    (if (and (= (symbol sn) 'sevenri)
              (= (str name) (get-sevenri-name)))
       true
       false)))
@@ -1277,15 +1274,15 @@
 
 (defn- -create-sid-slix-dirs?
   []
-  (get-sid-classes-dir)
-  (get-sid-slix-dir)
-  (get-sid-trash-dir)
+  (get-sid-classes-path)
+  (get-sid-slix-path)
+  (get-sid-trash-path)
   true)
 
 (defn- -create-src-library-dirs?
   []
-  (get-library-dir)
-  (get-library-slix-dir)
+  (get-library-path)
+  (get-library-slix-path)
   true)
 
 (defn- -cache-slix-sns?
@@ -1306,24 +1303,28 @@
           (register-exception-listener sn (last nm))))))
   true)
 
-(defn- -aot-compile-slixes?
+(defn- -aot-compile-slix-sevenri?
+  "At startup time Sevenri aot-compiles slix.sevenri only (and if
+   slix.sevenri.aot exists). AOT-compiling other slixes should be done by
+   slix.sevenri later."
   []
-  (doseq [sn (get-default :startup :aot-compile-list)]
-    (aot-compile? sn 'aot false))
-  true)
+  (without-make-path
+   (if (.exists (get-src-slix-path 'sevenri 'aot!clj))
+     (aot-compile? 'sevenri 'aot false)
+     true)))
 
 ;;;;
 
 (defn startup-slix?
   []
-  (starting-up
+  (-ensure-processes
    -acquire-base-class-loader?
    -acquire-system-event-queue?
    -create-sid-slix-dirs?
    -create-src-library-dirs?
    -cache-slix-sns?
    -register-exception-listeners?
-   -aot-compile-slixes?))
+   -aot-compile-slix-sevenri?))
 
 (defn shutdown-slix?
   []

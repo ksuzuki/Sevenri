@@ -75,13 +75,13 @@
 
 (defn read-root-metadoc
   []
-  (read-metadoc (get-doc-dir)))
+  (read-metadoc (get-doc-path)))
 
 (defn write-root-metadoc
   ([mdata]
-     (write-metadoc (get-doc-dir) mdata))
+     (write-metadoc (get-doc-path) mdata))
   ([mdata reset?]
-     (write-metadoc (get-doc-dir) mdata reset?)))
+     (write-metadoc (get-doc-path) mdata reset?)))
 
 (defn update-metadocs
   [dir mdata]
@@ -94,23 +94,22 @@
 (defn add-category
   [category]
   (when (string? category)
-    (with-making-dir
-      (let [cdir (get-doc-dir (symbol category))
-            mtdc (read-metadoc cdir)]
-        (when cdir
-          (write-metadoc cdir (merge mtdc {:category category}))
-          ;;
-          (let [rmtdc (read-root-metadoc)
-                ctgrs (set (:categories rmtdc))]
-            (write-root-metadoc (merge rmtdc {:categories (conj ctgrs category)})))
-          ;;
-          cdir)))))
+    (let [cdir (with-make-path (get-doc-path (symbol category)))
+          mtdc (read-metadoc cdir)]
+      (when cdir
+        (write-metadoc cdir (merge mtdc {:category category}))
+        ;;
+        (let [rmtdc (read-root-metadoc)
+              ctgrs (set (:categories rmtdc))]
+          (write-root-metadoc (merge rmtdc {:categories (conj ctgrs category)})))
+        ;;
+        cdir))))
 
 (defn get-category
   [category]
   (let [rmtdc (read-root-metadoc)]
     (when (and (string? category) (contains? (:categories rmtdc) category))
-      (let [cdir (get-doc-dir (symbol category))]
+      (let [cdir (get-doc-path (symbol category))]
         (when (and (.isDirectory cdir)
                    (= (:category (read-metadoc cdir)) category))
           cdir)))))
@@ -118,7 +117,7 @@
 (defn remove-category
   [category]
   (when-let [cdir (get-category category)]
-    (when (trash-dir? cdir (get-doc-dir))
+    (when (clean-path? cdir (get-doc-path))
       (let [rmtdc (read-root-metadoc)
             ctgrs (:categories rmtdc)]
         (write-root-metadoc (merge rmtdc {:categories (disj ctgrs category)}))))))
@@ -129,7 +128,7 @@
   (when (every? #(string? %) [from to])
     (when-not (get-category to)
       (when-let [from-cdir (get-category from)]
-        (let [to-cdir (File. (.getParentFile from-cdir) (nssym2path to))]
+        (let [to-cdir (File. (.getParentFile from-cdir) (sym2path to))]
           (when (.renameTo from-cdir to-cdir)
             (let [rmtdc (read-root-metadoc)
                   ctgrs (:categories rmtdc)]
@@ -143,7 +142,7 @@
   [title category]
   (when (every? #(string? %) [title category])
     (when-let [cdir (add-category category)]
-      (let [tdir (File. cdir (nssym2path title))]
+      (let [tdir (File. cdir (sym2path title))]
         (when-not (.exists tdir)
           (.mkdir tdir))
         (let [mtdc (read-metadoc tdir)]
@@ -154,7 +153,7 @@
   [title category]
   (when (every? #(string? %) [title category])
     (when-let [cdir (get-category category)]
-      (let [tdir (File. cdir (nssym2path title))
+      (let [tdir (File. cdir (sym2path title))
             mtdc (read-metadoc tdir)]
         (when (and (.isDirectory tdir)
                    (= (:title mtdc) title)
@@ -165,7 +164,7 @@
   [title category]
   (when-let [tdir (get-title title category)]
     (let [cdir (get-category category)]
-      (trash-dir? tdir cdir))))
+      (clean-path? tdir cdir))))
 
 (defn rename-title
   "'from' should exist and 'to' shouldn't."
@@ -173,7 +172,7 @@
   (when (every? #(string? %) [from to category])
     (when-not (get-title to category)
       (when-let [from-tdir (get-title from category)]
-        (let [to-tdir (File. (.getParentFile from-tdir) (nssym2path to))]
+        (let [to-tdir (File. (.getParentFile from-tdir) (sym2path to))]
           (when (.renameTo from-tdir to-tdir)
             (update-metadocs to-tdir {:title to})
             to-tdir))))))
@@ -184,7 +183,7 @@
   [item title category]
   (when (every? #(string? %) [item title category])
     (when-let [tdir (add-title title category)]
-      (let [idir (File. tdir (nssym2path item))]
+      (let [idir (File. tdir (sym2path item))]
         (when-not (.exists idir)
           (.mkdir idir))
         idir))))
@@ -193,7 +192,7 @@
   [item title category]
   (when (every? #(string? %) [item title category])
     (when-let [tdir (get-title title category)]
-      (let [idir (File. tdir (nssym2path item))]
+      (let [idir (File. tdir (sym2path item))]
         (when (.isDirectory idir)
           idir)))))
 
@@ -201,7 +200,7 @@
   [item title category]
   (when-let [idir (get-item item title category)]
     (let [tdir (get-title title category)]
-      (trash-dir? idir tdir))))
+      (clean-path? idir tdir))))
 
 ;;;;
 
@@ -210,7 +209,7 @@
   (when (every? #(string? %) [section ext item title category])
     (when-let [sdir (add-item item title category)]
       (let [mtdc (read-metadoc sdir)
-            sfnm (str (nssym2path section) ext)
+            sfnm (str (sym2path section) ext)
             secf (File. sdir sfnm)]
         (when-not (.exists secf)
           (.createNewFile secf))
@@ -225,7 +224,7 @@
   (when (every? #(string? %) [section ext item title category])
     (when-let [sdir (get-item item title category)]
       (let [mtdc (read-metadoc sdir)
-            sfnm (str (nssym2path section) ext)
+            sfnm (str (sym2path section) ext)
             secf (File. sdir sfnm)]
         (when (and (.isFile secf)
                    (contains? (:sections mtdc) section)
@@ -236,7 +235,7 @@
 (defn remove-item-section
   [section ext item title category]
   (when-let [secf (get-item-section section ext item title category)]
-    (trash-file? secf)
+    (trash-path? secf)
     (let [sdir (get-item item title category)
           mtdc (read-metadoc sdir)
           scts (disj (:sections mtdc) section)]
@@ -251,7 +250,7 @@
   (when (every? #(string? %) [from to ext item title category])
     (when-not (get-item-section to ext item title category)
       (when-let [from-secf (get-item-section from ext item title category)]
-        (let [to-secf (File. (.getParentFile from-secf) (str (nssym2path to) ext))]
+        (let [to-secf (File. (.getParentFile from-secf) (str (sym2path to) ext))]
           (when (.renameTo from-secf to-secf)
             (let [idir (.getParentFile to-secf)
                   mtdc (read-metadoc idir)
@@ -317,14 +316,14 @@
   ([textpane clear?]
      (when (.isEditable textpane)
        (when-let [file (.getClientProperty textpane *prop-section-file*)]
-         (if (trash-file? file)
+         (if (trash-path? file)
            (do
              (spit file (.getText textpane) :encoding "UTF-8")
              (when clear?
                (doto textpane
                  (.putClientProperty *prop-section-file* nil)
                  (.setText ""))))
-           (log-warning "documenter: trash-file failed:" file))))))
+           (log-warning "documenter: trash-path failed:" file))))))
 
 (defn read-section
   [textpane file]
@@ -339,10 +338,9 @@
 
 (defn save-current-section-title-category
   [slix section-title-category]
-  (with-making-dir
-    (let [[frame-file state-file] (get-slix-file-bundle slix)
+  (let [[frame-file state-file] (get-slix-file-bundle slix)
           cont (or section-title-category [])]
-      (spit state-file cont :encoding "UTF-8"))))
+      (spit state-file cont :encoding "UTF-8")))
 
 (defn load-last-section-title-category
   [slix]

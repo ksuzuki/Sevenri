@@ -1,5 +1,6 @@
 (ns slix.planter.controller
   (:use [sevenri config log slix utils]
+        [sevenri.core :rename {get-project-path get-project-path*}]
         [slix.planter core defs io tohandler])
   (:import (java.awt Color FileDialog)
            (java.io PipedInputStream PipedOutputStream PrintStream)
@@ -265,9 +266,9 @@
             (do (.close ant-pso) @ampo (.close ant-pse) @ampe)
             (do (.close lin-pso) @lmpo (.close lin-pse) @lmpo)
             ;; Special setup for a new slix project.
-            (when (and (= task "new") (project-exists? pmap))
+            (when (and (= task "new") (project-exists? pmap) (is-slix-project? pmap))
               (when-not (setup-slix-project? pmap)
-                (print-line slix out-txtpn "Setup for slix project failed" *attr-wrn*)))
+                (print-line slix out-txtpn "Setup for slix project failed\n" *attr-wrn*)))
             ;; Print the end of task msg, enable the UI, set the original
             ;; cursor back, and update project name if necessary.
             (print-end-task slix out-txtpn)
@@ -304,8 +305,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn can-delete-project
-  "Return nil proj-name is deletable or a string explaining a reason of why
-   not deletable."
+  "Return nil when proj-name is deletable or a string explaining a reason of
+   why not."
   [prj-name]
   (if (= prj-name (str *slix-planter-project*))
     (str prj-name " is a Sevenri system project\nand cannot be deleted.")
@@ -317,8 +318,8 @@
 
 (defn project-exists-ui?
   [frame prj-name]
-  (let [safe-prj-name (safesymstr prj-name)
-        can-continue? (if (= prj-name safe-prj-name)
+  (let [safe-prj-name (sym2path prj-name)
+        can-continue? (if (safesym? prj-name)
                         true
                         (let [cdmsg (str prj-name
                                          " contains invalid project name character(s)\n"
@@ -350,7 +351,7 @@
 (defmethod do-command :edit
   [controls _ _]
   (let [frm (:frame controls)
-        prn (.getSelectedItem (:project-names controls))
+        prn (obj2sym (.getSelectedItem (:project-names controls)))
         dlg (FileDialog. frm "Open Project File" FileDialog/LOAD)
         flt (proxy [FilenameFilter] []
               (accept [dir name]
@@ -370,14 +371,15 @@
   (let [frame (:frame controls)
         idmsg "repository URL:"
         idttl "Git Clone URL"
-        gcurl (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
-    (when-not (empty? gcurl)
-      (let [[prj-name git] (.split (last (.split gcurl "/")) "\\.")]
+        gustr (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
+    (when-not (empty? gustr)
+      (let [[pnstr git] (.split (last (.split gustr "/")) "\\.")
+            prj-name (obj2sym pnstr)]
         (if (and (= git "git")
-                 (not (empty? prj-name))
-                 (not (project-exists-ui? prj-name)))
-          (let [safe-pn (safesymstr prj-name)
-                prj-dir (File. (get-project-dir) safe-pn)
+                 (not (empty? gustr))
+                 (not (project-exists-ui? frame prj-name)))
+          (let [safe-pn (sym2path prj-name)
+                prj-dir (get-project-path prj-name)
                 ;; Create a clone task.
                 tid (gensym)
                 slx (get-slix frame)
@@ -385,53 +387,62 @@
                 tsk (fn [id]
                       (when (= id tid)
                         (set-ui-wait slx)
-                        (print-start-task slx txt (str "Cloning " gcurl))
+                        (print-start-task slx txt (str "Cloning " gustr))
                         ;;
-                        (let [result (do-git-clone (.getParent prj-dir) gcurl)]
+                        (let [result (do-git-clone (.getParent prj-dir) gustr)]
                           (print-line slx txt (:out result))
                           (when (not (empty? (:err result)))
-                            (print-line slx txt (:err result)*attr-wrn*))
+                            (print-line slx txt (:err result) *attr-wrn*))
                           ;;
                           (print-end-task slx txt)
                           (set-ui-wait slx false safe-pn))))]
             (send-task-to-lein-agent slx tid tsk))
           ;;
-          (let [msg (str "Not a git repository URL?:\n" gcurl)
+          (let [msg (str "Not a git repository URL?:\n" gustr)
                 ttl "Not A Git Repo URL"]
             (show-dialog :message frame msg ttl JOptionPane/OK_OPTION)))))))
 
 (defmethod do-command :delete
   [controls set-ui-wait _]
-  (let [prj-name (.getSelectedItem (:project-names controls))
-        undl-rsn (can-delete-project prj-name)
+  (let [prjn-str (.getSelectedItem (:project-names controls))
+        undl-rsn (can-delete-project prjn-str)
         conf-frm (:frame controls)
-        conf-msg (or undl-rsn (str "OK to delete " prj-name "?"))
+        conf-msg (or undl-rsn (str "OK to delete " prjn-str "?"))
         conf-ttl (str (if undl-rsn "Cannot Delete" "Deleting") " Project")
         response (show-dialog (if undl-rsn :message :confirm) conf-frm conf-msg conf-ttl
                               (if undl-rsn JOptionPane/YES_OPTION JOptionPane/YES_NO_CANCEL_OPTION))]
     (when (and (nil? undl-rsn) (= response JOptionPane/YES_OPTION))
       (set-ui-wait conf-frm)
-      (delete-project prj-name)
+      (delete-project (obj2sym prjn-str))
       (set-ui-wait conf-frm false :refresh))))
 
 (defmethod do-command :move
   [controls set-ui-wait _]
-  (let [oldpn (.getSelectedItem (:project-names controls))
+  (let [oprns (.getSelectedItem (:project-names controls))
         frame (:frame controls)
         idmsg "Destination Project Name:"
         idttl "Moving Project"
-        newpn (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
-    (when (and (not (empty? newpn))
-               (not (project-exists-ui? frame newpn)))
-      (let [safe-npn (safesymstr newpn)
-            src-pdir (get-project-path oldpn)
+        nprns (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)
+        ;;
+        old-prj-name (obj2sym oprns)
+        new-prj-name (obj2sym nprns)]
+    (when (and (not (empty? nprns))
+               (not (project-exists-ui? frame new-prj-name)))
+      (let [safe-npn (sym2path new-prj-name)
+            src-pdir (get-project-path old-prj-name)
             dst-pdir (get-project-path safe-npn)
             renamed? (atom false)]
         (set-ui-wait frame)
-        @(future (try (reset! renamed? (.renameTo src-pdir dst-pdir))))
+        @(future (try
+                   (reset! renamed? (.renameTo src-pdir dst-pdir))
+                   (catch Exception e
+                     (log-warning "planter: do-command :move failed: src-pdir:" src-pdir
+                                  "dst-pdir:" dst-pdir "\n"
+                                  (get-stack-trace-print-lines e))
+                     (reset! renamed? false))))
         (set-ui-wait frame false safe-npn)
         (when-not renamed?
-          (let [errmsg (str "Moving " oldpn " to " safe-npn " failed.")
+          (let [errmsg (str "Moving " old-prj-name " to " new-prj-name " failed.")
                 errttl "Moving Project Failed"]
             (show-dialog :message frame errmsg errttl JOptionPane/YES_OPTION)))))))
         
@@ -440,10 +451,11 @@
   (let [frame (:frame controls)
         idmsg "New Project Name:"
         idttl "Creating New Project"
-        prj-name (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)]
-    (when (and (not (empty? prj-name))
+        pnstr (show-dialog :input frame idmsg idttl JOptionPane/PLAIN_MESSAGE)
+        prj-name (obj2sym pnstr)]
+    (when (and (not (empty? pnstr))
                (not (project-exists-ui? frame prj-name)))
-      (do-lein-new frame (:output-text controls) (safesymstr prj-name) set-ui-wait))))
+      (do-lein-new frame (:output-text controls) prj-name set-ui-wait))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

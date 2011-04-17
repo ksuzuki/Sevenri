@@ -9,16 +9,18 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.defs)
+(ns ^{:doc "Sevenri system-wide defs. There are also 'reset' fns defined for defs
+which can be redefined."}
+  sevenri.defs)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; config
 
-(def *sid-dir* nil)
+(def *sid-path* nil)
 
-(defn reset-sid-dir
-  [dir]
-  (def *sid-dir* dir))
+(defn reset-sid-path
+  [path]
+  (def *sid-path* path))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; debug

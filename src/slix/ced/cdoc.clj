@@ -33,7 +33,7 @@
              [getFindStartPos [] java.lang.Integer]
              [find [java.lang.Boolean] clojure.lang.PersistentVector]]
    :main false)
-  (:use [sevenri config core log utils]
+  (:use [sevenri config core log]
         [slix.ced defs find])
   (:import (java.io File FileOutputStream OutputStreamWriter)))
 
@@ -54,17 +54,20 @@
   (.getProperty this *prop-file*))
 
 (defn -getFileName
+  "Return the file name of this file. If the file is a Sevenri source file,
+   that is, it's a clj which belongs to a Sevenri's top-level namespace,
+   return the name including the namespace without '.clj'."
   [this]
   (when-let [f (.getProperty this *prop-file*)]
     (let [cfp (str f)
           rpt (str "^"
-                   (get-src-dir)
+                   (get-src-path)
                    "/(("
                    (apply str (interleave (get-sevenri-namespaces) (repeat \|)))
                    ")/.*)\\.clj$")
           rfd (re-find (re-pattern rpt) cfp)]
       (if rfd
-        (str (path2nssym (second rfd)))
+        (str (second rfd))
         (.getName f)))))
 
 (defn -getUndoMan

@@ -9,45 +9,55 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.startup
-  (:use [sevenri config defs log]))
+(ns ^{:doc "Sevenri startup and shutdown library"}
+  sevenri.startup
+  (:use [sevenri config defs log]
+        [sevenri.utils :only (elapsed-msecs)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn resolve-using-fns
   []
-  (let [ops (get-default :tln :sevenri)
-        rep (re-pattern (str "^" ops "\\..*"))]
-    (doseq [fquns (filter #(re-matches rep (str (ns-name %))) (all-ns))]
+  (print-info "Start resolving using fns.")
+  (let [start (System/nanoTime)]
+    (doseq [fquns (filter #(re-matches #"^sevenri\..*" (str (ns-name %))) (all-ns))]
       (let [rep (re-pattern (str "^" (using-fn-prefix fquns) ".*"))]
         (doseq [ufn (filter #(re-matches rep (str %)) (keys (ns-interns fquns)))]
           (let [ufnv (ns-resolve fquns ufn)]
-            (when (and ufnv (fn? (var-get ufnv)))
+            (if (and ufnv (fn? (var-get ufnv)))
               (let [[rfn rns] (ufnv)
-                    fqrns (symbol (str ops \. rns))]
-                (intern fquns ufn (ns-resolve fqrns rfn))))))))))
+                    fqrns (symbol (str 'sevenri \. rns))]
+                (print-info (format "%s/%s -> %s/%s" (ns-name fquns) ufn fqrns rfn))
+                (intern fquns ufn (ns-resolve fqrns rfn)))
+              (print-severe "Failed to resolve" (format "%s/%s" (ns-name fquns) ufn)))))))
+    (print-info "End resolving using fns:" (elapsed-msecs start (System/nanoTime)) "msecs")))
 
 (defn startup-or-shutdown
   [kwd]
   (let [startup (= kwd :startup)
         odr (if startup *startup-order* (reverse *startup-order*))
         pfx (if startup 'startup 'shutdown)]
+    (print-info (if startup "Startup" "Shutdown") "process started.")
     (doseq [i odr]
-      (let [o (get-default :tln :sevenri)
-            n (symbol (str o \. i))
+      (let [n (symbol (str 'sevenri \. i))
             s (symbol (str pfx \- i \?))
             v (ns-resolve n s)]
-        (print-info (if startup "starting up:" "shutting down:") "[" (:name (meta v)) "]")
+        (print-info "[" (:name (meta v)) "]")
         (if (and v (fn? (var-get v)))
-          (when-not (v)
-            (let [m (print-str "startup-or-shutdown:" pfx "failed on" v)]
-              (if startup
-                (throw (RuntimeException. m))
-                (log-severe m))))
+          (let [stime (System/nanoTime)
+                rtval (v)
+                etime (System/nanoTime)]
+            (print-info "Elapsed time:" (elapsed-msecs stime etime) "msecs")
+            (when-not rtval
+              (let [m (print-str "startup-or-shutdown:" pfx "failed on" v)]
+                (if startup
+                  (throw (RuntimeException. m))
+                  (log-severe m)))))
           (let [m (print-str "startup-or-shutdown: not found" s)]
             (if startup
               (throw (NoSuchMethodException. m))
               (lg m))))))
+    (print-info (if startup "Startup" "Shutdown") "process completed.")
     ;;
     (when startup
       (resolve-using-fns))))

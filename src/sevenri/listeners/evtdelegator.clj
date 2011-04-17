@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.listeners.evtdelegator
+(ns ^{:doc "Sevenri persistent event listener delegator class"}
+  sevenri.listeners.evtdelegator
   (:gen-class
    :state state
    :init init

@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.listeners.defwinlistener
+(ns ^{:doc "Sevenri default window listener class"}
+  sevenri.listeners.defwinlistener
   (:gen-class
    :extends java.awt.event.WindowAdapter
    :state defWinListeners
@@ -17,8 +18,7 @@
    :methods [[setDefWinListeners [clojure.lang.PersistentArrayMap] void]
              [getDefWinListeners [] clojure.lang.PersistentArrayMap]]
    :main false)
-  (:use [sevenri ui]
-        [sevenri.listeners deflistener]))
+  (:use [sevenri.ui :only (def-listener-method get-default-window-listeners)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -36,13 +36,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def-method defWinListeners windowActivated)
-(def-method defWinListeners windowClosed)
-(def-method defWinListeners windowClosing)
-(def-method defWinListeners windowDeactivated)
-(def-method defWinListeners windowDeiconified)
-(def-method defWinListeners windowGainedFocus)
-(def-method defWinListeners windowIconified)
-(def-method defWinListeners windowLostFocus)
-(def-method defWinListeners windowOpened)
-(def-method defWinListeners windowStateChanged)
+(def-listener-method defWinListeners windowActivated)
+(def-listener-method defWinListeners windowClosed)
+(def-listener-method defWinListeners windowClosing)
+(def-listener-method defWinListeners windowDeactivated)
+(def-listener-method defWinListeners windowDeiconified)
+(def-listener-method defWinListeners windowGainedFocus)
+(def-listener-method defWinListeners windowIconified)
+(def-listener-method defWinListeners windowLostFocus)
+(def-listener-method defWinListeners windowOpened)
+(def-listener-method defWinListeners windowStateChanged)

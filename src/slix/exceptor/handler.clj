@@ -16,7 +16,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn handle-sn-compiler-exception
-  [#^Exception e fqsn]
+  [^Exception e fqsn]
   (let [cmsg (.getMessage e)
         mtch (re-matches #".*\(([^:]+):(\d+)\)$" cmsg)]
     #_(lg "fqsn:" fqsn "cmsg:" cmsg "mtch:" mtch "(rest mtch):" (rest mtch))
@@ -25,7 +25,7 @@
         (launch-exceptor e fqsn fname line)))))
 
 (defn find-sn-ste
-  [#^Exception e]
+  [^Exception e]
   (let [fss (reduce (fn [fsa ste]
                       (let [cls (.getClassName ste)
                             mtd (.getMethodName ste)
@@ -50,7 +50,7 @@
         (first (second fss))))))
 
 (defn handle-other-exceptions
-  [#^Exception e _]
+  [^Exception e _]
   (when-let [sn-ste (find-sn-ste e)]
     (let [cls (.getClassName sn-ste)
           rem (re-matches #"^([^$]+)\$.*" cls)]

@@ -23,7 +23,7 @@
   (let [cx (Context/enter)
         scope (.initStandardObjects cx)
         input (Context/javaToJS txt scope)
-        script (str (slurp (str (get-slix-dir 'documenter) "/showdown/showdown.js"))
+        script (str (slurp (str (get-slix-path 'documenter) "/showdown/showdown.js"))
                     "new Showdown.converter().makeHtml(input);")]
     (try
       (ScriptableObject/putProperty scope "input" input)

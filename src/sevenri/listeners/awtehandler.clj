@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.listeners.awtehandler
+(ns ^{:doc "Sevenri AWT error handler class"}
+  sevenri.listeners.awtehandler
   (:gen-class
    :methods [[handle [java.lang.Throwable] void]]
    :main false)

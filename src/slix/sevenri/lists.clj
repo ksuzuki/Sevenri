@@ -147,7 +147,7 @@
                              (deref
                               (cond
                                open-lib? (open-slix-with-args {:file (get-slix-ns sn)} 'ced)
-                               alt-open? (open-slix-with-args {(get-default :slix :arguments :alt-open) true} sn)
+                               alt-open? (open-slix-with-args {(get-config 'slix.arguments.alt-open) true} sn)
                                :else (open-slix sn)))
                              (finally
                               (.setCursor frame oc)))))))

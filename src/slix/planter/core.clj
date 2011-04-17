@@ -10,16 +10,17 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.planter.core
-  (:use [sevenri config core log slix utils]
+  (:use [sevenri config log slix utils]
+        [sevenri.core :rename {get-project-path get-project-path*}]
         [slix.planter defs io]
         clojure.java.shell)
-  (:import [java.io File FileFilter]))
+  (:import (java.io File)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn project-name-to-map
   [sym & optms]
-  (let [dir (File. (nssym2safepath sym))
+  (let [dir (get-path sym)
         pdir (.getParentFile dir)
         pname (if pdir
                 (.getName dir)
@@ -33,7 +34,7 @@
 
 (defmethod get-project-parent-path clojure.lang.PersistentArrayMap
   [pmap]
-  (File. (get-project-dir) (str (:parent-dir pmap))))
+  (get-src-project-path (:parent-dir pmap)))
 
 (defmethod get-project-parent-path :default
   [sym]
@@ -46,7 +47,7 @@
 
 (defmethod get-project-path clojure.lang.PersistentArrayMap
   [pmap]
-  (File. (get-project-dir) (str (:dir pmap))))
+  (get-src-project-path (:dir pmap)))
 
 (defmethod get-project-path :default
   [sym]
@@ -59,7 +60,7 @@
 
 (defmethod get-project-config-file clojure.lang.PersistentArrayMap
   [pmap]
-  (get-project-file (str (:symbol pmap) ".project")))
+  (get-src-project-path (:symbol pmap) 'project!clj))
 
 (defmethod get-project-config-file :default
   [sym]
@@ -87,7 +88,7 @@
 
 (defmethod remove-project clojure.lang.PersistentArrayMap
   [pmap]
-  (trash-dir? (get-project-path pmap) (get-project-dir)))
+  (clean-path? (get-project-path pmap) (get-project-path)))
 
 (defmethod remove-project :default
   [sym]
@@ -100,7 +101,7 @@
 
 (defmethod is-slix-project? clojure.lang.PersistentArrayMap
   [pmap]
-  (if (re-matches (re-pattern (str "^" (get-default :src :slix :dir-name) "/.*"))
+  (if (re-matches (re-pattern (str "^" (get-config 'src.slix.dir-name) "/.*"))
               (str (:dir pmap)))
     true
     false))
@@ -114,7 +115,7 @@
 (defn setup-slix-project?
   [pmap]
   (letfn [(modify-project []
-            (let [pf (get-project-file (:symbol pmap) 'project)]
+            (let [pf (get-project-config-file pmap)]
               (if (.exists pf)
                 (try
                   (spit pf (format (str "(defproject %s \"0.1.0-SNAPSHOT\"\n"
@@ -123,14 +124,16 @@
                         :encoding "UTF-8")
                   true
                   (catch Exception e
+                    (log-warning "planter: setup-slix-project?: modify-project failed:\n"
+                                 (get-stack-trace-print-lines e))
                     false))
                 false)))
           (write-proj-clj []
             (let [pn (:name pmap)
-                  sp (File. (get-project-path pmap) (str (File. "src" pn)))
-                  fc (File. sp "core.clj")
-                  dp (File. (get-project-path pmap) (str (File. (File. "src" "slix") pn)))
-                  fp (File. dp "proj.clj")]
+                  sp (get-path (get-project-path pmap) 'src pn)
+                  fc (get-path sp 'core!clj)
+                  dp (get-path (get-project-path pmap) 'src.slix pn)
+                  fp (get-path dp 'proj!clj)]
               (if (.exists fc)
                 (try
                   (spit fc (format "(ns %s.proj)\n" (:symbol pmap)) :encoding "UTF-8")
@@ -139,14 +142,16 @@
                   (.delete sp)
                   true
                   (catch Exception e
+                    (log-warning "planter: setup-slix-project?: write-proj-clj failed:\n"
+                                 (get-stack-trace-print-lines e))
                     false))
                 false)))
           (write-test-clj []
-            (let [pn (str (File. (:name pmap) "test"))
-                  sp (File. (get-project-path pmap) (str (File. "test" pn)))
-                  fc (File. sp "core.clj")
-                  dp (File. (get-project-path pmap) (str (File. (File. "test" "slix") pn)))
-                  fp (File. dp "proj.clj")]
+            (let [pn (get-path (:name pmap) 'test)
+                  sp (get-path (get-project-path pmap) 'test pn)
+                  fc (get-path sp 'core!clj)
+                  dp (get-path (get-project-path pmap) 'test.slix pn)
+                  fp (get-path dp 'proj!clj)]
               (if (.exists fc)
                 (try
                   (spit fc (format (str "(ns %s.test.proj\n"
@@ -162,6 +167,8 @@
                   (.delete (.getParentFile sp))
                   true
                   (catch Exception e
+                    (log-warning "planter: setup-slix-project?: write-test-clj failed:\n"
+                                 (get-stack-trace-print-lines e))
                     false))
                 false)))]
     (and (modify-project) (write-proj-clj) (write-test-clj))))
@@ -262,10 +269,14 @@
   [sym]
   (let [pmap (project-name-to-map sym)]
     (when (project-exists? pmap)
-      (let [prjct (read-string (slurp (get-project-config-file pmap) :encoding "UTF-8"))
-            pname (second prjct)
-            pvrsn (nth prjct 2)]
-        (File. (get-project-path pmap) (str pname "-" pvrsn ".jar"))))))
+      (try
+        (let [prjct (read-string (slurp (get-project-config-file pmap) :encoding "UTF-8"))
+              pname (second prjct)
+              pvrsn (nth prjct 2)]
+          (get-path (get-project-path pmap) (File. (str pname "-" pvrsn ".jar"))))
+        (catch Exception e
+          (log-warning "get-project-jar: read project file failed:" sym)
+          nil)))))
 
 (defn get-project-all-jars
   [sym]
@@ -277,8 +288,8 @@
 
 (defn is-project-built?
   [sym]
-  (and (project-exists? sym)
-       (.exists (get-project-jar sym))))
+  (let [jar (get-project-jar sym)]
+    (and jar (.exists jar))))
 
 (defn build-project?
   [sym]
@@ -303,7 +314,7 @@
         (assert (fn? do-bpr))
         (do-bpr bldprjrun))
       (let [bprm {*build-project-and-run* bldprjrun}
-            plnm (generate-slix-name 'planter "BPR")]
+            plnm (generate-slix-name 'planter "BP&R")]
         (open-slix-with-args bprm 'planter plnm)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -313,6 +324,8 @@
   (is-project-built? 'slix.planter))
 
 (defn setup-manager?
+  "OK to get false on build-project? call. Then Sevenri tries to build it
+   later."
   [_]
   (build-project? 'slix.planter))
 
@@ -322,7 +335,7 @@
     (try
       ((shutdown-lein))
       (catch Exception e
-        (log-severe "planter: shutdown-manager: failed:" e)))))
+        (log-severe "planter: shutdown-manager failed\n" (get-stack-trace-print-lines e))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -359,4 +372,4 @@
   [sym]
   (let [pdir (get-project-path sym)]
     (when (.exists pdir)
-      (trash-dir? pdir pdir))))
+      (trash-path? pdir))))

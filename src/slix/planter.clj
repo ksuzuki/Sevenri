@@ -11,7 +11,8 @@
 
 (ns ^{:slix true}
   slix.planter
-  (:use [sevenri config core event log slix ui utils]
+  (:use [sevenri config event log slix ui utils]
+        [sevenri.core :rename {get-project-path get-project-path*}]
         [slix.planter controller core init io ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

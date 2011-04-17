@@ -23,8 +23,8 @@
         cp (.getContentPane fr)
         mp (MainPanel.)]
     (.add cp mp)
-    (let [minw (get-default :frame :width)
-          minh (get-default :frame :height)
+    (let [minw (get-config 'frame.width)
+          minh (get-config 'frame.height)
           stdw 400
           stdh 250
           ssiz (.getScreenSize (Toolkit/getDefaultToolkit))

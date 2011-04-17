@@ -11,7 +11,7 @@
 
 (ns slix.api-browser.java
   (:use [clojure.java browse]
-        [sevenri config log]
+        [sevenri config core log]
         [slix.api-browser core])
   (:import (java.io BufferedReader File FileReader InputStreamReader)
            (java.net URI)

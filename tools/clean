@@ -1,12 +1,97 @@
 #!/bin/bash
-lein clean
 
-rm -rf .sevenri/ lib/ src/sevenri/listeners/evtdelegator/
-find src/sevenri -name '*.class' -delete
-for d in "documenter" "incantea"
-do
-    pushd src/project/slix/$d >/dev/null
-    lein clean >/dev/null
-    rm -rf lib/
-	popd >/dev/null
-done
+if [ "$SEVENRI_PATH" = "" ]; then
+    SEVENRI_PATH=`pwd`
+fi
+
+if [ "$LEIN_CMD" = "" ]; then
+    LEIN_CMD=lein
+fi
+
+debug_msg()
+{
+    if [ ${DEBUG_CLEAN_SEVENRI} ]; then
+        echo "DBG:" $1
+    fi
+}
+
+print_msg()
+{
+    echo $1
+}
+
+remove_path()
+{
+    debug_msg "rm -rf $1"
+    rm -rf $1
+}
+
+remove_file_type_on_path()
+{
+    local type="$1"
+    local path="$2"
+    debug_msg "find ${path} -name '*.${type}' -delete"
+    find ${path} -name '*.${type}' -delete
+}
+
+clean_lein_project()
+{
+    pushd $1 >/dev/null
+
+    debug_msg "${LEIN_CMD} clean"
+    ${LEIN_CMD} clean >/dev/null
+    remove_path ./lib
+    remove_path ./pom.xml
+
+    popd >/dev/null
+}
+
+main()
+{
+    print_msg "== Remove .sevenri paths =="
+    for dot_sevenri in `echo .sevenri*`
+    do
+        print_msg $dot_sevenri
+        remove_path ./$dot_sevenri
+    done
+
+    print_msg "== Clean the Sevenri project =="
+    clean_lein_project .
+
+    print_msg "== Remove src/library paths =="
+    for path in "clojure" "incanter" "slix/incantea/data"
+    do
+        print_msg $path
+        remove_path ./src/library/$path
+    done
+
+    print_msg "== Remove src/sevenri paths =="
+    for path in "listeners/evtdelegator"
+    do
+        print_msg $path
+        remove_path ./src/sevenri/$path
+    done
+
+    print_msg "== Remove '.class' files on src/sevenri/listeners =="
+    remove_file_type_on_path "class" ./src/sevenri/listeners
+
+    print_msg "== Remove src/slix paths =="
+    for path in "sevenri/jvm/gui/bin"
+    do
+        print_msg $path
+        remove_path ./src/slix/$path
+    done
+
+    print_msg "== Clean src/project/slix projects =="
+    for project in "documenter" "incantea" "planter"
+    do
+        print_msg $project
+        clean_lein_project ./src/project/slix/$project
+    done
+}
+
+# Start cleaning up stuff on ${SEVENRI_PATH}
+
+pushd ${SEVENRI_PATH} >/dev/null
+main
+popd >/dev/null

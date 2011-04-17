@@ -14,10 +14,10 @@
    :extends javax.swing.text.DefaultEditorKit
    :exposes-methods {getActions superGetActions}
    :main false)
-  (:use [sevenri config core log slix utils]
-        [slix.ced defs listeners indent utils]
+  (:use [sevenri config core log slix]
+        [slix.ced defs listeners indent]
         [slix.ced.find :only (find-context-namespace)]
-        [slix.ced.ui :only (popup-warning)]
+        [slix.ced.ui :only (update-title popup-warning)]
         [library.slix.ced doclib])
   (:import (java.awt FileDialog)
            (java.awt.event FocusEvent)
@@ -257,9 +257,9 @@
   [ced action-fn]
   (let [doc (.getDocument ced)
         file (.getFile doc)]
-    (if-let [mtch (re-matches (re-pattern (str "^" (get-src-dir) "/(.*)\\.clj$")) (str file))]
-      (let [fqsn (path2nssym (second mtch))
-            opsn (when-let [m (re-matches (re-pattern (str "^" (get-default :tln :slix) "\\.(.*)$")) (str fqsn))]
+    (if-let [mtch (re-matches (re-pattern (str "^" (get-src-path) "/(.*)\\.clj$")) (str file))]
+      (let [fqsn (path2sym (second mtch))
+            opsn (when-let [m (re-matches #"^slix\.(.*)$" (str fqsn))]
                    (second m))
             fsns (filter #(re-matches (re-pattern (str "^" % "(\\..*)*")) (str opsn)) (get-all-slix-sn))
             sn (when (seq fsns)
@@ -299,7 +299,7 @@
           (fn [fqsn sn]
             (future
               (try
-                (binding [*compile-path* (str (get-sid-classes-dir))]
+                (binding [*compile-path* (str (get-sid-classes-path))]
                   (compile fqsn))
                 (catch Exception e
                   (log-exception e fqsn))))))))))
@@ -373,7 +373,7 @@
       (ced-action event
         (let [doc (.getDocument ced)
               file (.getFile doc)]
-          (when (and (.exists file) (not (trash-file? file)))
+          (when (and (.exists file) (not (trash-path? file)))
             ;; FIX ME: need a better UI msg.
             (log-severe "ced: failed to trash file prior to save:" file))
           (.save doc)
@@ -394,7 +394,7 @@
                     "untitiled.clj")
               dir (if (instance? File fpt)
                     (.getParent fpt)
-                    (str (get-user-dir)))
+                    (str (get-user-path)))
               rpt #"(.*)\.clj$"
               flt (proxy [FilenameFilter] []
                     (accept [dir name]
@@ -410,9 +410,9 @@
             (let [f-clj (if-let [m (re-find rpt f)]
                           (second m)
                           f)
-                  fpath (File. (str (.replace (str (.getDirectory dlg) (nssym2path f-clj)) \- \_) ".clj"))
+                  fpath (File. (str (.replace (str (.getDirectory dlg) (sym2path f-clj)) \- \_) '.clj))
                   fpdir (.getParentFile fpath)
-                  save? (if (and (.exists fpath) (trash-file? fpath))
+                  save? (if (and (.exists fpath) (trash-path? fpath))
                           true
                           (if (and (not (.exists fpdir)) (.mkdirs fpdir))
                             true
@@ -441,7 +441,7 @@
               fpt (.getFile doc)
               dir (if (instance? File fpt)
                     (.getParent fpt)
-                    (str (get-user-dir)))
+                    (str (get-user-path)))
               rpt #"(.*)\.clj$"
               flt (proxy [FilenameFilter] []
                     (accept [dir name]

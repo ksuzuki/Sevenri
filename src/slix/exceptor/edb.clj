@@ -20,7 +20,7 @@
   (send *edb* (fn [edb] {})))
 
 (defn add-to-edb
-  [#^Exception e file line open-ced?]
+  [^Exception e file line open-ced?]
   (send *edb* (fn [edb]
                 (let [launch? (if-let [l (get edb (str file))]
                                 (not= l line)

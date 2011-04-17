@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.ui
+(ns ^{:doc "Sevenri user interface library"}
+  sevenri.ui
   (:require [clojure.set :as cljset])
   (:use [sevenri config defs event log refs])
   (:import (clojure.lang IProxy)
@@ -178,6 +179,7 @@
         (reset! *frames-snapshot* nil)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Default key and window listeners
 
 (defn default-close-window
   [frame]
@@ -204,12 +206,12 @@
 
 (defn add-default-window-listener
   [frame]
-  (let [dwlc (Class/forName (str (get-default :src :sevenri :listeners :defwinlistener)))
+  (let [dwlc (Class/forName (str (get-config 'src.sevenri.listeners.defwinlistener)))
         dwl (.newInstance dwlc)]
     (.addWindowListener frame dwl)
     (.addWindowFocusListener frame dwl)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn default-key-pressed-listener
   [event]
@@ -234,9 +236,22 @@
 
 (defn add-default-key-listener
   [comp]
-  (let [dklc (Class/forName (str (get-default :src :sevenri :listeners :defkeylistener)))
+  (let [dklc (Class/forName (str (get-config 'src.sevenri.listeners.defkeylistener)))
         dkl (.newInstance dklc)]
     (.addKeyListener comp dkl)))
+
+;;;;
+
+(defmacro def-listener-method
+  "def-x-listener support macro"
+  [listeners method]
+  (let [lsns# (symbol (str \. listeners))
+        mthd# (symbol (str \- method))
+        mkwd# (keyword (str method))]
+    `(defn ~mthd#
+       [~'this ~'event]
+       (when-let [~'listener (~mkwd# @(~lsns# ~'this))]
+         (~'listener ~'event)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -452,7 +467,7 @@
                (.invoke remove-listener-method comp (into-array [event-delegator-listener])))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Deprecated
+;;;; Deprecated - remove by 0.3.0
 
 ;;;; dynaclass := clojure.lang.IProxy | AnonymousClass
 
@@ -611,14 +626,14 @@
 
 (defn- -reset-event-delegator-class?
   []
-  (reset-event-delegator-class (get-default :src :sevenri :listeners :evtdelegator))
+  (reset-event-delegator-class (get-config 'src.sevenri.listeners.evtdelegator))
   true)
 
 ;;;;
 
 (defn startup-ui?
   []
-  (starting-up
+  (-ensure-processes
    -add-awt-event-listeners?
    -reset-event-delegator-class?))
 

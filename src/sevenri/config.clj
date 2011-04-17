@@ -9,24 +9,21 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.config
-  (:use [sevenri defs utils])
+(ns ^{:doc "Sevenri system configuration library"}
+  sevenri.config
+  (:use sevenri.defs)
   (:import (java.io File)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *making-dir* false)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def *sevenri-defaults*
+(def *sevenri-config*
  {:doc {:dir-name 'doc
-        :apidoc-urls-file-name 'apidoc_urls.clj}
+        :apidoc-urls-file-name "apidoc_urls.clj"}
 
   :lib {:dir-name 'lib}
 
   ;; sid := system instance directory (.sevenri)
-  :sid {:dir-name '.sevenri
+  :sid {:dir-name '!sevenri :dir-name-str ".sevenri"
 
         :classes {:dir-name 'classes
                   :slix {:dir-name 'slix}
@@ -35,19 +32,19 @@
         :log {:dir-name 'log
               :logger-name 'Sevenri-logger
               :logger-header "sevenri:"
-              :file-body-name 'sevenri
+              :file-name "sevenri"
               :file-count 5}
 
         :sevenri {:dir-name 'sevenri
                  :exception {:dir-name 'exception
-                             :listeners 'exception_listeners.clj}
-                 :lock-file-name 'lock}
+                             :listeners 'exception_listeners}
+                 :lock-file-name "lock"}
 
         :slix {:dir-name 'slix
-                :save {:dir-name '_save_
-                       :frame-file-name 'frame.xml
-                       :state-file-name 'state.clj}
-                :startup {:file-name '_startup_.clj}}
+                :save {:dir-name '-save-
+                       :frame-file-name "frame.xml"
+                       :state-file-name "state.clj"}
+                :startup {:file-name "_startup_.clj"}}
 
         :temp {:dir-name 'temp}
 
@@ -59,18 +56,18 @@
         :library {:dir-name 'library
                   :slix {:dir-name 'slix}
                   :user {:dir-name 'user
-                         :scratch-file-name 'scratch.clj}}
+                         :scratch-file-name "scratch.clj"}}
         
         :project {:dir-name 'project
-                  :protocol-file-name 'protocol.clj}
+                  :protocol-file-name "protocol.clj"}
         
         :resources {:dir-name 'resources
                     :images {:dir-name 'images
                              :icons {:dir-name 'icons
-                                     :sevenri-icon-file-name 'Sevenri-icon.png}}
+                                     :sevenri-icon-file-name "Sevenri-icon.png"}}
                     :logger {:dir-name 'logger
-                             :configuration-file 'logger.conf
-                             :dtd-file 'logger.dtd}}
+                             :config-file-name "logger.conf"
+                             :dtd-file-name "logger.dtd"}}
         
         :sevenri {:dir-name 'sevenri
                  :listeners {:dir-name 'listeners
@@ -94,90 +91,55 @@
   :frame {:width 320
           :height 200}
 
-  :os {:ignorable-file-names #{".DS_Store"}}
-
   :slix {:arguments {:alt-open :alt-open}}
 
-  :startup {:aot-compile-list '(sevenri)}
+  :top-level-ns #{'library 'project 'resources 'sevenri 'slix}})
 
-  ;; tln := sevenri/slix top level namespaces
-  :tln {:library 'library
-        :project 'project
-        :resources 'resources
-        :sevenri 'sevenri
-        :slix 'slix}})
+;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-default
-  [& ks]
-  (get-in *sevenri-defaults* ks))
-
-(defn get-dir
-  "Return a directory File object based on root and optional postfixes.
-   ns2path conversion is applied to each postfix but not to root if it's
-   a File object already. Also, if the directory doesn't exist and
-   *making-dir* is true, the directory will be created before returning."
-  [root & pfxs]
-  (let [rdr (if (instance? File root)
-              root
-              (File. (ns2path root)))
-        dir (reduce (fn [d p] (File. d (ns2path p))) rdr pfxs)]
-    (when (and *making-dir* (not (.exists dir)))
-      (.mkdirs dir))
-    dir))
-
-(defmacro with-making-dir
-  "Set up a context to let get-dir make directory if necessary."
-  [& body]
-  `(binding [*making-dir* true]
-     ~@body))
-
-(defmacro def-get-dir
-  [name root]
-  (let [gnd (symbol (str "get-" name "-dir"))]
-    `(defn ~gnd
-       [& ~'pfxs]
-       (apply get-dir ~root ~'pfxs))))
+(defn get-config
+  "Sevenri configuration information access fn. Return a value of a target
+   configuration keyword which is expressed in a format of each interim
+   keyword connected by period."
+  [key]
+  (let [keys (map #(keyword %) (.split (str key) "\\."))]
+    (get-in *sevenri-config* keys)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Base directory path accessors
 
-(def-get-dir doc (get-dir (get-user-dir) (get-default :doc :dir-name)))
+(defn get-user-home-path
+  []
+  (System/getProperty "user.home"))
 
-(def-get-dir lib (get-dir (get-user-dir) (get-default :lib :dir-name)))
+(defn get-class-path
+  []
+  (System/getProperty "java.class.path"))
 
-(def-get-dir src (get-dir (get-user-dir) (get-default :src :dir-name)))
-
-(def-get-dir src-library (get-dir (get-src-dir) (get-default :src :library :dir-name)))
-(defmacro get-library-dir [& pfxs] `(get-src-library-dir ~@pfxs))
-
-(def-get-dir src-project (get-dir (get-src-dir) (get-default :src :project :dir-name)))
-(defmacro get-project-dir [& pfxs] `(get-src-project-dir ~@pfxs))
-
-(def-get-dir src-resources (get-dir (get-src-dir) (get-default :src :resources :dir-name)))
-(defmacro get-resources-dir [& pfxs] `(get-src-resources-dir ~@pfxs))
-
-(def-get-dir temp (get-dir (get-user-dir) (get-default :temp :dir-name)))
+(defn get-user-path
+  []
+  (System/getProperty "user.dir"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; The creator fn of Sevenri instance directory, sid
 
-(defn get-sid-root-dir
+(defn create-sid
+  "Create a Sevenri instance directory and 'sevenri' sub directory in it."
   ([]
-     (or *sid-dir* (get-sid-root-dir (get-default :sid :dir-name) 0)))
+     (or *sid-path* (create-sid (get-config 'sid.dir-name-str) 0)))
   ([dname n]
-     (let [dir (File. (get-user-dir) (if (pos? n) (str dname n) (str dname)))]
-       (when-not (.exists dir)
-         (.mkdir dir))
-       (if (and (.isDirectory dir) (.canWrite dir))
+     (when (< 7 n)
+       (throw (RuntimeException. "create-sid-path: too many old sids?")))
+     (let [path (File. (get-user-path) (if (pos? n) (str dname n) (str dname)))]
+       (when-not (.exists path)
+         (when-not (.mkdir path)
+           (throw (RuntimeException. "create-sid: mkdir sid failed"))))
+       (if (and (.isDirectory path) (.canWrite path))
          (do
-           (reset-sid-dir dir)
-           *sid-dir*)
-         (get-sid-root-dir dname (inc n))))))
-
-(def-get-dir sid (get-sid-root-dir))
-
-(def-get-dir sid-classes (get-sid-dir (get-default :sid :classes :dir-name)))
-
-(def-get-dir sid-temp (get-sid-dir (get-default :sid :temp :dir-name)))
-
-(def-get-dir sid-trash (get-sid-dir (get-default :sid :trash :dir-name)))
+           (reset-sid-path path)
+           (let [sid-sevenri-dir (File. path (str (get-config 'sid.sevenri.dir-name)))]
+             (when-not (.exists sid-sevenri-dir)
+               (when-not (.mkdir sid-sevenri-dir)
+                 (throw (RuntimeException. "create-sid: mkdir sevenri failed")))))
+           *sid-path*)
+         (create-sid dname (inc n))))))

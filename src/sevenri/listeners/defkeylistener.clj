@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.listeners.defkeylistener
+(ns ^{:doc "Sevenri default key listener class"}
+  sevenri.listeners.defkeylistener
   (:gen-class
    :extends java.awt.event.KeyAdapter
    :state defKeyListeners
@@ -17,8 +18,7 @@
    :methods [[setDefKeyListeners [clojure.lang.PersistentArrayMap] void]
              [getDefKeyListeners [] clojure.lang.PersistentArrayMap]]
    :main false)
-  (:use [sevenri ui]
-        [sevenri.listeners deflistener]))
+  (:use [sevenri.ui :only (def-listener-method get-default-key-listeners)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -36,6 +36,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def-method defKeyListeners keyPressed)
-(def-method defKeyListeners keyReleased)
-(def-method defKeyListeners keyTyped)
+(def-listener-method defKeyListeners keyPressed)
+(def-listener-method defKeyListeners keyReleased)
+(def-listener-method defKeyListeners keyTyped)

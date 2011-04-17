@@ -17,7 +17,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn handle-exception
-  [#^Exception e fqsn]
+  [^Exception e fqsn]
   #_(lg "exceptor: class of e:" (class e) "e.msg:" (.getMessage e) "fqsn:" fqsn)
   (if (and (instance? clojure.lang.Compiler$CompilerException e) fqsn)
     (handle-sn-compiler-exception e fqsn)

@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.os
+(ns ^{:doc "Sevenri interface library to OS depedent features"}
+  sevenri.os
   (:use [sevenri config log]
         [sevenri.defs :only (*ok-to-quit-fn*)])
   (:import (java.io File)
@@ -17,26 +18,41 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- set-mac-dock-icon
+(defn get-os-name
   []
-  (let [fp (File. (get-resources-dir (get-default :src :resources :images :dir-name)
-                                     (get-default :src :resources :images :icons :dir-name))
-                  (str (get-default :src :resources :images :icons :sevenri-icon-file-name)))]
-    (when (.exists fp)
-      (let [ic (ImageIcon. (str fp))
-            app (com.apple.eawt.Application/getApplication)]
-        (.setDockIconImage app (.getImage ic))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  (System/getProperty "os.name"))
 
 (defn is-mac?
   []
-  (= (System/getProperty "os.name") "Mac OS X"))
+  (<= 0 (.indexOf (get-os-name) "Mac OS X")))
 
-(defn- -init-mac
+(defn is-win?
   []
-  (print-info "starting up: -init-mac")
-  (set-mac-dock-icon)
+  (<= 0 (.indexOf (get-os-name) "Windows")))
+
+(defn is-linux?
+  []
+  (<= 0 (.indexOf (get-os-name) "Linux")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- -set-mac-dock-icon
+  []
+  (let [idr (reduce (fn [d p] (File. d (str (get-config p))))
+                    (get-user-path)
+                    ['src.dir-name
+                     'src.resources.dir-name
+                     'src.resources.images.dir-name
+                     'src.resources.images.icons.dir-name])
+        icf (File. idr (get-config 'src.resources.images.icons.sevenri-icon-file-name))]
+    (when (.exists icf)
+      (let [ic (ImageIcon. (str icf))
+            app (com.apple.eawt.Application/getApplication)]
+        (.setDockIconImage app (.getImage ic))))))
+    
+(defn- -init-mac?
+  []
+  (future (-set-mac-dock-icon))
   (System/setProperty "apple.laf.useScreenMenuBar" "true")
   (let [app (com.apple.eawt.Application/getApplication)]
     (.removeAboutMenuItem app)
@@ -44,8 +60,10 @@
       (.addApplicationListener app (proxy [com.apple.eawt.ApplicationAdapter] []
                                      (handleQuit [e]
                                                  (.setHandled e (*ok-to-quit-fn*)))))
-      (log-severe "-init-mac: the quit handler is undefined")))
+      (log-severe "-init-mac?: the quit handler is undefined")))
   true)
+
+;;;;
 
 (defn- -remove-mac-application-listener
   "Do this before saving a slix frame or addWindowListner call with
@@ -82,14 +100,22 @@
    :else nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-ignorable-file-names-os
+  []
+  (cond
+   (is-mac?) #{".DS_Store"}
+   :else nil))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
 
 (defn startup-os?
   []
-  (and true
-       (cond
-        (is-mac?) (-init-mac)
-        :else true)))
+  (cond
+   (is-mac?) (-ensure-processes
+              -init-mac?)
+   :else false))
 
 (defn shutdown-os?
   []

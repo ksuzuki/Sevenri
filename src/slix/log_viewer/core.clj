@@ -10,6 +10,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.log-viewer.core
+  (:require clojure.xml)
   (:use [clojure.java io]
         [sevenri config core log slix])
   (:import (java.awt Rectangle)
@@ -43,11 +44,12 @@
     ltgt))
 
 (defn copy-temp-dtd-file
+  "The destination name has to be 'logger.dtd' because that's what's
+   expected in the log.xml."
   []
-  (let [dsrc (File. (get-resources-dir (get-default :src :resources :logger :dir-name))
-                    (str (get-default :src :resources :logger :dtd-file)))
-        dtgt (File. (get-sid-temp-dir)
-                    (str (get-default :src :resources :logger :dtd-file)))]
+  (let [dsrc (get-resources-path (get-config 'src.resources.logger.dir-name)
+                                 (get-config 'src.resources.logger.dtd-file-name))
+        dtgt (get-sid-temp-path (get-config 'src.resources.logger.dtd-file-name))]
     (copy dsrc dtgt :econdig "UTF-8")
     dtgt))
 
@@ -57,8 +59,8 @@
     [(copy-temp-log-file) (copy-temp-dtd-file)]))
 
 (defn delete-temp-logger-files
-  [logger-files]
-  (let [[log dtd] logger-files]
+  [log-dtd]
+  (let [[log dtd] log-dtd]
     (when (.exists log)
       (.delete log))
     (when (.exists dtd)
@@ -66,13 +68,13 @@
 
 (defn read-log-file
   []
-  (if-let [lfs (copy-temp-logger-files)]
-    (let [[log dtd] lfs
+  (if-let [log-dtd (copy-temp-logger-files)]
+    (let [[log dtd] log-dtd
           lxml (clojure.xml/parse log)
           sbuf (StringBuffer.)
           dfmt (DateFormat/getDateInstance DateFormat/MEDIUM)
           tfmt (DateFormat/getTimeInstance DateFormat/MEDIUM)]
-      (delete-temp-logger-files lfs)
+      (delete-temp-logger-files log-dtd)
       ;;
       (doseq [rec-elem (:content lxml)]
         (let [[date-elem millis-elem sequence-elem

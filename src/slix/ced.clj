@@ -12,7 +12,7 @@
 (ns ^{:slix true}
   slix.ced
   (:use [sevenri event log slix]
-        [slix.ced init ui utils]))
+        [slix.ced init ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix event handlers
@@ -38,7 +38,7 @@
 
 (defn opened
   [event]
-  (load-file*)
+  (load-ced-file)
   (initial-setup)
   (set-slix-visible))
 

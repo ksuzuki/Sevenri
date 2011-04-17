@@ -17,9 +17,33 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *ced-popup* (atom nil)) ;; temporary ref
+(defn get-font
+  []
+  (let [lge (java.awt.GraphicsEnvironment/getLocalGraphicsEnvironment)
+        pref (filter #(= (ffirst *preferred-fonts*) %)
+                     (map str (seq (.getAvailableFontFamilyNames lge))))
+        [name style size] (if (seq pref)
+                             (first *preferred-fonts*)
+                             (second *preferred-fonts*))]
+    (Font. name style size)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn update-title
+  "Should be called in the *slix* context."
+  [doc]
+  (add-to-xref *slix* :ced-file (.getFile doc))
+  (let [fname (.getFileName doc)
+        fnlen (count fname)
+        fnstr (.substring fname 0 (if (re-find #"\.clj$" fname) (- fnlen 4) fnlen))
+        title (str (slix-name) " - " (path2sym fnstr))]
+    (set-slix-title title)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def *ced-popup* (atom nil)) ;; temporary ref
+
+;;;;
 
 (defn get-ced-popup
   []
@@ -50,7 +74,7 @@
       (.setBackground bgc))
     pup))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn create-ced-file-popup
   [frame doc pos]
@@ -86,8 +110,8 @@
     (if (= yna JOptionPane/YES_OPTION)
       (.save doc)
       ;; Save as a sid temp file and trash it so that it can be salvaged.
-      (let [dtf (get-sid-temp-file (.getFileName doc))]
+      (let [dtf (get-sid-temp-file (path2sym (.getFileName doc)))]
         (.setFile doc dtf)
         (.save doc)
-        (trash-file? dtf)))
+        (trash-path? dtf)))
     (close-slix *slix*)))

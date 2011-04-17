@@ -11,7 +11,7 @@
 
 (ns slix.documenter.mddb
   (:use [clojure set]
-        [sevenri config log utils]
+        [sevenri config core log utils]
         [slix.documenter io]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -43,7 +43,7 @@
 
 (defn update-mddb
   []
-  (let [cds (map #(get-doc-dir (symbol %)) (:categories (read-root-metadoc)))
+  (let [cds (map #(get-doc-path (symbol %)) (:categories (read-root-metadoc)))
         rep (re-pattern (str ".*/" *metadoc-file-name* "$"))]
     (loop [mddb {}
            mdfs (flatten (map (fn [cd] (find-files #(re-matches rep (str %)) cd)) cds))]

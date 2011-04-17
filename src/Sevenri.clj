@@ -12,7 +12,7 @@
 (ns Sevenri
   (:gen-class)
   (:use [sevenri defs refs]
-        [sevenri config core debug event jvm log main os slix startup ui utils]))
+        [sevenri config core debug event jvm log main os slix startup ui]))
 
 (defn -main
   [& args]

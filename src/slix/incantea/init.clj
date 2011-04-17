@@ -21,9 +21,8 @@
 
 (defn save-spell-name
   [spell-name]
-  (with-making-dir
-    (let [sf (get-sid-slix-state-file)]
-      (spit sf spell-name :encoding "UTF-8"))))
+  (let [sf (get-sid-slix-state-file)]
+    (spit sf spell-name :encoding "UTF-8")))
 
 (defn load-spell-name
   []

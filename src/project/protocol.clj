@@ -9,18 +9,26 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-;; query-project I/F; all takes a map with keys :slix-name, :name, and :arguments.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; query-project interface
+;;
+;; Sevenri communicates with a project manager through this query interface.
+;; Sevenri figures out the manager's name (a slix name), the I/F namespace,
+;; and query entry points for query keywords.
+;;
+;; All the manager's query handler fns take a map with these keys;
+;; :slix-name, :name, and :arguments.
 
-{:manager 'slix.planter.manager ;; must be fully qualified
- :slix 'planter ;; name of slix providing this manager I/F
-  ;; query for manager
- :ready? 'ready?
- :setup? 'setup?
- :shutdown 'shutdown
- ;; query for project
- :exists? 'exists?
- :built? 'built?
- :build? 'build?
- :get-jars 'get-jars
- :build-and-run 'build-and-run
+{:slix 'planter ;; name of slix providing this manager I/F
+ :manager 'slix.planter.manager ;; I/F ns - must be fully qualified
+ ;; query keywords for manager
+ :ready? 'ready? ;; is manager ready?
+ :setup? 'setup? ;; setup manager to make it ready to work
+ :shutdown 'shutdown ;; shutdown manager
+ ;; query keywords for project
+ :exists? 'exists? ;; does project exist?
+ :built? 'built? ;; is project built?
+ :build? 'build? ;; build project
+ :get-jars 'get-jars ;; built project jar
+ :build-and-run 'build-and-run ;; build project and run slix requiring it
  }

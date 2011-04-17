@@ -9,80 +9,66 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.event
+(ns ^{:doc "Sevenri event system library"}
+  sevenri.event
   (:use [sevenri config defs log jvm refs]
         [sevenri.core :only (lock-and-wait
                              unlock-and-resume
                              lock-run-and-wait)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;
 ;;;; Event Structure
-;;;; {:target slix :event event-id :source slix :info value :response value}
-;;;;
-;;;; Event IDs
-;;;; Event IDs are keywords derived from either
-;;;;     sevenri.event/sevenri
-;;;;     sevenri.event/slixes
-;;;;     sevenri.event/slix
-;;;;     sevenri.event/slix-error
-;;;;     sevenri.event/response
-;;;;     sevenri.event/reason
-;;;;     sevenri.event/info
-;;;;
-;;;; Event Dispatching
-;;;; The core event dispatch function, dispatch-event, sends an event to a
-;;;; target slix, meaning, calls the event handler of the target slix for
-;;;; the event. The event handler may return a response which will be stored
-;;;; in the event. The dispatcher returns a future event and referencing it
-;;;; will block until the event handler completes.
-;;;; 
-;;;; Protocol
-;;;; All event handlers take a single argument 'event' and may return a
-;;;; response. The :target value in the event is the same as the slix
-;;;; argument value.
-;;;;
-;;;; When a slix wants to handle an sevenri event, define a function
-;;;; corresponding to the sevenri event.
-;;;; e.g. define the sevenri-start function to handle the sevenri-start event.
-;;;;
-;;;; When a slix wants to handle an event regarding all slixes or another
-;;;; slix, define functions starting with 'slixes-' or 'slix-'.
-;;;; e.g. define the slixes-opening function to handle the slixes-opening
-;;;; event.
-;;;;
-;;;; When a slix wants to handle an event for itself, define a function
-;;;; of which name corresponds to a slix event without 'slix-'.
-;;;; e.g. define the opening function to handle the opening event for the
-;;;; slix.
-;;;;
-;;;; When a slix wants to return a response to an event, create a response
-;;;; using create-event-response with a response value and optionally the
-;;;; reason. Then return the response.
-;;;;
-;;;; Predefined Responses
-;;;; There are some predefined keywords as reponses. The keywords are
-;;;; derived from sevenri.event/response.
-;;;;
+;;
+;; {:target slix :event event-id :source slix :info value :response value}
+;;
+;; Event IDs
+;; Event IDs are keywords derived from either
+;;     sevenri.event/sevenri
+;;     sevenri.event/slixes
+;;     sevenri.event/slix
+;;     sevenri.event/slix-error
+;;     sevenri.event/response
+;;     sevenri.event/reason
+;;     sevenri.event/info
+;;
+;; Event Dispatching
+;; The core event dispatch function, dispatch-event, sends an event to a
+;; target slix, meaning, calls the event handler of the target slix for
+;; the event. The event handler may return a response which will be stored
+;; in the event. The dispatcher returns a future event and referencing it
+;; will block until the event handler completes.
+;; 
+;; Protocol
+;; All event handlers take a single argument 'event' and may return a
+;; response. The :target value in the event is the same as the slix
+;; argument value.
+;;
+;; When a slix wants to handle an sevenri event, define a function
+;; corresponding to the sevenri event.
+;; e.g. define the sevenri-start function to handle the sevenri-start event.
+;;
+;; When a slix wants to handle an event regarding all slixes or another
+;; slix, define functions starting with 'slixes-' or 'slix-'.
+;; e.g. define the slixes-opening function to handle the slixes-opening
+;; event.
+;;
+;; When a slix wants to handle an event for itself, define a function
+;; of which name corresponds to a slix event without 'slix-'.
+;; e.g. define the opening function to handle the opening event for the
+;; slix.
+;;
+;; When a slix wants to return a response to an event, create a response
+;; using create-event-response with a response value and optionally the
+;; reason. Then return the response.
+;;
+;; Predefined Responses
+;; There are some predefined keywords as reponses. The keywords are
+;; derived from sevenri.event/response.
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def *sevenri-events* (make-hierarchy))
 (def *event-response-wait-millis* 1000)
-(def *slix-dash-len* (inc (count (str (get-default :src :slix :dir-name)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-last-event
-  []
-  @*last-event*)
-
-(defn get-last-error-event
-  []
-  @*last-error-event*)
-
-(defn get-last-global-event
-  []
-  @*last-global-event*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -101,7 +87,7 @@
 (define-sevenri-event-id ::sevenri-starting)
 (define-sevenri-event-id ::sevenri-quitting)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn define-slixes-event-id
   [id]
@@ -116,7 +102,7 @@
 (define-slixes-event-id ::slixes-closing)
 (define-slixes-event-id ::slixes-closed)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn define-slix-event-id
   [id]
@@ -188,7 +174,7 @@
 
 (define-event-response ::response-log-xml-encoder-errors)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn define-event-reason
   [val]
@@ -209,7 +195,7 @@
 (define-event-reason ::reason-slix-file-exists)
 (define-event-reason ::reason-create-slix-file-failed)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn define-event-info
   [val]
@@ -279,7 +265,7 @@
   []
   `(create-event-response :sevenri.event/response-donot-save))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defmacro is-event-reason-exception-occurred?
   [event]
@@ -293,7 +279,7 @@
   [event]
   `(= (:reason (get-event-info ~event)) :sevenri.event/reason-save-error-on-closing))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defmacro is-event-info-save-on-close?
   [event]
@@ -308,6 +294,10 @@
   `(true? (:sevenri.event/info-close-on-close-slixes (get-event-info ~event))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def *slix-dash-len* (count "slix-"))
+
+;;;;
 
 ;; These fns are resolved at the startup time.
 (using-fns event slix
@@ -454,6 +444,20 @@
      (send-creation-event event-id source-slix nil))
   ([event-id source-slix info]
      (post-creation-event event-id source-slix info false)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-last-event
+  []
+  @*last-event*)
+
+(defn get-last-error-event
+  []
+  @*last-error-event*)
+
+(defn get-last-global-event
+  []
+  @*last-global-event*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

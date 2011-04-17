@@ -11,7 +11,7 @@
 
 (ns ^{:slix true :singleton true}
   slix.sevenri
-  (:use [sevenri config event log os slix ui utils])
+  (:use [sevenri config core event log os slix ui])
   (:use [slix.sevenri aotlist lists ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -39,7 +39,7 @@
             (when-let [aot-os (cond
                                (is-mac?) 'aot-mac
                                :else nil)]
-              (when (.exists (java.io.File. (get-slix-dir sn) (str (nssym2path aot-os) ".clj")))
+              (when (.exists (get-slix-path sn (str aot-os '!clj)))
                 (when-not (aot-compile? sn aot-os)
                   (log-warning msg aot-os))))
             (log-warning msg sn)))
