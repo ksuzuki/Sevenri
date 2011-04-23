@@ -28,10 +28,10 @@ remove_path()
 
 remove_file_type_on_path()
 {
-    local type="$1"
+    local type="*.$1"
     local path="$2"
-    debug_msg "find ${path} -name '*.${type}' -delete"
-    find ${path} -name '*.${type}' -delete
+    debug_msg "find ${path} -name ${type} -delete"
+    find ${path} -name ${type} -delete
 }
 
 clean_lein_project()
@@ -72,7 +72,7 @@ main()
         remove_path ./src/sevenri/$path
     done
 
-    print_msg "== Remove '.class' files on src/sevenri/listeners =="
+    print_msg "== Remove .class files on src/sevenri/listeners =="
     remove_file_type_on_path "class" ./src/sevenri/listeners
 
     print_msg "== Remove src/slix paths =="

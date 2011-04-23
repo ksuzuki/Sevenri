@@ -15,7 +15,7 @@
    :state state
    :init init
    :constructors {[java.lang.String][]}
-   :methods [^{:static true} [getPersistenceDelegate [] java.beans.PersistenceDelegate]
+   :methods [^{:static true} [getPersistenceDelegate [] java.lang.Object]
              [getId [] java.lang.String]
              [getHandler [] clojure.lang.AFunction]
              [setId [java.lang.String] void]

@@ -256,7 +256,7 @@
                     (let [result (apply leiningen.core/-main task args)]
                       #_(lg "lein result:" result))
                     (catch Exception e
-                      #_(log-exception e))))))
+                      (log-exception e))))))
             ;; Print test summary, if any.
             (when (and test-summary @test-summary (map? @test-summary))
               (print-test-summary slix out-txtpn @test-summary))

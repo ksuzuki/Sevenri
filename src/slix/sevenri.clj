@@ -75,8 +75,7 @@
 (defn closing
   [event]
   (when-not (can-slix-sevenri-close?)
-    (create-event-response
-     :sevenri.event/response-donot-close)))
+    (event-response-donot-close)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
