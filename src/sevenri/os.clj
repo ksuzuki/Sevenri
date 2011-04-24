@@ -53,6 +53,7 @@
 (defn- -init-mac?
   []
   (future (-set-mac-dock-icon))
+  #_(System/setProperty "apple.awt.graphics.UseQuartz" "true")
   (System/setProperty "apple.laf.useScreenMenuBar" "true")
   (let [app (com.apple.eawt.Application/getApplication)]
     (.removeAboutMenuItem app)

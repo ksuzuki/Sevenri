@@ -38,13 +38,10 @@
   [ced]
   (let [navf (.getNavigationFilter ced)
         tnvf (proxy [NavigationFilter] []
-               (getNextVisualPositionFrom
-                 [text pos bias direction bias-ret]
+               (getNextVisualPositionFrom [text pos bias direction bias-ret]
                  pos)
-               (moveDot
-                 [fb dot bias])
-               (setDot
-                 [fb dot bias]))]
+               (moveDot [fb dot bias])
+               (setDot [fb dot bias]))]
     (.setNavigationFilter ced tnvf)
     navf))
 
@@ -154,8 +151,7 @@
 (defn insert-tab-action
   []
   (proxy [DefaultEditorKit$InsertTabAction] []
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (atomic-undoable-action ced
           (setup-doc-context ced nil
@@ -166,8 +162,7 @@
 (defn insert-break-action
   []
   (proxy [DefaultEditorKit$InsertBreakAction] []
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (atomic-undoable-action ced
           (setup-doc-context ced nil
@@ -190,8 +185,7 @@
 (defn jump-to-matching-paren-pos-action
   []
   (proxy [AbstractAction] ["jump-to-matching-paren-pos"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (when-let [ppi (.getClientProperty ced *prop-ced-ppp-info*)]
           (let [[[pp0 pp1] _] ppi
@@ -204,8 +198,7 @@
 (defn select-by-matching-paren-pos-action
   []
   (proxy [AbstractAction] ["select-by-matching-paren-pos"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (when-let [ppi (.getClientProperty ced *prop-ced-ppp-info*)]
           (let [[[pp0 pp1] _] ppi
@@ -218,8 +211,7 @@
 (defn switch-pane-action
   []
   (proxy [AbstractAction] ["switch-pane"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (when-let [frm (.getTopLevelAncestor ced)]
           (let [mpl (.getComponent (.getContentPane frm) 0)
@@ -235,8 +227,7 @@
 (defn browse-api-action
   []
   (proxy [AbstractAction] ["browse-api"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (let [api-sym (or (.getSelectedText ced)
                           (fetch-symbol ced))]
@@ -246,8 +237,7 @@
 (defn find-next-keyword-action
   []
   (proxy [AbstractAction] ["find-next-keyword"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (find-next-keyword ced (.getDocument ced) true)))))
 
@@ -271,8 +261,7 @@
 (defn require-action
   []
   (proxy [AbstractAction] ["require"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (invoke-opfile-with ced
           (fn [fqsn sn]
@@ -292,8 +281,7 @@
 (defn compile-action
   []
   (proxy [AbstractAction] ["compile"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (invoke-opfile-with ced
           (fn [fqsn sn]
@@ -307,8 +295,7 @@
 (defn open-slix-action
   []
   (proxy [AbstractAction] ["open-slix"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (invoke-opfile-with ced
           (fn [fqsn sn]
@@ -323,8 +310,7 @@
 (defn undo-action
   []
   (proxy [AbstractAction] ["undo"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (let [doc (.getDocument ced)
               pos (.createPosition doc (.getCaretPosition ced))]
@@ -340,8 +326,7 @@
 (defn redo-action
   []
   (proxy [AbstractAction] ["redo"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (let [doc (.getDocument ced)
               pos (.createPosition doc (.getCaretPosition ced))]
@@ -358,7 +343,8 @@
   "v := [file notify-fn]"
   [file]
   #_(lg "ced: ced-notify-save:" file)
-  (doseq [sv (filter (fn [[_ [f nf]]] (and (= file f) (fn? nf))) (xref-with :ced-notify-save))]
+  (doseq [sv (filter (fn [[_ [f nf]]] (and (= file f) (fn? nf)))
+                     (xref-with :ced-notify-save))]
     (try
       (let [[_ [_ nf]] sv]
         (nf file))
@@ -368,8 +354,7 @@
 (defn save-action
   []
   (proxy [AbstractAction] ["save"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (let [doc (.getDocument ced)
               file (.getFile doc)]
@@ -382,8 +367,7 @@
 (defn save-as-action
   []
   (proxy [AbstractAction] ["save-as"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (let [frm (.getTopLevelAncestor ced)
               dlg (FileDialog. frm "Save As Sevenri File" FileDialog/SAVE)
@@ -432,8 +416,7 @@
 (defn open-action
   []
   (proxy [AbstractAction] ["open"]
-    (actionPerformed
-      [event]
+    (actionPerformed [event]
       (ced-action event
         (let [frm (.getTopLevelAncestor ced)
               dlg (FileDialog. frm "Open Sevenri File" FileDialog/LOAD)
@@ -487,8 +470,7 @@
 (defn -getViewFactory
   [this]
   (proxy [ViewFactory] []
-    (create
-      [elem]
+    (create [elem]
       (cview. elem))))
 
 (defn -getActions

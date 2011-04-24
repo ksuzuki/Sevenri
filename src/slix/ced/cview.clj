@@ -20,49 +20,64 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn drawTextSegment
-  [this g x y doc clr seg a p]
-  (.setColor g clr)
-  (.getText doc a (- p a) seg)
-  (Utilities/drawTabbedText seg x y g this a))
+(defn drawParenChar
+  "Draw a paren char in highlight. Note that when rendering text using
+   Utilities/drawTabbedText, a color has to be set prior to call the fn,
+   or you get blank."
+  [this g x y p]
+  (let [seg (Segment.)
+        fmx (.getFontMetrics g)
+        ast (.getAscent fmx)
+        hgt (+ ast (.getDescent fmx))]
+    (.getText (.getDocument this) p 1 seg)
+    (let [px (Utilities/drawTabbedText seg x y g this 0)]
+      ;; Fill the paren char in the reverse color of the foreground.
+      (.setXORMode g (.getBackground g))
+      (.fillRect g x (- y ast) (- px x) hgt)
+      (.setPaintMode g)
+      px)))
 
 (defn drawParenText
-  [this g x y p0 p1 doc fgc seg pp0 pp1]
-  (let [fm (.getFontMetrics g)
-        as (.getAscent fm)
-        ht (+ as (.getDescent fm))
-        bgc (.getBackground g)]
-    (loop [x x
-           a p0
-           p p0]
-      (if (< p p1)
-        (if (or (= p pp0) (= p pp1))
-          (let [nextp (inc p)
-                txbeg (drawTextSegment this g x y doc fgc seg a p)
-                txend (drawTextSegment this g txbeg y doc *paren-highlight-color* seg p nextp)]
-            (.setColor g *paren-highlight-color*)
-            (.setXORMode g bgc)
-            (.fillRect g txbeg (- y as) (- txend txbeg) ht)
-            (.setPaintMode g)
-            (recur txend nextp nextp))
-          (recur x a (inc p)))
-        (drawTextSegment this g x y doc fgc seg a p)))))
+  "Repeat drawing unselected text and paren char."
+  [this g x y p0 p1 pp0 pp1]
+  ;; Don't mess the original graphics context. Working with a copy and
+  ;; disposing it in the end is the Swing way.
+  (let [pcg (.create g)]
+    ;; Use g to draw text and use pcg to draw paren char in
+    ;; *paren-highlight-color*. Use the try form to ensure disposing pcg.
+    (try
+      (.setColor pcg *paren-highlight-color*)
+      (loop [x x
+             a p0
+             p p0]
+        (if (<= p p1)
+          (if (or (= p pp0) (= p pp1))
+            (let [tx (if (< a p) (.superDrawUnselectedText this g x y a p) x)
+                  px (drawParenChar this pcg tx y p)
+                  np (inc p)]
+              (recur px np np))
+            (recur x a (inc p)))
+          ;; Draw rest of the unselected text if any.
+          (when (< a p)
+            ;; The return value of this form is going to be returned to the
+            ;; caller because this is the last call in the try form.
+            (.superDrawUnselectedText this g x y a p))))
+      (finally
+       (.dispose pcg)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn -drawUnselectedText
   [this g x y p0 p1]
-  "The rendering pos range is actually [p0, p1). Also when rendering using
-   Utilities/drawTabbedText, a color has to be set prior to call the fn,
-   or you get blank."
+  "The rendering range is actually [p0, p1)."
   (let [ced (.getContainer this)
         ppp (.getClientProperty ced *prop-ced-ppp-info*)
         [pp0 pp1] (if (and ppp (not (second ppp)))
                     (or (first ppp) [Long/MAX_VALUE -1])
                     [Long/MAX_VALUE -1])]
-    (if (or (< pp1 p0) (<= p1 pp0))
+    (if (or (<= p1 pp0) ;; The range is before the begin-paren.
+            (< pp1 p0)  ;; The range is after the end-paren.
+            (and (< pp0 p0) (<= p1 pp1))) ;; The range is inside the parens exclusively.
       (.superDrawUnselectedText this g x y p0 p1)
-      (let [doc (.getDocument this)
-            fgc (.getForeground ced)
-            seg (Segment.)]
-        (drawParenText this g x y p0 p1 doc fgc seg pp0 pp1)))))
+      ;; The range includes either or both the begin- and end-paren.
+      (drawParenText this g x y p0 p1 pp0 pp1))))
