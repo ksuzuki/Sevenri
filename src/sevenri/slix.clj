@@ -64,6 +64,12 @@
   ([sn sym & syms]
      (apply get-slix-ns sn (str sym \. (first syms)) (rest syms))))
 
+(defn create-slix-context
+  ([]
+     {:prop_ (ref {})})
+  ([app-context]
+     {:prop_ (ref {}) :app-context app-context}))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-src-slix-path
@@ -115,58 +121,6 @@
  (defn get-slix-startup-file
    []
    (get-sid-path (get-config 'sid.slix.dir-name) (get-config 'sid.slix.startup.file-name)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn create-slix-context
-  ([]
-     {:prop (ref {})})
-  ([app-context]
-     {:prop (ref {}) :app-context app-context}))
-
-(defn put-slix-prop
-  ([key val]
-     (put-slix-prop *slix* key val))
-  ([slix key val]
-     (let [old-prop (:prop (slix-context slix))
-           new-prop (assoc @old-prop key val)]
-       (dosync (ref-set old-prop new-prop))
-       new-prop))
-  ([slix key val & kvs]
-    (let [new-prop (put-slix-prop slix key val)]
-      (if (seq kvs)
-        (recur slix (first kvs) (second kvs) (nnext kvs))
-        new-prop))))
-
-(defn get-slix-prop
-  "Returns the value mapped to key of the default or given slix property,
-   or not-found or nil if key not present."
-  ([key]
-     (get-slix-prop *slix* key nil))
-  ([slix key]
-     (get-slix-prop slix key nil))
-  ([slix key not-found]
-     (get (deref (:prop (slix-context slix))) key not-found)))
-
-(defn remove-slix-prop
-  ([key]
-     (remove-slix-prop *slix* key))
-  ([slix key]
-     (let [old-prop (:prop (slix-context slix))
-           new-prop (dissoc @old-prop key)]
-       (dosync (ref-set old-prop new-prop))
-       new-prop))
-  ([slix key & ks]
-     (let [new-prop (remove-slix-prop slix key)]
-       (if (seq ks)
-         (recur slix (first ks) (next ks))
-         new-prop))))
-
-(defn clear-slix-prop
-  ([]
-     (clear-slix-prop *slix*))
-  ([slix]
-     (dosync (ref-set (:prop (slix-context slix)) {}))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -271,11 +225,11 @@
 
 (defmethod get-slix :name
   [object]
-  (get-prop *slixes* (str object)))
+  (get-prop_ *slixes* (str object)))
 
 (defmethod get-slix :slix
   [object]
-  (when (identical? object (get-prop *slixes* (str (slix-name object))))
+  (when (identical? object (get-prop_ *slixes* (str (slix-name object))))
     object))
 
 (defmethod get-slix :frame
@@ -1256,6 +1210,53 @@
      (set-slix-visible slix true))
   ([slix visible?]
      (.setVisible (slix-frame slix) visible?)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Deprecated - remove by 0.3.0
+
+(defn put-slix-prop
+  ([key val]
+     (put-slix-prop *slix* key val))
+  ([slix key val]
+     (let [old-prop (:prop_ (slix-context slix))
+           new-prop (assoc @old-prop key val)]
+       (dosync (ref-set old-prop new-prop))
+       new-prop))
+  ([slix key val & kvs]
+    (let [new-prop (put-slix-prop slix key val)]
+      (if (seq kvs)
+        (recur slix (first kvs) (second kvs) (nnext kvs))
+        new-prop))))
+
+(defn get-slix-prop
+  "Returns the value mapped to key of the default or given slix property,
+   or not-found or nil if key not present."
+  ([key]
+     (get-slix-prop *slix* key nil))
+  ([slix key]
+     (get-slix-prop slix key nil))
+  ([slix key not-found]
+     (get (deref (:prop_ (slix-context slix))) key not-found)))
+
+(defn remove-slix-prop
+  ([key]
+     (remove-slix-prop *slix* key))
+  ([slix key]
+     (let [old-prop (:prop_ (slix-context slix))
+           new-prop (dissoc @old-prop key)]
+       (dosync (ref-set old-prop new-prop))
+       new-prop))
+  ([slix key & ks]
+     (let [new-prop (remove-slix-prop slix key)]
+       (if (seq ks)
+         (recur slix (first ks) (next ks))
+         new-prop))))
+
+(defn clear-slix-prop
+  ([]
+     (clear-slix-prop *slix*))
+  ([slix]
+     (dosync (ref-set (:prop_ (slix-context slix)) {}))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown

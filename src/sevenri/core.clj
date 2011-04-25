@@ -343,31 +343,6 @@
           
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmulti get-prop (fn [& args] (class (first args))))
-
-(defmethod get-prop clojure.lang.Ref
-  [& rm-ks]
-  (get-in (deref (first rm-ks)) (rest rm-ks)))
-
-(defmethod get-prop :default
-  [& ks]
-  (get-in @*sevenri* ks))
-
-(defmulti set-prop (fn [& args] (class (first args))))
-
-(defmethod set-prop clojure.lang.Ref
-  [& ref-kvs]
-  (let [rf (first ref-kvs)]
-    (dosync
-     (ref-set rf (apply assoc (deref rf) (rest ref-kvs))))))
-
-(defmethod set-prop :default
-  [& kvs]
-  (dosync
-   (ref-set *sevenri* (apply assoc @*sevenri* kvs))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn get-project-protocol-file
   []
   (get-src-project-path (get-config 'src.project.protocol-file-name)))
@@ -480,6 +455,32 @@
               (catch Exception e
                 (log-exception e)
                 nil))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Deprecated - removed by 0.3.0
+
+(defmulti get-prop_ (fn [& args] (class (first args))))
+
+(defmethod get-prop_ clojure.lang.Ref
+  [& rm-ks]
+  (get-in (deref (first rm-ks)) (rest rm-ks)))
+
+(defmethod get-prop_ :default
+  [& ks]
+  (get-in @*sevenri* ks))
+
+(defmulti set-prop_ (fn [& args] (class (first args))))
+
+(defmethod set-prop_ clojure.lang.Ref
+  [& ref-kvs]
+  (let [rf (first ref-kvs)]
+    (dosync
+     (ref-set rf (apply assoc (deref rf) (rest ref-kvs))))))
+
+(defmethod set-prop_ :default
+  [& kvs]
+  (dosync
+   (ref-set *sevenri* (apply assoc @*sevenri* kvs))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
