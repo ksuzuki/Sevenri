@@ -50,7 +50,7 @@
       (loop [x x
              a p0
              p p0]
-        (if (<= p p1)
+        (if (< p p1)
           (if (or (= p pp0) (= p pp1))
             (let [tx (if (< a p) (.superDrawUnselectedText this g x y a p) x)
                   px (drawParenChar this pcg tx y p)
