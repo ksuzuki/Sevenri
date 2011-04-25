@@ -39,7 +39,7 @@
 (defn- -set-mac-dock-icon
   []
   (let [idr (reduce (fn [d p] (File. d (str (get-config p))))
-                    (get-user-path)
+                    (system-property-user-dir)
                     ['src.dir-name
                      'src.resources.dir-name
                      'src.resources.images.dir-name

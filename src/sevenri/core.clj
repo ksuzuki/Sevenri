@@ -159,6 +159,9 @@
      [& ~'child-paths]
      (apply get-path ~parent-path ~'child-paths)))
 
+(defgp get-user-home-path (system-property-user-home))
+(defgp get-user-path (system-property-user-dir))
+
 (defgp get-doc-path (get-path (get-user-path) (get-config 'doc.dir-name)))
 (defgp get-lib-path (get-path (get-user-path) (get-config 'lib.dir-name)))
 (defgp get-src-path (get-path (get-user-path) (get-config 'src.dir-name)))
@@ -177,6 +180,7 @@
 
 (defgp get-temp-path (get-path (get-user-path) (get-config 'temp.dir-name)))
 
+(defgp get-dsr-path *dsr-path*)
 (defgp get-sid-path *sid-path*)
 (defgp get-sid-classes-path (get-sid-path (get-config 'sid.classes.dir-name)))
 (defgp get-sid-sevenri-path (get-sid-path (get-config 'sid.sevenri.dir-name)))

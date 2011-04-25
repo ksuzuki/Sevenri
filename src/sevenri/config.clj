@@ -20,10 +20,14 @@
  {:doc {:dir-name 'doc
         :apidoc-urls-file-name "apidoc_urls.clj"}
 
+  ;; dsr := 'dot Sevenri'
+  :dsr {:dir-name '!sevenri
+        :dir-name-str ".sevenri"}
+
   :lib {:dir-name 'lib}
 
-  ;; sid := system instance directory (.sevenri)
-  :sid {:dir-name '!sevenri :dir-name-str ".sevenri"
+  ;; sid := system instance directory
+  :sid {:dir-name 'Sevenri ;; default
 
         :classes {:dir-name 'classes
                   :slix {:dir-name 'slix}
@@ -106,26 +110,20 @@
     (get-in *sevenri-config* keys)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Base directory path accessors
+;;;; Base directories
 
-(defn get-user-home-path
+(defn system-property-user-home
   []
   (System/getProperty "user.home"))
 
-(defn get-class-path
-  []
-  (System/getProperty "java.class.path"))
-
-(defn get-user-path
+(defn system-property-user-dir
   []
   (System/getProperty "user.dir"))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; sid (Sevenri instance directory) structure
-;; sid is created in the .sevenri directory at the user's home directory.
-;; Each Sevenri instance name is given by the system property
-;; 'sevenri.sid.name' or "Sevenri" by default.
+;;;; dsr (dot Sevenri) and sid (Sevenri instance directory) structure
+;; dsr is created at the user's home directory. sid, in turn, is created in
+;; the dsr directory. Each sid has the 'sevenri' sub directory at least.
 ;;
 ;; /user.home/.sevenri/
 ;;   Sevenri/
@@ -136,27 +134,27 @@
 ;;     sevenri/
 
 (defn get-sid-name
-  "Return the current Sevenri instance directory name. Preset to 'Sevenri'
-   by default and reset to the one given at the startup time."
+  "Return the current Sevenri instance directory name."
   []
-  *sid-name*)
+  (or *sid-name*
+      (System/getProperty "sevenri.sid.name")
+      (get-config 'sid.dir-name)))
 
 (defn create-sid*
-  "Create the sid root directory at the user's home directory, then create a
-   Sevenri instance directory and the 'sevenri' sub directory."
+  "Create a Sevenri instance directory in the 'dot Sevenri' directory.
+   Everything depends on the paths setup here, so this fn must be called
+   at the very early stage of the system startup."
   ([]
-     (let [sid-name (if-let [sn (System/getProperty "sevenri.sid.name")]
-                      sn
-                      (get-sid-name))]
-       (create-sid* sid-name)))
+     (create-sid* (get-sid-name)))
   ([sid-name]
-     (let [sid-root (File. (get-user-home-path) (get-config 'sid.dir-name-str))
-           sid-path (File. sid-root sid-name)
+     (let [dsr-path (File. (system-property-user-home) (str (get-config 'dsr.dir-name-str)))
+           sid-path (File. dsr-path sid-name)
            sid-sevenri-dir (File. sid-path (str (get-config 'sid.sevenri.dir-name)))]
-       (doseq [path [sid-root sid-path sid-sevenri-dir]]
+       (doseq [path [dsr-path sid-path sid-sevenri-dir]]
          (when-not (.exists path)
            (when-not (.mkdir path)
              (throw (RuntimeException. (str "create-sid: mkdir failed:" path))))))
+       (reset-dsr-path dsr-path)
        (reset-sid-name sid-name)
        (reset-sid-path sid-path)
        *sid-path*)))
