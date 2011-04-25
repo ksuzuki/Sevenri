@@ -11,6 +11,7 @@
 
 (ns ^{:doc "Sevenri system core library"}
   sevenri.core
+  (:require [clojure.java io])
   (:use [sevenri config defs log refs utils]
         [sevenri.os :only (get-ignorable-file-names-os)])
   (:import (java.io BufferedWriter File FileOutputStream)
@@ -245,12 +246,24 @@
            dst-parent (.getParentFile dpath)]
          (.mkdirs dst-parent)
          (if (and dst-clean? (.exists dst-parent))
-           (let [b (.renameTo spath dpath)]
-             (when-not b (log-warning "trash-path? failed to rename src to dst."))
-             b)
+           (or (.renameTo spath dpath)
+               ;; Some platforms, like Mac, don't allow to renameTo shared files
+               ;; but copy only.
+               (try
+                 (clojure.java.io/copy spath dpath)
+                 (when (.exists dpath)
+                   (.delete spath))
+                 (if (or (.exists spath) (not (.exists dpath)))
+                   (do
+                     (log-warning "trash-path? failed. spath:" spath "dpath:" dpath)
+                     false)
+                   true)
+                 (catch Exception e
+                   (log-warning "trash-path? exception. spath:" spath "dpath:" dpath)
+                   false)))
            (do
-             (when-not dst-clean? (log-warning "trash-path? failed to clean dst."))
-             (when-not (.exists dst-parent) (log-warning "trash-path? failed to make dst."))
+             (when-not dst-clean? (log-warning "trash-path? failed to clean:" dpath))
+             (when-not (.exists dst-parent) (log-warning "trash-path? failed to make:" dst-parent))
              false)))))
 
 (defn clean-path?
