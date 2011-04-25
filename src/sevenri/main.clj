@@ -66,7 +66,7 @@
   (reset-ok-to-quit-fn ok-to-quit?)
   (run-swank-repl)
   (try
-    (create-sid)
+    (create-sid*)
     (when (create-sid-sevenri-lock-file?)
       (-open-sesami)
       (lock-and-wait *quit-lock*)

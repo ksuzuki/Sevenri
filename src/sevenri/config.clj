@@ -120,26 +120,43 @@
   []
   (System/getProperty "user.dir"))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; The creator fn of Sevenri instance directory, sid
 
-(defn create-sid
-  "Create a Sevenri instance directory and 'sevenri' sub directory in it."
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; sid (Sevenri instance directory) structure
+;; sid is created in the .sevenri directory at the user's home directory.
+;; Each Sevenri instance name is given by the system property
+;; 'sevenri.sid.name' or "Sevenri" by default.
+;;
+;; /user.home/.sevenri/
+;;   Sevenri/
+;;     sevenri/
+;;   Sevenri-X/
+;;     sevenri/
+;;   Sevenri-Y/
+;;     sevenri/
+
+(defn get-sid-name
+  "Return the current Sevenri instance directory name. Preset to 'Sevenri'
+   by default and reset to the one given at the startup time."
+  []
+  *sid-name*)
+
+(defn create-sid*
+  "Create the sid root directory at the user's home directory, then create a
+   Sevenri instance directory and the 'sevenri' sub directory."
   ([]
-     (or *sid-path* (create-sid (get-config 'sid.dir-name-str) 0)))
-  ([dname n]
-     (when (< 7 n)
-       (throw (RuntimeException. "create-sid-path: too many old sids?")))
-     (let [path (File. (get-user-path) (if (pos? n) (str dname n) (str dname)))]
-       (when-not (.exists path)
-         (when-not (.mkdir path)
-           (throw (RuntimeException. "create-sid: mkdir sid failed"))))
-       (if (and (.isDirectory path) (.canWrite path))
-         (do
-           (reset-sid-path path)
-           (let [sid-sevenri-dir (File. path (str (get-config 'sid.sevenri.dir-name)))]
-             (when-not (.exists sid-sevenri-dir)
-               (when-not (.mkdir sid-sevenri-dir)
-                 (throw (RuntimeException. "create-sid: mkdir sevenri failed")))))
-           *sid-path*)
-         (create-sid dname (inc n))))))
+     (let [sid-name (if-let [sn (System/getProperty "sevenri.sid.name")]
+                      sn
+                      (get-sid-name))]
+       (create-sid* sid-name)))
+  ([sid-name]
+     (let [sid-root (File. (get-user-home-path) (get-config 'sid.dir-name-str))
+           sid-path (File. sid-root sid-name)
+           sid-sevenri-dir (File. sid-path (str (get-config 'sid.sevenri.dir-name)))]
+       (doseq [path [sid-root sid-path sid-sevenri-dir]]
+         (when-not (.exists path)
+           (when-not (.mkdir path)
+             (throw (RuntimeException. (str "create-sid: mkdir failed:" path))))))
+       (reset-sid-name sid-name)
+       (reset-sid-path sid-path)
+       *sid-path*)))

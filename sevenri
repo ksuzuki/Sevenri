@@ -1,2 +1,16 @@
 #!/bin/bash
-/usr/bin/java -Dfile.encoding=UTF-8 -cp src:lib/* Sevenri $* &>/dev/null &
+# Use the instance_name_JVM_OPTS environment variable, such as
+# 'Sevenri_JVM_OPTS' to pass extra JVM options.
+
+if [ "$1" == "" ]; then
+    iname="Sevenri"
+else
+    iname="Sevenri_$1"
+fi
+
+defjvmopts="-Dfile.encoding=UTF-8 -Dsevenri.sid.name=${iname}"
+
+extjvmevnm="${iname}_JVM_OPTS"
+extjvmopts=${!extjvmevnm}
+
+/usr/bin/java $defjvmopts $extjvmopts -cp src:lib/* Sevenri &>/dev/null &

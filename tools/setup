@@ -1,11 +1,88 @@
 #!/bin/bash
-sa=./Sevenri.app
 
-if [ -a $sa ]; then
-	rm -rf $sa
+# Print usage
+
+if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+    echo "usage: setup [-v|--verbose|-h|--help] [instance_name]"
+    echo "Use the instance_name_SETUP_JVM_OPTS environment variable"
+    echo "to preset extra JVM options."
+    exit 0
 fi
 
-osacompile -o $sa -x tools/Sevenri.scpt >/dev/null 2>&1
-cp tools/Sevenri-icon.icns $sa/Contents/Resources/applet.icns
+# Sanity check
 
+SevnriCljFileName=./src/Sevenri.clj
+SevenriIconFileName=./src/resources/images/icons/Sevenri-icon.icns
+
+if [ ! -f $SevnriCljFileName ] || [ ! -f $SevenriIconFileName ]; then
+    echo "This script requires to run on a Sevenri repo root directory."
+    exit 1
+fi
+
+# SevenriRoot: current directory where is a Sevenri repo root directory
+# SevenriInstanceName: a Sevenri instance name; "Sevenri" by default
+
+SevenriRoot=`pwd`
+
+if [ "$1" == "" ]; then
+    SevenriInstanceName="Sevenri"
+elif [ "$1" == "-v" ] || [ "$1" == "--verbose" ]; then
+    verbose=true
+    if [ "$2" == "" ]; then
+        SevenriInstanceName="Sevenri"
+    else
+        SevenriInstanceName="Sevenri_$2"
+    fi
+else
+    SevenriInstanceName="Sevenri_$1"
+fi
+
+# Prepare for creating a Sevenri.app from an AppleScript
+
+SevenriAppFileName="./${SevenriInstanceName}.app"
+
+if [ "$TMPDIR" == "" ]; then
+    TMPDIR=./tools
+fi
+
+TempAppleScriptFileName="${TMPDIR}/${SevenriAppFileName}.applescript.tmp"
+
+# JavaVM options
+DefaultSetupJVMOptions="-Dfile.encoding=UTF-8 -Dsevenri.sid.name=$SevenriInstanceName "
+SetupJVMOptsEnvVarName="${SevenriInstanceName}_SETUP_JVM_OPTS"
+SetupJVMOptions="${DefaultSetupJVMOptions}${!SetupJVMOptsEnvVarName}"
+RuntimeJVMOptsEnvVarName="\$${SevenriInstanceName}_JVM_OPTS"
+
+read -d '' script <<EOF
+set cmd to "cd $SevenriRoot
+if [ -f \$HOME/.bash_profile ]; then
+    source \$HOME/.bash_profile
+fi
+java $SetupJVMOptions $RuntimeJVMOptsEnvVarName -cp src:lib/* Sevenri &>/dev/null &"
+do shell script cmd
+EOF
+
+if [ -a $SevenriAppFileName ]; then
+	rm -rf $SevenriAppFileName
+fi
+
+# Start setting up staff.
+
+echo "Creating $SevenriInstanceName.app..."
+
+if [ "$verbose" == "true" ]; then
+    echo "AppleScript used..."
+    echo ">>>"
+    echo "$script"
+    echo "<<<"
+    echo
+fi
+
+# Double-quote $script to preserve \newline.
+echo "${script}">$TempAppleScriptFileName
+osacompile -o $SevenriAppFileName -x $TempAppleScriptFileName >/dev/null 2>&1
+rm $TempAppleScriptFileName
+cp $SevenriIconFileName $SevenriAppFileName/Contents/Resources/applet.icns
+
+echo "Downloading required dependencies..."
 lein deps

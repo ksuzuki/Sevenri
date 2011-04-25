@@ -16,6 +16,12 @@ which can be redefined."}
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; config
 
+(def *sid-name* "Sevenri")
+
+(defn reset-sid-name
+  [name]
+  (def *sid-name* name))
+
 (def *sid-path* nil)
 
 (defn reset-sid-path
