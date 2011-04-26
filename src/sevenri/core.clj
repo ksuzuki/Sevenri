@@ -425,40 +425,38 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-code-reader
+(defn get-code-reader-and-last-modified
   [vr]
   (when (var? vr)
     (let [file (:file (meta vr))
           cldr (.getClassLoader (class (var-get vr)))
-          strm (.getResourceAsStream cldr file)]
-      (InputStreamReader. strm "UTF-8"))))
+          strm (.getResourceAsStream cldr file)
+          rsrc (.getResource cldr file)
+          path (second (re-matches #"^file:([^!]+)!.*" (.getFile rsrc)))
+          lmod (when-not (empty? path) (.lastModified (get-path path)))]
+      [(InputStreamReader. strm "UTF-8") lmod])))
 
 (defn get-code-of
   "Return a future which returns {:file file :line line} or nil"
   [vr]
   (when (var? vr)
-    (let [{file :file line :line} (meta vr)]
+    (let [{:keys [file line]} (meta vr)]
       (when (and (not (empty? file)) (not= file "NO_SOURCE_PATH")
                  line (pos? line))
         (future
-          (if (.exists (File. file))
-            {:file file :line line}
-            (try
-              (when-let [rdr (get-code-reader vr)]
-                (let [dst (File. (get-library-path) (str file))]
-                  (.mkdirs (.getParentFile dst))
-                  (with-open [wtr (BufferedWriter. (OutputStreamWriter.
-                                                    (FileOutputStream. dst)
-                                                    "UTF-8"))]
-                    (loop [c (.read rdr)]
-                      (when-not (neg? c)
-                        (.write wtr c)
-                        (recur (.read rdr)))))
-                  (.close rdr)
-                  {:file dst :line line}))
-              (catch Exception e
-                (log-exception e)
-                nil))))))))
+          (let [dst (get-library-path file)
+                [rdr lmd] (get-code-reader-and-last-modified vr)]
+            (if (and (.exists dst) (<= (.lastModified dst) lmd))
+              ;; Extracted file exists and untouched.
+              {:file dst :line line}
+              (try
+                (.mkdirs (.getParentFile dst))
+                (clojure.java.io/copy rdr dst :encoding "UTF-8")
+                (.setLastModified dst lmd)
+                {:file dst :line line}
+                (catch Exception e
+                  (log-exception e)
+                  nil)))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Deprecated - removed by 0.3.0
