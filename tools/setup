@@ -86,3 +86,13 @@ cp $SevenriIconFileName $SevenriAppFileName/Contents/Resources/applet.icns
 
 echo "Downloading required dependencies..."
 lein deps
+
+echo "Building the default project manager, Planter..."
+pushd ./src/project/slix/planter >/dev/null
+lein jar
+popd >/dev/null
+
+echo
+echo "Sevenri is ready to start. Run 'sevenri' from the command line like this:"
+echo "  sevenri ${SevenriInstanceName}"
+echo "or double-click '${SevenriInstanceName}.app' from the Finder."

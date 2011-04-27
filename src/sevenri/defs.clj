@@ -35,6 +35,15 @@ which can be redefined."}
   (def *sid-path* path))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; core
+
+(def *project-manager* nil)
+
+(defn reset-project-manager
+  [manager]
+  (def *project-manager* manager))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; debug
 
 (def *swank-repl-is-running* false)

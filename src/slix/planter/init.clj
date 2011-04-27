@@ -99,7 +99,7 @@
         jop (JOptionPane. msg JOptionPane/WARNING_MESSAGE)
         dlg (.createDialog jop frm ttl)
         wtc (future (when ao?
-                      (build-project? 'slix.planter))
+                      (build-project*? 'slix.planter))
                     (loop [pb? (is-project-built? 'slix.planter)]
                       (if pb?
                         (.hide dlg)

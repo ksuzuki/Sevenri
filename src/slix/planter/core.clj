@@ -175,22 +175,22 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn sh-lein
+(defn sh-lein*
   [pmap args]
   (let [shdir (get-project-path pmap)]
   (with-sh-dir shdir
     #_(lg "pmap:" pmap "args:" args "shdir:" shdir)
     (apply sh "lein" args))))
 
-(defn run-lein
+(defn run-lein*
   [cmds sym]
   (let [pmap (project-name-to-map sym)]
     (when (project-exists? pmap)
-      (assoc (sh-lein pmap cmds) :slix-project (is-slix-project? pmap)))))
+      (assoc (sh-lein* pmap cmds) :slix-project (is-slix-project? pmap)))))
 
 ;;;;
 
-(defn create-project
+(defn create-project*
   [sym]
   (when-not (project-exists? sym)
     (let [pmap (project-name-to-map sym)
@@ -199,7 +199,7 @@
                  true
                  (and (.mkdirs pdir) (.exists pdir)))]
       (when run?
-        (let [rm (sh-lein (assoc pmap :dir (:parent-dir pmap)) ["new" (:name pmap)])]
+        (let [rm (sh-lein* (assoc pmap :dir (:parent-dir pmap)) ["new" (:name pmap)])]
           (when (and (zero? (:exit rm))
                      (empty? (:err rm))
                      (project-exists? pmap))
@@ -209,59 +209,59 @@
                                                   "setup-slix-project? failed"))
               (assoc rm :six-project false))))))))
 
-(defmacro planter-new
+(defmacro planter-new*
   [sym]
-  `(create-project ~sym))
+  `(create-project* ~sym))
 
 ;;;;
 
-(defn get-project-deps
+(defn get-project-deps*
   [sym]
-  (run-lein ["deps"] sym))
+  (run-lein* ["deps"] sym))
 
-(defmacro planter-deps
+(defmacro planter-deps*
   [sym]
-  `(get-project-deps ~sym))
+  `(get-project-deps* ~sym))
 
 ;;;;
 
-(defn compile-project
+(defn compile-project*
   [sym]
-  (run-lein ["compile"] sym))
+  (run-lein* ["compile"] sym))
 
-(defmacro planter-compile
+(defmacro planter-compile*
   [sym]
-  `(compile-project ~sym))
+  `(compile-project* ~sym))
 
 ;;;;
 
-(defn test-project
+(defn test-project*
   [sym]
-  (run-lein ["test"] sym))
+  (run-lein* ["test"] sym))
 
-(defmacro planter-test
+(defmacro planter-test*
   [sym]
-  `(test-project ~sym))
+  `(test-project* ~sym))
 
 ;;;;
 
-(defn create-project-jar
+(defn create-project-jar*
   [sym]
-  (run-lein ["jar"] sym))
+  (run-lein* ["jar"] sym))
 
-(defmacro planter-jar
+(defmacro planter-jar*
   [sym]
-  `(create-project-jar ~sym))
+  `(create-project-jar* ~sym))
 
 ;;;;
 
-(defn clean-project
+(defn clean-project*
   [sym]
-  (run-lein ["clean"] sym))
+  (run-lein* ["clean"] sym))
 
-(defmacro planter-clean
+(defmacro planter-clean*
   [sym]
-  `(clean-project ~sym))
+  `(clean-project* ~sym))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -284,60 +284,7 @@
     (when (project-exists? pmap)
       (seq (find-files '.jar (get-project-path pmap))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn is-project-built?
-  [sym]
-  (let [jar (get-project-jar sym)]
-    (and jar (.exists jar))))
-
-(defn build-project?
-  [sym]
-  (if (project-exists? sym)
-    (do
-      (create-project-jar sym)
-      (is-project-built? sym))
-    false))
-
-(defn build-project-and-run
-  "If there is a platner opening the target project, let it build the
-   project and run the requested slix. Otherwise, open a new planter and let
-   it do that."
-  [fqsn nm args]
-  (let [slix-name (get-slix-name-from-ns fqsn)
-        bldprjrun {:slix-name slix-name :name nm :args args}
-        plntr-slx (when-let [kvs (xref-with fqsn)]
-                  (when-first [kv (filter #(= (second %) *xref-planter-project*) kvs)]
-                    (first kv)))]
-    (if plntr-slx
-      (let [do-bpr (*build-project-and-run* (xref-with plntr-slx))]
-        (assert (fn? do-bpr))
-        (do-bpr bldprjrun))
-      (let [bprm {*build-project-and-run* bldprjrun}
-            plnm (generate-slix-name 'planter "BP&R")]
-        (open-slix-with-args bprm 'planter plnm)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn is-manager-ready?
-  [_]
-  (is-project-built? 'slix.planter))
-
-(defn setup-manager?
-  "OK to get false on build-project? call. Then Sevenri tries to build it
-   later."
-  [_]
-  (build-project? 'slix.planter))
-
-(defn shutdown-manager
-  [_]
-  (when (fn? (shutdown-lein))
-    (try
-      ((shutdown-lein))
-      (catch Exception e
-        (log-severe "planter: shutdown-manager failed\n" (get-stack-trace-print-lines e))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn get-project-name
   [slix-or-frame]
@@ -351,8 +298,6 @@
   (when-let [slix (get-slix slix-or-frame)]
     (add-to-xref slix *xref-planter-project* sym)
     sym))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn is-project-used
   [sym]
@@ -368,8 +313,51 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn delete-project
+(defn is-project-built?
   [sym]
-  (let [pdir (get-project-path sym)]
-    (when (.exists pdir)
-      (trash-path? pdir))))
+  (let [jar (get-project-jar sym)]
+    (and jar (.exists jar))))
+
+(defn build-project*?
+  [sym]
+  (if (project-exists? sym)
+    (do
+      (create-project-jar* sym)
+      (is-project-built? sym))
+    false))
+
+;;;;
+
+(defn- -build-project-and-run
+  "If there is a platner with the target project opened, let it build the
+   project and optionally run the requested slix. Otherwise, open a new
+   planter and let it do that."
+  [bpar-param]
+  (let [planter (when-let [kvs (xref-with (:project-name bpar-param))]
+                  (when-first [kv (filter #(= (second %) *xref-planter-project*) kvs)]
+                    (first kv)))]
+    (if planter
+      (let [do-bpar (*build-project-and-run* (xref-with planter))]
+        (assert (fn? do-bpar))
+        (do-bpar bpar-param))
+      (let [args {*build-project-and-run* bpar-param}
+            name (generate-slix-name 'planter "BP&R")]
+        (open-slix-with-args args 'planter name)))))
+
+(defn build-project
+  [projname]
+  (-build-project-and-run {:project-name projname}))
+
+(defn build-project-and-run
+  [projname slix-name name args]
+  (-build-project-and-run {:project-name projname :slix-name slix-name :name name :args args}))
+
+;;;;
+
+(defn shutdown-manager
+  [_]
+  (when (fn? (shutdown-lein))
+    (try
+      ((shutdown-lein))
+      (catch Exception e
+        (log-severe "planter: shutdown-manager failed\n" (get-stack-trace-print-lines e))))))

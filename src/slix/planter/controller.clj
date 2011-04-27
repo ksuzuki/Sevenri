@@ -413,7 +413,7 @@
                               (if undl-rsn JOptionPane/YES_OPTION JOptionPane/YES_NO_CANCEL_OPTION))]
     (when (and (nil? undl-rsn) (= response JOptionPane/YES_OPTION))
       (set-ui-wait conf-frm)
-      (delete-project (obj2sym prjn-str))
+      (remove-project (obj2sym prjn-str))
       (set-ui-wait conf-frm false :refresh))))
 
 (defmethod do-command :move
@@ -460,44 +460,45 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn do-build-project-and-run
-  [slix controls set-ui-wait bprm init-close?]
-  (let [{:keys [slix-name name args]} bprm
-        proj-name (get-slix-ns slix-name)]
-    #_(lg "build project:" proj-name "and run:" slix-name "with name:" name " and args:" args)
+  [slix controls set-ui-wait bpar-param init-close?]
+  (let [{:keys [project-name slix-name name args]} bpar-param]
+    #_(lg "build project:" project-name "and run:" slix-name "with name:" name " and args:" args)
     (future
       (let [frm (slix-frame slix)]
-        (if-not (project-exists? proj-name)
-          (let [msg (str proj-name " project doesnot exist.")
+        (if-not (project-exists? project-name)
+          (let [msg (str project-name " project doesnot exist.")
                 ttl "Project Not Exist"]
             (JOptionPane/showMessageDialog frm msg ttl JOptionPane/ERROR_MESSAGE))
           ;;
           (do
             (when init-close?
-              (invoke-later slix #(.setSelectedItem (:project-names controls) (str proj-name))))
-            (invoke-later slix #(.doClick (:jar controls)))
+              (invoke-later slix #(.setSelectedItem (:project-names controls) (str project-name))))
             ;;
+            (invoke-later slix #(.doClick (:jar controls)))
             (Thread/sleep 500)
             (loop [busy? (is-lein-agent-busy? slix)]
               (when busy? (recur (is-lein-agent-busy? slix))))
             ;;
-            (if-not (is-project-built? proj-name)
-              (let [msg (str "Building " proj-name " project failed.")
+            (if-not (is-project-built? project-name)
+              (let [msg (str "Building " project-name " project failed.")
                     ttl "Build Failed"]
                 (JOptionPane/showMessageDialog frm msg ttl JOptionPane/ERROR_MESSAGE))
               ;;
               (do
-                (if args
-                  (if name
-                    (open-slix-with-args args slix-name name)
-                    (open-slix-with-args args slix-name))
-                  (if name
-                    (open-slix slix-name name)
-                    (open-slix slix-name)))
+                (when (and slix-name (or name args))
+                  (if args
+                    (if name
+                      (open-slix-with-args args slix-name name)
+                      (open-slix-with-args args slix-name))
+                    (if name
+                      (open-slix slix-name name)
+                      (open-slix slix-name))))
+                ;;
                 (when init-close?
                   (close-slix slix))))))))))
 
 (defn add-do-build-project-and-run-to-xref
   [slix controls set-ui-wait]
   (add-to-xref slix *build-project-and-run*
-               (fn [bprm]
-                 (do-build-project-and-run slix controls set-ui-wait bprm false))))
+               (fn [bpar-param]
+                 (do-build-project-and-run slix controls set-ui-wait bpar-param false))))

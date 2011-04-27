@@ -347,81 +347,45 @@
           
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-project-protocol-file
-  []
-  (get-src-project-path (get-config 'src.project.protocol-file-name)))
-
-(defn get-project-protocol
-  ([]
-     (get-project-protocol nil))
-  ([kwd]
-     (let [ppf (get-project-protocol-file)]
-       (if (.exists ppf)
-         (try
-           (let [ppm (load-string (slurp ppf :encoding "UTF-8"))]
-             (if (keyword? kwd)
-               (get ppm kwd)
-               ppm))
-           (catch Exception e
-             (log-severe "get-project-protocol: failed to read protocol file")
-             nil))
-         (do
-           (log-severe "get-project-protocol: protocol file missing")
-           nil)))))
+(defprotocol PProjectManager
+  ;; Methods for querying and managing project manager
+  (get-name [projman])
+  (ready? [projman])
+  (setup? [projman])
+  (shutdown [projman])
+  ;; Methods for querying and managing project
+  (exists? [projman projname])
+  (built? [projman projname])
+  (build [projman projname])
+  (get-jars [projman projname])
+  (build-and-run [projman projname slix-name name args]))
 
 (defn get-project-manager
+  "Return the current project manager when it's ready to operate. nil
+   otherwise."
   []
-  (get-project-protocol :manager))
+  (when (and (satisfies? PProjectManager *project-manager*)
+             (ready? *project-manager*))
+    *project-manager*))
 
-(defn get-project-manager-slix
-  []
-  (get-project-protocol :slix))
-
-(defn query-project
-  ([query-kwd slix-name]
-     (query-project query-kwd slix-name nil))
-  ([query-kwd slix-name name]
-     (query-project query-kwd slix-name name nil))
-  ([query-kwd slix-name name args]
-     (when-let [prtcl (get-project-protocol)]
-       (query-project query-kwd slix-name name args prtcl)))
-  ([query-kwd slix-name name args protocol]
-     (when (and (keyword? query-kwd)
-                (or (symbol? slix-name) (string? slix-name))
-                (and (map? protocol) (:manager protocol) (get protocol query-kwd)))
-       (let [manager (symbol (:manager protocol))
-             qryfsym (symbol (get protocol query-kwd))
-             loaded? (try
-                       (require manager)
-                       true
-                       (catch Exception e
-                         (log-severe "query-project: failed to load manager:" manager
-                                     "\n" (get-stack-trace-print-lines e))
-                         false))
-             qryfvar (when (and loaded? (find-ns manager))
-                       (ns-resolve manager qryfsym))]
-         (if (var? qryfvar)
-           (let [m (array-map :slix-name slix-name :name name :arguments args)]
-             (if (fn? (var-get qryfvar))
-               (try
-                 (qryfvar m)
-                 (catch Exception e
-                   (log-severe "query-project: fn failed:" qryfsym
-                               "\n" (get-stack-trace-print-lines e))
-                   nil))
-               (if-let [qrymthd (get-method (var-get qryfvar) (class m))]
-                 (try
-                   (qrymthd m)
-                   (catch Exception e
-                     (log-severe "query-project: method failed:" qryfsym
-                                 "\n" (get-stack-trace-print-lines e))
-                     nil))
-                 (do
-                   (log-severe "query-project: no fn/method:" query-kwd)
-                   nil))))
-           (do
-             (log-severe "query-project: no fn/method:" query-kwd)
-             nil))))))
+(defn load-project-manager
+  "Load and return a project manager with the given name. Return nil when
+   loading it failed."
+  [projman-name]
+  (let [projman-lib (symbol (str projman-name \. (get-config 'project.manager-acquiring-lib-name)))]
+    (try
+      (require projman-lib)
+      (let [get-project-manager (ns-resolve projman-lib (get-config 'project.manager-acquiring-fn-name))
+            projman (get-project-manager)]
+        (if (satisfies? PProjectManager projman)
+          projman
+          (do
+            (log-severe "load-project-manager: PProgramManager protocol not implemented:" projman)
+            nil)))
+      (catch Exception e
+        (log-severe "load-project-manager failed:" projman-lib
+                    "\n" (get-stack-trace-print-lines e))
+        nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -546,17 +510,20 @@
 
 (defn- -setup-project-manager?
   []
-  (when-let [pm (get-project-manager)]
-    (when-not (query-project :ready? pm)
-      (future
-        (when-not (query-project :setup? pm)
-          (log-severe "-setup-project-manager? failed:" pm)))))
-  true)
-
+  (if-let [projman (load-project-manager (get-config 'project.manager-name))]
+    (do
+      (reset-project-manager projman)
+      (when-not (ready? projman)
+        (future
+          (when-not (setup? projman)
+            (log-severe "-setup-project-manager? failed"))))
+      true)
+    false))
+    
 (defn- -shutdown-project-manager?
   []
-  (when-let [pm (get-project-manager)]
-    (query-project :shutdown pm))
+  (when-let [projman (get-project-manager)]
+    (shutdown projman))
   true)
 
 (defn- -read-sevenri-version?

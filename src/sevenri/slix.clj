@@ -429,7 +429,8 @@
 
 (defn get-slix-project-jar-paths
   [sn]
-  (query-project :get-jars (get-slix-ns sn)))
+  (when-let [projman (get-project-manager)]
+    (get-jars projman (get-slix-ns sn))))
 
 (defn create-slix-class-loader
   [sn]
@@ -528,16 +529,14 @@
   ([slix body]
      (invoke-later slix body true)))
 
-(defn is-project-ready-if-exists?
+(defn is-depending-project-ready-if-exists?
   [sn]
-  (if (= sn (get-project-manager-slix))
-    true
-  (let [fqsn (get-slix-ns sn)]
-    (if (query-project :exists? fqsn)
-      (if (query-project :built? fqsn)
-        true
-        false)
-      true))))
+  (let [projname (get-slix-ns sn)]
+    (if-let [projman (get-project-manager)]
+      (if (exists? projman projname)
+        (built? projman projname)
+        true)
+      true)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; load/save slix frame
@@ -797,22 +796,23 @@
                (recur (inc X)))))))))
 
 (defn open-slix
-  "Return a future oject that creates a slix instance using slix name sn
-   and notifies open events to it. Instance name is optional.
-   If the opening slix requires associating project and it is not built,
-   return a future object that delegates the open task to query-project."
+  "Return a future oject that creates a slix instance using slix name and
+   notifies open events to it. Instance name is optional. If the opening
+   slix requires depending project and it's not built, return a future
+   object that delegates the open task to the project manager."
   ([sn]
      (open-slix sn (generate-slix-name sn)))
   ([sn name]
-     (if (is-project-ready-if-exists? sn)
+     (if (is-depending-project-ready-if-exists? sn)
        (let [sn (symbol sn)
              name (str name)
              cl (create-slix-class-loader sn)
              slix {:id (gensym 'id) :sn sn :name name :cl cl :args -open-slix-args-}]
          (-get-context-and-start-slix-creation slix))
        (future
-         (query-project :build-and-run (get-slix-ns sn) name -open-slix-args-)
-         :sevenri.event/slix-open-after-building-project))))
+         (when-let [projman (get-project-manager)]
+           (build-and-run projman (get-slix-ns sn) sn name -open-slix-args-)
+           :sevenri.event/slix-open-after-building-project)))))
 
 (defn open-slix-and-wait
   "Return the dereference to the future object returned from the open-slix

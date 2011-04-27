@@ -62,8 +62,7 @@
                   :user {:dir-name 'user
                          :scratch-file-name "scratch.clj"}}
         
-        :project {:dir-name 'project
-                  :protocol-file-name "protocol.clj"}
+        :project {:dir-name 'project}
         
         :resources {:dir-name 'resources
                     :images {:dir-name 'images
@@ -94,6 +93,10 @@
   
   :frame {:width 320
           :height 200}
+
+  :project {:manager-name 'slix.planter
+            :manager-acquiring-lib-name 'manager
+            :manager-acquiring-fn-name 'get-project-manager}
 
   :slix {:arguments {:alt-open :alt-open}}
 
