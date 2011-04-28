@@ -285,7 +285,7 @@
            (= kc KeyEvent/VK_ESCAPE)
              (find-back-to-start-pos ced doc)
            (or (= kc KeyEvent/VK_ENTER)
-               (and (= kc KeyEvent/VK_G) (bit-and (.getModifiers e) Event/META_MASK)))
+               (and (= kc KeyEvent/VK_G) (pos? (bit-and (.getModifiers e) Event/META_MASK))))
              (find-next-keyword ced doc true)))))))
 
 (defn find-keyword-document-listener

@@ -116,6 +116,7 @@
         [o _] (last (:pos-history fctxt))
         mxpos (dec (.getLength doc))]
     (.putProperty doc *prop-find-context* fctxt)
+    #_(lg "do-find next?:" next? "s:" s "k:" k)
     (if (empty? keywd)
       [-1 o]
       (if (if (.hitEnd mtchr)
