@@ -38,7 +38,7 @@
       px)))
 
 (defn drawParenText
-  "Repeat drawing unselected text and paren char."
+  "Repeat drawing unselected text and paren char. Must return a new x."
   [this g x y p0 p1 pp0 pp1]
   ;; Don't mess the original graphics context. Working with a copy and
   ;; disposing it in the end is the Swing way.
@@ -52,15 +52,14 @@
              p p0]
         (if (< p p1)
           (if (or (= p pp0) (= p pp1))
-            (let [tx (if (< a p) (.superDrawUnselectedText this g x y a p) x)
+            (let [tx (if (= a p) x (.superDrawUnselectedText this g x y a p))
                   px (drawParenChar this pcg tx y p)
                   np (inc p)]
               (recur px np np))
             (recur x a (inc p)))
-          ;; Draw rest of the unselected text if any.
-          (when (< a p)
-            ;; The return value of this form is going to be returned to the
-            ;; caller because this is the last call in the try form.
+          ;; Draw the rest of the unselected text, if any.
+          (if (= a p)
+            x
             (.superDrawUnselectedText this g x y a p))))
       (finally
        (.dispose pcg)))))
@@ -75,8 +74,8 @@
         [pp0 pp1] (if (and ppp (not (second ppp)))
                     (or (first ppp) [Long/MAX_VALUE -1])
                     [Long/MAX_VALUE -1])]
-    (if (or (<= p1 pp0) ;; The range is before the begin-paren.
-            (< pp1 p0)  ;; The range is after the end-paren.
+    (if (or (<= p1 pp0)  ;; The range is before the begin-paren.
+            (< pp1 p0)   ;; The range is after the end-paren.
             (and (< pp0 p0) (<= p1 pp1))) ;; The range is inside the parens exclusively.
       (.superDrawUnselectedText this g x y p0 p1)
       ;; The range includes either or both the begin- and end-paren.
