@@ -46,6 +46,7 @@
   [event]
   (set-slix-visible)
   (when (:open-ced (slix-args))
+    #_(lg "slix-args:" (slix-args))
     (invoke-later #(do
                      (deref (open-slix-with-args
                              {:file (:file (slix-args))

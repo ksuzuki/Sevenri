@@ -29,6 +29,7 @@
                     (let [args (if open-ced?
                                  {:exception e :file file :line line :open-ced true}
                                  {:exception e :file file :line line})]
+                      #_(lg "args:" args)
                       (open-slix-with-args args 'exceptor (gensym "Exceptor"))
                       (assoc edb (str file) line))
                     edb)))))
