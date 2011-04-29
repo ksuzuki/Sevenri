@@ -355,7 +355,7 @@
 ;;;;
 
 (defn shutdown-manager
-  [_]
+  []
   (when (fn? (shutdown-lein))
     (try
       ((shutdown-lein))
