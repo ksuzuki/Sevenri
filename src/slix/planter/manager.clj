@@ -36,4 +36,7 @@
     (get-jars [_ projname]
       (get-project-all-jars projname))
     (build-and-run [_ projname slix-name name args]
-      (build-project-and-run projname slix-name name args))))
+      (build-project-and-run projname slix-name name args))
+    ;;
+    (toString [this]
+      (str (.get-name this) "[" (when-not (.ready? this) "not ") "ready]"))))
