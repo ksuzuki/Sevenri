@@ -3,55 +3,53 @@
 # Print usage
 
 if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
-    echo "usage: clean [-h|--help] [-i|--sid [instance_name]]"
+    echo "usage: clean [-h|--help|-v|--verbose] [-i|--sid [instance_name]]"
     exit 0
 fi
 
-if [ "$SEVENRI_ROOT" == "" ]; then
-    SEVENRI_ROOT=`pwd`
-fi
+verbose=nil
 
-SevenriRoot=$SEVENRI_ROOT
+SevenriRoot=`pwd` # where is a Sevenri repo root directory
 
 # Sanity check
 
-SevnriCljFileName="${SevenriRoot}/src/Sevenri.clj"
+if [ "`which lein`" == "" ]; then
+    echo "This script requires Leiningen, lein."
+    exit 1
+fi
 
-if [ ! -f $SevnriCljFileName ]; then
+SevenriCljFileName="${SevenriRoot}/src/Sevenri.clj"
+
+if [ ! -f $SevenriCljFileName ]; then
     echo "This script requires to run on a Sevenri repo root directory."
     exit 1
 fi
 
 # Optionally cleanup sid
 
-if [ "$1" == "-i" ] || [ "$1" == "--sid" ]; then
-    if [ "$2" == "" ]; then
-        SevenriInstanceName="Sevenri"
-    else
-        SevenriInstanceName="Sevenri_$2"
-    fi
-else
-    SevenriInstanceName=""
-fi
+SevenriInstanceName=""
+SIDPath=""
+
+for arg in $*; do
+    case "${arg}" in
+        "-v" | "--verbose") verbose=t ;;
+        "-i" | "--sid") SevenriInstanceName="Sevenri" ;;
+        *)  if [ "${SevenriInstanceName}" != "" ] && [ "${arg}" != "Sevenri" ]; then
+            	SevenriInstanceName="Sevenri_${arg}"
+            fi ;;
+    esac
+done
 
 if [ "${SevenriInstanceName}" != "" ]; then
-    SIDPath=$HOME/.sevenri/$SevenriInstanceName
+    SIDPath="${HOME}/.sevenri/${SevenriInstanceName}"
 fi
-
-# Leiningen command
-
-if [ "${LEIN_CMD}" = "" ]; then
-    LEIN_CMD="lein"
-fi
-
-LeinCmd=$LEIN_CMD
 
 # Helper functions
 
 debug_msg()
 {
-    if [ $DEBUG_CLEAN_SEVENRI ]; then
-        echo "DBG:" $1
+    if [ $verbose == t ]; then
+        echo $1
     fi
 }
 
@@ -76,13 +74,15 @@ remove_file_type_on_path()
 
 clean_lein_project()
 {
+    debug_msg "pushd $1"
     pushd $1 >/dev/null
 
-    debug_msg "${LEIN_CMD} clean"
-    $LEIN_CMD clean >/dev/null
+    debug_msg "lein clean"
+    lein clean >/dev/null
     remove_path ./lib
     remove_path ./pom.xml
 
+    debug_msg "popd"
     popd >/dev/null
 }
 
@@ -92,15 +92,13 @@ main()
     clean_lein_project .
 
     print_msg "Removing src/library paths..."
-    for path in "clojure" "incanter" "slix/incantea/data"
-    do
+    for path in "clojure" "incanter" "slix/incantea/data"; do
         print_msg $path
         remove_path ./src/library/$path
     done
 
     print_msg "Removing src/sevenri paths..."
-    for path in "listeners/evtdelegator"
-    do
+    for path in "listeners/evtdelegator"; do
         print_msg $path
         remove_path ./src/sevenri/$path
     done
@@ -109,20 +107,18 @@ main()
     remove_file_type_on_path "class" ./src/sevenri/listeners
 
     print_msg "Removing src/slix paths..."
-    for path in "sevenri/jvm/gui/bin"
-    do
+    for path in "sevenri/jvm/gui/bin"; do
         print_msg $path
         remove_path ./src/slix/$path
     done
 
     print_msg "Cleaning src/project/slix projects..."
-    for project in "documenter" "incantea" "planter"
-    do
+    for project in "documenter" "incantea" "planter"; do
         print_msg $project
         clean_lein_project ./src/project/slix/$project
     done
 
-    if [ $SIDPath ]; then
+    if [ "${SIDPath}" != "" ]; then
         print_msg "Removing Sevenri instance directory: $SIDPath..."
         remove_path $SIDPath
     fi

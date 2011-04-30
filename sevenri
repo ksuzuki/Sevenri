@@ -2,15 +2,30 @@
 # Use the instance_name_JVM_OPTS environment variable, such as
 # 'Sevenri_JVM_OPTS' to pass extra JVM options.
 
-if [ "$1" == "" ]; then
-    iname="Sevenri"
-else
-    iname="Sevenri_$1"
+if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+    echo "usage: sevenri [-h|--help|-v|--verbose] [instance-name]"
+    exit 0
 fi
+
+verbose=nil
+iname="Sevenri"
+
+for arg in $*; do
+    case "${arg}" in
+        "-v" | "--verbose") verbose=t ;;
+        *)  if [ "${arg}" != "Sevenri" ]; then
+            	iname="Sevenri_${arg}"
+            fi ;;
+    esac
+done
 
 defjvmopts="-Dfile.encoding=UTF-8 -Dsevenri.sid.name=${iname}"
 
 extjvmevnm="${iname}_JVM_OPTS"
 extjvmopts=${!extjvmevnm}
 
-/usr/bin/java $defjvmopts $extjvmopts -cp src:lib/* Sevenri &>/dev/null &
+if [ $verbose == t ]; then
+    java $defjvmopts $extjvmopts -cp src:lib/* $iname &
+else
+    java $defjvmopts $extjvmopts -cp src:lib/* $iname &>/dev/null &
+fi
