@@ -55,7 +55,10 @@
     (let [cls (.getClassName sn-ste)
           rem (re-matches #"^([^$]+)\$.*" cls)]
       (when rem
-        (let [fqsn (second rem)
+        ;; Note that the fully-qualified slix name in the rem is actually a
+        ;; Java package name. So only the translation from '_' to '-' to it
+        ;; is required.
+        (let [fqsn (.replace (second rem) \_ \-)
               fname (.getFileName sn-ste)
               line (.getLineNumber sn-ste)]
           (launch-exceptor e fqsn fname line))))))

@@ -24,13 +24,13 @@
 
 (defn launch-exceptor
   [^Exception e fqsn file-name line-number]
-  #_(lg "fqsn:" fqsn "file-name:" file-name "line-number:" line-number)
+  #_(lg "launch-exceptor: fqsn:" fqsn "file-name:" file-name "line-number:" line-number)
   (if (re-find (re-pattern (str (get-slix-ns *ced*))) (str fqsn))
     ;; Cannot open ced when it's the cause of the exception.
     (do-launch e (File. file-name) line-number false)
     (let [clj-file (get-src-path (str (sym2path fqsn) '.clj))
           sub-path (sym2path fqsn)]
-      #_(lg "clj-file:" clj-file "sub-path:" sub-path)
+      #_(lg "launch-exceptor: clj-file:" clj-file "sub-path:" sub-path)
       (if (and (= (.getName clj-file) file-name) (.exists clj-file))
         (do-launch e clj-file line-number)
         (let [clj-file (File. (get-src-path) (str sub-path "/" file-name))]

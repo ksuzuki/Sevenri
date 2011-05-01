@@ -132,7 +132,7 @@
 
 (defn get-spell-file
   [spell-name]
-  (get-spells-dir) (str (norm-spell-name spell-name) '!clj))
+  (get-path (get-spells-dir) (str (norm-spell-name spell-name) '.clj)))
 
 (defn get-spell-name-from-spell-file
   [spell-file]
