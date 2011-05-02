@@ -64,7 +64,6 @@
   [& args]
   (intern 'clojure.core '*command-line-args* (first args))
   (reset-ok-to-quit-fn ok-to-quit?)
-  (run-swank-repl)
   (try
     (create-sid*)
     (when (create-sid-sevenri-lock-file?)

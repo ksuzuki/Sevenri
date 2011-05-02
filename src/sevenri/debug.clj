@@ -11,7 +11,7 @@
 
 (ns ^{:doc "Sevenri debug library"}
   sevenri.debug
-  (:use [sevenri config defs]))
+  (:use [sevenri config defs log props]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -20,13 +20,41 @@
   *swank-repl-is-running*)
 
 (defn run-swank-repl
+  "Run swank-repl in a system thread."
   ([]
-     (when (System/getenv (get-config 'debug.env-name))
-       (run-swank-repl true)))
-  ([run]
-     (when (and run (not (is-swank-repl-running?)))
-       (require 'swank.swank)
-       ((ns-resolve 'swank.swank 'start-repl)
-        (get-config 'debug.swank-port)
-        :encoding (get-config 'debug.swank-encoding))
-       (reset-swank-repl-state true))))
+     (run-swank-repl (get-prop (get-properties) 'sevenri.debug.swank-port)))
+  ([port]
+     (when-not (is-swank-repl-running?)
+       (let [port (try
+                    (Integer/parseInt (str port))
+                    (catch Exception e
+                      (Integer/parseInt (get-prop (get-properties) 'sevenri.debug.swank-port))))
+             encoding (get-prop (get-properties) 'sevenri.debug.swank-encoding)
+             ;;
+             event-queue (.getSystemEventQueue (java.awt.Toolkit/getDefaultToolkit))
+             source (Object.)
+             runnable #(future
+                         (reset-swank-repl-is-running true)
+                         (require 'swank.swank)
+                         ((ns-resolve 'swank.swank 'start-repl) port :encoding encoding))]
+         (.postEvent event-queue (java.awt.event.InvocationEvent. source runnable))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; startup/shutdown
+
+(defn- -run-swank-repl?
+  []
+  (when-let [port (get-env (get-prop (get-properties) 'sevenri.debug.env-name))]
+    (run-swank-repl port))
+  true)
+
+(defn startup-debug?
+  []
+  (apply while-each-true?
+         (do-each-after* print-fn-name*
+          -run-swank-repl?)))
+
+(defn shutdown-debug?
+  []
+  (apply while-each-true?
+         nil))

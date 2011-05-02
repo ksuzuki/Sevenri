@@ -13,7 +13,9 @@
 
 (use '[clojure pprint]
      '[clojure.java browse io]
-     '[clojure.java.shell :rename {sh cjsh}])
+     '[clojure.java.shell :rename {sh cjsh}]
+     '[sevenri debug event utils]
+     '[slix.repl.core :only (repl clear-repl-content)])
 
 ;; fns for repl
 

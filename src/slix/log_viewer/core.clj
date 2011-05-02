@@ -47,7 +47,7 @@
   "The destination name has to be 'logger.dtd' because that's what's
    expected in the log.xml."
   []
-  (let [dsrc (get-resources-path (get-config 'src.resources.logger.dir-name)
+  (let [dsrc (get-resources-path (get-config 'src.resources.logger.dir)
                                  (get-config 'src.resources.logger.dtd-file-name))
         dtgt (get-sid-temp-path (get-config 'src.resources.logger.dtd-file-name))]
     (copy dsrc dtgt :econdig "UTF-8")

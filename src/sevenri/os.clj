@@ -11,8 +11,7 @@
 
 (ns ^{:doc "Sevenri interface library to OS depedent features"}
   sevenri.os
-  (:use [sevenri config log]
-        [sevenri.defs :only (*ok-to-quit-fn*)])
+  (:use [sevenri config defs log props])
   (:import (java.io File)
            (javax.swing ImageIcon)))
 
@@ -22,49 +21,12 @@
   []
   (System/getProperty "os.name"))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Mac
+
 (defn is-mac?
   []
   (<= 0 (.indexOf (get-os-name) "Mac OS X")))
-
-(defn is-win?
-  []
-  (<= 0 (.indexOf (get-os-name) "Windows")))
-
-(defn is-linux?
-  []
-  (<= 0 (.indexOf (get-os-name) "Linux")))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn- -set-mac-dock-icon
-  []
-  (let [idr (reduce (fn [d p] (File. d (str (get-config p))))
-                    (system-property-user-dir)
-                    ['src.dir-name
-                     'src.resources.dir-name
-                     'src.resources.images.dir-name
-                     'src.resources.images.icons.dir-name])
-        icf (File. idr (get-config 'src.resources.images.icons.sevenri-icon-file-name))]
-    (when (.exists icf)
-      (let [ic (ImageIcon. (str icf))
-            app (com.apple.eawt.Application/getApplication)]
-        (.setDockIconImage app (.getImage ic))))))
-    
-(defn- -init-mac?
-  []
-  (future (-set-mac-dock-icon))
-  #_(System/setProperty "apple.awt.graphics.UseQuartz" "true")
-  (System/setProperty "apple.laf.useScreenMenuBar" "true")
-  (let [app (com.apple.eawt.Application/getApplication)]
-    (.removeAboutMenuItem app)
-    (if *ok-to-quit-fn*
-      (.addApplicationListener app (proxy [com.apple.eawt.ApplicationAdapter] []
-                                     (handleQuit [e]
-                                                 (.setHandled e (*ok-to-quit-fn*)))))
-      (log-severe "-init-mac?: the quit handler is undefined")))
-  true)
-
-;;;;
 
 (defn- -remove-mac-application-listener
   "Do this before saving a slix frame or addWindowListner call with
@@ -87,6 +49,20 @@
     (.addWindowListener frame wl)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Windows
+
+(defn is-win?
+  []
+  (<= 0 (.indexOf (get-os-name) "Windows")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Linux
+
+(defn is-linux?
+  []
+  (<= 0 (.indexOf (get-os-name) "Linux")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn presave-slix-frame-os
   [frame]
@@ -100,24 +76,63 @@
    (is-mac?) (-add-mac-application-listener frame presave-slix-os-value)
    :else nil))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn get-ignorable-file-names-os
   []
   (cond
-   (is-mac?) #{".DS_Store"}
+   (is-mac?) (read-prop (get-properties) 'sevenri.platform.mac.ignorable-file-names)
    :else nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
 
+(defn- -set-mac-dock-icon
+  [app]
+  (let [idr (reduce (fn [d p] (File. d (str (get-config p))))
+                    (get-user-dir)
+                    ['src.dir
+                     'src.resources.dir
+                     'src.resources.images.dir
+                     'src.resources.images.icons.dir])
+        icf (File. idr (get-config 'src.resources.images.icons.sevenri-icon-file-name))]
+    (when (.exists icf)
+      (let [ic (ImageIcon. (str icf))]
+        (.setDockIconImage app (.getImage ic))))))
+    
+(defn- -init-mac?
+  []
+  (doseq [key ["apple.awt.graphics.UseQuartz"
+               "apple.laf.useScreenMenuBar"]]
+    (let [val (if (= (str (get-prop (get-properties) key)) "true") "true" "false")]
+      (System/setProperty key val)))
+  ;;
+  (let [app (com.apple.eawt.Application/getApplication)]
+    (future (-set-mac-dock-icon app))
+    (.removeAboutMenuItem app)
+    (if (fn? *ok-to-quit-fn*)
+      (do
+        (.addApplicationListener app (proxy [com.apple.eawt.ApplicationAdapter] []
+                                       (handleQuit [e]
+                                         (.setHandled e (*ok-to-quit-fn*)))))
+        true)
+      (do
+        (log-severe "-init-mac?: the quit handler is undefined")
+        false))))
+
+;;;;
+
 (defn startup-os?
   []
   (cond
-   (is-mac?) (-ensure-processes
-              -init-mac?)
+   (is-mac?) (apply while-each-true?
+                    (do-each-after* print-fn-name*
+                     -init-mac?))
    :else false))
 
 (defn shutdown-os?
   []
-  true)
+  (cond
+   (is-mac?) (apply while-each-true?
+                    nil)
+   :else false))

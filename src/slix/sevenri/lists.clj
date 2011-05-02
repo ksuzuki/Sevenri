@@ -10,7 +10,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.sevenri.lists
-  (:use [sevenri config core log slix utils]
+  (:use [sevenri config core log props slix utils]
         [slix.sevenri defs ui]
         [clojure.java io])
   (:import (java.awt Cursor)
@@ -141,13 +141,14 @@
                          open-lib? (pos? (bit-and (.getModifiersEx e) InputEvent/META_DOWN_MASK))
                          alt-open? (pos? (bit-and (.getModifiersEx e) InputEvent/ALT_DOWN_MASK))]
                        (future
-                         (let [oc (.getCursor frame)]
+                         (let [oc (.getCursor frame)
+                               alt-open-kwd (read-prop (get-properties) 'slix.argkeyword.alt-open)]
                            (.setCursor frame Cursor/WAIT_CURSOR)
                            (try
                              (deref
                               (cond
                                open-lib? (open-slix-with-args {:file (get-slix-ns sn)} 'ced)
-                               alt-open? (open-slix-with-args {(get-config 'slix.arguments.alt-open) true} sn)
+                               alt-open? (open-slix-with-args {alt-open-kwd true} sn)
                                :else (open-slix sn)))
                              (finally
                               (.setCursor frame oc)))))))

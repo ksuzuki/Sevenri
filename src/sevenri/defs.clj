@@ -16,6 +16,10 @@ which can be redefined."}
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; config
 
+(def *user-dir* (System/getProperty "user.dir"))
+
+(def *user-home* (System/getProperty "user.home"))
+
 (def *dsr-path* nil)
 
 (defn reset-dsr-path
@@ -48,7 +52,7 @@ which can be redefined."}
 
 (def *swank-repl-is-running* false)
 
-(defn reset-swank-repl-state
+(defn reset-swank-repl-is-running
   [running?]
   (def *swank-repl-is-running* running?))
 
@@ -101,16 +105,6 @@ which can be redefined."}
      (def *sevenri-logger-popup-level* level)
      (def *sevenri-logger-popup-sec* sec)))
 
-(defn get-sevenri-logger-popup-level
-  []
-  (cond
-   (instance? java.util.logging.Level *sevenri-logger-popup-level*)
-     (.intValue *sevenri-logger-popup-level*)
-   (instance? Integer *sevenri-logger-popup-level*)
-     *sevenri-logger-popup-level*
-   :else
-     (.intValue java.util.logging.Level/OFF)))
-
 ;;;;
 
 (def *sevenri-log-file* nil)
@@ -147,6 +141,15 @@ which can be redefined."}
 (defn reset-ok-to-quit-fn
   [ok-to-quit-fn]
   (def *ok-to-quit-fn* ok-to-quit-fn))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; props
+
+(def *properties* nil)
+
+(defn reset-properties
+  [properties]
+  (def *properties* properties))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix
@@ -191,31 +194,12 @@ which can be redefined."}
   (def *event-delegator-class*
     (Class/forName (str evtdelegator-name))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; startup
-
-;; The order is important. Don't change unless it's necessary.
-(def *startup-order* '[log jvm os core slix ui])
-
-(defn using-fn-prefix
-  [fquns]
-  (let [uns (if-let [m (re-matches #"^sevenri\.(.*)$" (str fquns))]
-              (second m)
-              fquns)]
-    (str uns "-using-")))
-
-(defmacro using-fns
-  "uns is using rfns of rns. Expand to defns of uns-using-rfn-uns"
-  [uns rns rfns]
-  (let [ufp (using-fn-prefix uns)
-        dfs (map #(list 'defn
-                        (symbol (str ufp % \- rns))
-                        '[& args]
-                        (vector (list 'quote %) (list 'quote rns)))
-                 rfns)]
-    `(do ~@dfs)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; ui
+;;;;
 
 (def *saved-dynaclass-listeners* '_*edl*_)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; startup/shutdown
+
+;; The order is important. Don't change unless it's necessary.
+(def *startup-order* '[log props os jvm core slix ui debug])

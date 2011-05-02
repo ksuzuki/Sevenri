@@ -10,7 +10,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.log-viewer.ui
-  (:use [sevenri slix ui])
+  (:use [sevenri props slix ui])
   (:import (java.awt Dimension Font)
            (javax.swing JScrollPane JTextArea)))
 
@@ -33,4 +33,12 @@
     (doto sp
       (.setVerticalScrollBarPolicy JScrollPane/VERTICAL_SCROLLBAR_ALWAYS))
     (.add cp sp)
-    (.setMinimumSize fr (Dimension. 160 80))))
+    (let [[minw minh] (read-prop (get-properties) 'slix.frame.size)
+          ssize (.getScreenSize (java.awt.Toolkit/getDefaultToolkit))
+          width (int (* (/ (.width ssize) 8) 5))
+          hight (int (/ (.height ssize) 4))
+          pos-y (- (.height ssize) hight)]
+      (doto fr
+        (.setMinimumSize (Dimension. minw minh))
+        (.setSize width hight)
+        (.setLocation 0 pos-y)))))

@@ -101,7 +101,7 @@
 
 (defmethod is-slix-project? clojure.lang.PersistentArrayMap
   [pmap]
-  (if (re-matches (re-pattern (str "^" (get-config 'src.slix.dir-name) "/.*"))
+  (if (re-matches (re-pattern (str "^" (get-config 'src.slix.dir) "/.*"))
               (str (:dir pmap)))
     true
     false))

@@ -10,7 +10,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.sevenri.ui
-  (:use [sevenri config core slix ui]
+  (:use [sevenri config core props slix ui]
         [slix.sevenri defs])
   (:import (java.awt Cursor Dimension Toolkit)
            (slix.sevenri.gui MainPanel)))
@@ -23,8 +23,7 @@
         cp (.getContentPane fr)
         mp (MainPanel.)]
     (.add cp mp)
-    (let [minw (get-config 'frame.width)
-          minh (get-config 'frame.height)
+    (let [[minw minh] (read-prop (get-properties) 'slix.frame.size)
           stdw 400
           stdh 250
           ssiz (.getScreenSize (Toolkit/getDefaultToolkit))

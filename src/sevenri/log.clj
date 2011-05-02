@@ -12,7 +12,7 @@
 (ns ^{:doc "Sevenri logging facility library"}
   sevenri.log
   (:require [clojure.stacktrace :as cst])
-  (:use [sevenri config defs refs utils])
+  (:use [sevenri config defs refs])
   (:import (java.io ByteArrayInputStream ByteArrayOutputStream
                     File PrintStream PrintWriter StringWriter)
            (java.text SimpleDateFormat)
@@ -47,7 +47,7 @@
 
 (defn get-sid-log-dir
   []
-  (let [dir (File. *sid-path* (str (get-config 'sid.log.dir-name)))]
+  (let [dir (File. *sid-path* (str (get-config 'sid.log.dir)))]
     (when-not (.exists dir)
       (when-not (.mkdir dir)
         (throw (RuntimeException. "get-sid-log-dir: mkdir failed"))))
@@ -87,8 +87,8 @@
 
 (defn get-sid-sevenri-exception-dir
   []
-  (let [sevenri-dir (File. *sid-path* (str (get-config 'sid.sevenri.dir-name)))
-        exception-dir (File. sevenri-dir (str (get-config 'sid.sevenri.exception.dir-name)))]
+  (let [sevenri-dir (File. *sid-path* (str (get-config 'sid.sevenri.dir)))
+        exception-dir (File. sevenri-dir (str (get-config 'sid.sevenri.exception.dir)))]
     (when-not (.exists sevenri-dir)
       (when-not (.mkdir sevenri-dir)
         (throw (RuntimeException. "get-sid-sevenri-exception-dir failed (sevenri-dir)"))))
@@ -99,17 +99,17 @@
 
 (defn get-exception-listeners-file
   []
-  (File. (get-sid-sevenri-exception-dir) (str (get-config 'sid.sevenri.exception.listeners) '.clj)))
+  (File. (get-sid-sevenri-exception-dir) (get-config 'sid.sevenri.exception.listeners-file-name)))
 
 (defn load-exception-listeners
   []
   (let [elfile (get-exception-listeners-file)]
-    (when (.exists elfile)
+    (when (and (.exists elfile) (pos? (.length elfile)))
       (try
         (let [elisteners (read-string (slurp elfile))]
           (reset! *exception-listeners-cache* elisteners))
         (catch Exception e
-          (throw (RuntimeException. "load-exception-listeners failed" e)))))))
+          (throw (RuntimeException. (str "load-exception-listeners failed:" e))))))))
 
 (defn register-exception-listener
   [listener-sn listener-name]
@@ -156,10 +156,15 @@
 (using-fns log ui
            [popup-log-notifier])
 
-(defmacro lg
-  "alias of log-info"
-  [& msgs]
-  `(log-info ~@msgs))
+(defn get-sevenri-logger-popup-level
+  []
+  (cond
+   (instance? java.util.logging.Level *sevenri-logger-popup-level*)
+     (.intValue *sevenri-logger-popup-level*)
+   (instance? Integer *sevenri-logger-popup-level*)
+     *sevenri-logger-popup-level*
+   :else
+     (.intValue java.util.logging.Level/OFF)))
 
 (defn log-msgs
   [lvl & msgs]
@@ -178,6 +183,11 @@
 (defn log-severe
   [& msgs]
   (apply log-msgs Level/SEVERE msgs))
+
+(defmacro lg
+  "alias of log-info"
+  [& msgs]
+  `(log-info ~@msgs))
 
 ;;;;
 
@@ -220,57 +230,48 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
 
-(defmacro -ensure-processes
-  [& preds]
-  `(every? true? (map #(do
-                         (print-info (:name (meta %)))
-                         (%))
-                      (list ~@preds))))
-
-;;;;
+;;;; startup
 
 (defn- -get-sid-log-dir?
   []
   (let [dir (get-sid-log-dir)]
     (and (.isDirectory dir) (.canWrite dir))))
 
-(defn- -cleanup-sid-log-dir?
-  []
-  (loop [lfs (find-files '.lck (get-sid-log-dir))]
-    (when (and (seq lfs) (.canWrite (first lfs)))
-      (.delete (first lfs))
-      (recur (rest lfs))))
-  true)
+(defn- -get-sid-log-files
+  [file-spec-regex]
+  (.listFiles (get-sid-log-dir)
+              (proxy [java.io.FilenameFilter] []
+                (accept [dir name]
+                  (if (and (= dir (get-sid-log-dir))
+                           (re-matches file-spec-regex name))
+                    true
+                    false)))))
 
-(defn- -get-new-log-file
-  ([]
-     (let [lfs (find-files '.log (get-sid-log-dir))
-           lfc (get-config 'sid.log.file-count)]
-       (if (< (count lfs) lfc)
-         (-get-new-log-file lfs)
-         (loop [lfs lfs]
-           (.delete (first lfs))
-           (if (< (count (rest lfs)) lfc)
-             (-get-new-log-file (rest lfs))
-             (recur (rest lfs)))))))
-  ([_]
-     (let [pfx (.format (SimpleDateFormat. "yyMMdd-HHmmss") (Date.))
-           lfn (File. (get-sid-log-dir) (str (get-config 'sid.log.file-name) \- pfx '.log))]
-       lfn)))
+(defn- -create-new-log-file
+  []
+  (let [pfx (.format (SimpleDateFormat. "yyMMdd-HHmmss") (Date.))
+        lfn (File. (get-sid-log-dir) (str (get-config 'sid.log.file-name) \- pfx '.log))]
+    lfn))
+
+(defn- -delete-oldest-log-file
+  []
+  (let [lfs (-get-sid-log-files #".*\.log$")]
+    (when (< (get-config 'sid.log.file-count) (count lfs))
+      (.delete (first (sort #(neg? (.compareTo (str %1) (str %2))) lfs))))))
 
 (defn- -create-logging-properties
   []
-  (let [lf (-get-new-log-file)]
+  (let [lf (-create-new-log-file)]
     (reset-sevenri-log-file lf)
     (str (println-str "java.util.logging.FileHandler.pattern =" (.getCanonicalPath lf)))))
 
 (defn- -get-logging-properties-inputstream
   [cfgs]
   (let [ldr (reduce (fn [d p] (File. d (str (get-config p))))
-                    (system-property-user-dir)
-                    ['src.dir-name
-                     'src.resources.dir-name
-                     'src.resources.logger.dir-name])
+                    (get-user-dir)
+                    ['src.dir
+                     'src.resources.dir
+                     'src.resources.logger.dir])
         lcf (File. ldr (get-config 'src.resources.logger.config-file-name))]
     (when-not (.exists lcf)
       (throw (RuntimeException. "-get-logging-properties-inputstream failed")))
@@ -281,7 +282,7 @@
   (if *sevenri-logger*
     true
     (let [cfgs (-create-logging-properties)
-          logger-name (str (get-config 'sid.log.logger-name))
+          logger-name (str (get-config 'sid.log.logger))
           logger-header (get-config 'sid.log.logger-header)]
       (with-open [is (-get-logging-properties-inputstream cfgs)]
         (.readConfiguration (LogManager/getLogManager) is)
@@ -321,36 +322,52 @@
 
 (defn- -install-thread-default-uncaught-exception-handler?
   []
-  (when-not *thread-default-uncaught-exception-handler*
-    (reset-thread-default-uncaught-exception-handler (proxy [Thread$UncaughtExceptionHandler] []
-                                                       (uncaughtException [t e]
-                                                                          (log-uncaught-exception t e)))))
-  (Thread/setDefaultUncaughtExceptionHandler *thread-default-uncaught-exception-handler*)
+  (let [handler (proxy [Thread$UncaughtExceptionHandler] []
+                  (uncaughtException [t e]
+                    (log-uncaught-exception t e)))]
+    (when-not *thread-default-uncaught-exception-handler*
+      (reset-thread-default-uncaught-exception-handler handler)
+      (Thread/setDefaultUncaughtExceptionHandler handler)))
   true)
-
-(defn- -get-sid-sevenri-exception-dir?
-  []
-  (if (.isDirectory (get-sid-sevenri-exception-dir)) true false))
 
 (defn- -load-exception-listeners?
   []
-  (load-exception-listeners)
+  (if (.isDirectory (get-sid-sevenri-exception-dir))
+    (do
+      (load-exception-listeners)
+      true)
+    false))
+
+;;;; shutdown
+
+(defn- -cleanup-sid-log-dir?
+  []
+  (doseq [lf (-get-sid-log-files #".*\.lck$")]
+    (when (.canWrite lf)
+      (.delete lf)))
+  true)
+
+(defn- -delete-oldest-log-file?
+  []
+  (-delete-oldest-log-file)
   true)
 
 ;;;;
 
 (defn startup-log?
   []
-  (-ensure-processes
-   -get-sid-log-dir?
-   -cleanup-sid-log-dir?
-   -get-logger?
-   -save-std-inouterr?
-   -redirect-system-out-and-err?
-   -install-thread-default-uncaught-exception-handler?
-   -get-sid-sevenri-exception-dir?
-   -load-exception-listeners?))
+  (apply while-each-true?
+         (do-each-after* print-fn-name*
+          -get-sid-log-dir?
+          -get-logger?
+          -save-std-inouterr?
+          -redirect-system-out-and-err?
+          -install-thread-default-uncaught-exception-handler?
+          -load-exception-listeners?)))
 
 (defn shutdown-log?
   []
-  true)
+  (apply while-each-true?
+         (do-each-after* print-fn-name*
+          -cleanup-sid-log-dir?
+          -delete-oldest-log-file?)))

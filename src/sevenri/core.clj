@@ -12,7 +12,7 @@
 (ns ^{:doc "Sevenri system core library"}
   sevenri.core
   (:require [clojure.java io])
-  (:use [sevenri config defs log refs utils]
+  (:use [sevenri config defs log props refs utils]
         [sevenri.os :only (get-ignorable-file-names-os)])
   (:import (java.io BufferedWriter File FileOutputStream)
            (java.io InputStreamReader OutputStreamWriter)))
@@ -110,8 +110,6 @@
         (throw (RuntimeException. (str "get-path: making path failed: " path)))))
     path))
 
-;;;;
-
 (defn empty-path?
   "Return true when path doesn't exist or is a directory containing no or
    any ignorable files."
@@ -125,15 +123,54 @@
           true
           false)))))
 
+(defn copy-path?
+  "Return true when and only when copying src-path to dst-path succeeded.
+   Otherwise, false."
+  [src-path dst-path]
+  (if (.exists src-path)
+    (let [dst-parent (.getParentFile dst-path)]
+      (when (and (not (.exists dst-parent)) (not (.mkdirs dst-parent)))
+        (log-warning "copy-path?: mkdirs failed. dst-parent:" dst-parent))
+      (if (.exists dst-parent)
+        (if (.isFile src-path)
+          ;; copy src-path to dst-path
+          (try
+            (clojure.java.io/copy src-path dst-path)
+            true
+            (catch Exception e
+              (log-warning "copy-path? failed. src-path:" src-path "dst-path:" dst-path
+                           "\n" (get-stack-trace-print-lines e))
+              false))
+          ;; copy src-path/files to dst-path/files
+          (every? true? (map #(let [fname (.getName %)]
+                                (copy-path? (File. src-path fname) (File. dst-path fname)))
+                             (.listFiles src-path))))
+        ;; dst-parent doesn't exist.
+        false))
+    ;; src-path doesn't exist.
+    false))
+
 (defn remove-path?
   "Return true when the specified path doesn't exist or when it exists but is
    removed successfully."
   [path]
   (let [p (get-path path)]
     (if (.exists p)
-      (if (.isDirectory p)
-        (and (every? true? (map remove-path? (.listFiles p))) (.delete p))
-        (.delete p))
+      (if (or (.isFile p) (empty? (.listFiles p)))
+        ;; path is a file or an empty directory.
+        (try
+          (if (.delete p)
+            true
+            (do
+              (log-warning "remove-path? failed. path:" path)
+              false))
+          (catch Exception e
+            (log-warning "remove-path? exception. path:" path
+                         "\n" (get-stack-trace-print-lines e))
+            false))
+        ;; path is a directory.
+        (and (every? true? (map remove-path? (.listFiles p))) (remove-path? p)))
+      ;; path doesn't exist.
       true)))
 
 ;;;;
@@ -159,33 +196,36 @@
      [& ~'child-paths]
      (apply get-path ~parent-path ~'child-paths)))
 
-(defgp get-user-home-path (system-property-user-home))
-(defgp get-user-path (system-property-user-dir))
+(defgp get-user-home-path (get-user-home))
+(defgp get-user-path (get-user-dir))
 
-(defgp get-doc-path (get-path (get-user-path) (get-config 'doc.dir-name)))
-(defgp get-lib-path (get-path (get-user-path) (get-config 'lib.dir-name)))
-(defgp get-src-path (get-path (get-user-path) (get-config 'src.dir-name)))
+(defgp get-doc-path (get-path (get-user-path) (get-config 'doc.dir)))
+(defgp get-lib-path (get-path (get-user-path) (get-config 'lib.dir)))
+(defgp get-src-path (get-path (get-user-path) (get-config 'src.dir)))
 
-(defgp get-src-library-path (get-path (get-src-path) (get-config 'src.library.dir-name)))
+(defgp get-src-library-path (get-path (get-src-path) (get-config 'src.library.dir)))
 (defmacro get-library-path [& paths] `(get-src-library-path ~@paths))
 
-(defgp get-src-project-path (get-path (get-src-path) (get-config 'src.project.dir-name)))
+(defgp get-src-project-path (get-path (get-src-path) (get-config 'src.project.dir)))
 (defmacro get-project-path [& paths] `(get-src-project-path ~@paths))
 
-(defgp get-src-resources-path (get-path (get-src-path) (get-config 'src.resources.dir-name)))
+(defgp get-src-properties-path (get-path (get-src-path) (get-config 'src.properties.dir)))
+(defmacro get-properties-path [& paths] `(get-src-properties-path ~@paths))
+
+(defgp get-src-resources-path (get-path (get-src-path) (get-config 'src.resources.dir)))
 (defmacro get-resources-path [& paths] `(get-src-resources-path ~@paths))
 
-(defgp get-src-sevenri-path (get-path (get-src-path) (get-config 'src.sevenri.dir-name)))
+(defgp get-src-sevenri-path (get-path (get-src-path) (get-config 'src.sevenri.dir)))
 (defmacro get-sevenri-path [& paths] `(get-src-sevenri-path ~@paths))
 
-(defgp get-temp-path (get-path (get-user-path) (get-config 'temp.dir-name)))
+(defgp get-temp-path (get-path (get-user-path) (get-config 'temp.dir)))
 
 (defgp get-dsr-path *dsr-path*)
 (defgp get-sid-path *sid-path*)
-(defgp get-sid-classes-path (get-sid-path (get-config 'sid.classes.dir-name)))
-(defgp get-sid-sevenri-path (get-sid-path (get-config 'sid.sevenri.dir-name)))
-(defgp get-sid-temp-path (get-sid-path (get-config 'sid.temp.dir-name)))
-(defgp get-sid-trash-path (get-sid-path (get-config 'sid.trash.dir-name)))
+(defgp get-sid-classes-path (get-sid-path (get-config 'sid.classes.dir)))
+(defgp get-sid-sevenri-path (get-sid-path (get-config 'sid.sevenri.dir)))
+(defgp get-sid-temp-path (get-sid-path (get-config 'sid.temp.dir)))
+(defgp get-sid-trash-path (get-sid-path (get-config 'sid.trash.dir)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Temporary file creator fns
@@ -232,7 +272,7 @@
        (if (re-find (re-pattern (str "^" (get-sid-path))) (.getPath path))
          ;; A sid path is moved to a relative location in !sevenri.trash.sid.
          (trash-path? path
-                      (get-sid-trash-path (get-config 'sid.trash.sid.dir-name)
+                      (get-sid-trash-path (get-config 'sid.trash.sid.dir)
                                           (File. (subs (.getPath path)
                                                        (inc (count (str (get-sid-path))))))))
          ;; A path under the user directory is moved to a relative location in !sevenri.trash.
@@ -244,31 +284,27 @@
            (trash-path? path
                         (get-sid-trash-path path))))))
   ([src-path dst-path]
-     (let [spath (get-path src-path)
-           dpath (get-path dst-path)
-           dst-clean? (remove-path? dpath)
-           dst-parent (.getParentFile dpath)]
-         (.mkdirs dst-parent)
-         (if (and dst-clean? (.exists dst-parent))
-           (or (.renameTo spath dpath)
-               ;; Some platforms, like Mac, don't allow to renameTo shared files
-               ;; but copy only.
-               (try
-                 (clojure.java.io/copy spath dpath)
-                 (when (.exists dpath)
-                   (.delete spath))
-                 (if (or (.exists spath) (not (.exists dpath)))
-                   (do
-                     (log-warning "trash-path? failed. spath:" spath "dpath:" dpath)
-                     false)
-                   true)
-                 (catch Exception e
-                   (log-warning "trash-path? exception. spath:" spath "dpath:" dpath)
+     (let [spath (get-path src-path)]
+       (if (.exists spath)
+         (let [dpath (get-path dst-path)
+               dst-clean? (remove-path? dpath)
+               dst-parent (.getParentFile dpath)]
+           (.mkdirs dst-parent)
+           (if (and dst-clean? (.exists dst-parent))
+             (if (.renameTo spath dpath)
+               true
+               ;; Renaming beyond security boundary may fail.
+               ;; Try copy-then-remove.
+               (if (and (copy-path? spath dpath) (remove-path? spath))
+                 true
+                 (do
+                   (log-warning "trash-path? failed. spath:" spath "dpath:" dpath)
                    false)))
-           (do
-             (when-not dst-clean? (log-warning "trash-path? failed to clean:" dpath))
-             (when-not (.exists dst-parent) (log-warning "trash-path? failed to make:" dst-parent))
-             false)))))
+             (do
+               (when-not dst-clean? (log-warning "trash-path? failed to clean:" dpath))
+               (when-not (.exists dst-parent) (log-warning "trash-path? failed to make:" dst-parent))
+               false)))
+         true))))
 
 (defn clean-path?
   "Trash the specified path. Then remove the parent path if it became empty as
@@ -291,7 +327,7 @@
        (if (pos? (.compareTo curr-path upto-path))
          (do
            (when (empty-path? curr-path)
-             (trash-path? curr-path))
+             (remove-path? curr-path))
            (recur (.getParentFile curr-path) upto-path))
          true))))
 
@@ -324,7 +360,7 @@
 
 (defn get-sevenri-namespaces
   []
-  (get-config 'top-level-ns))
+  (get-config 'src.top-level-ns))
 
 (defmulti is-sevenri-var?
   class)
@@ -372,10 +408,11 @@
   "Load and return a project manager with the given name. Return nil when
    loading it failed."
   [projman-name]
-  (let [projman-lib (symbol (str projman-name \. (get-config 'project.manager-acquiring-lib-name)))]
+  (let [projman-lib (symbol (str projman-name \. (get-prop (get-properties) 'sevenri.project.manager.lib-name)))
+        get-projman-fn (symbol (get-prop (get-properties) 'sevenri.project.manager.get-fn-name))]
     (try
       (require projman-lib)
-      (let [get-project-manager (ns-resolve projman-lib (get-config 'project.manager-acquiring-fn-name))
+      (let [get-project-manager (ns-resolve projman-lib get-projman-fn)
             projman (get-project-manager)]
         (if (satisfies? PProjectManager projman)
           projman
@@ -487,9 +524,19 @@
           (.deleteOnExit))
         true))))
 
-;;;;
+;;;; startup
 
-(defn- -create-dirs?
+(defn- -read-sevenri-version?
+  []
+  (def *sevenri-version* (read-sevenri-version))
+  true)
+
+(defn- -setup-core-properties?
+  []
+  (save-prop (get-properties) 'sevenri.sid.name (get-sid-name))
+  true)
+
+(defn- -setup-core-dirs?
   []
   (with-make-path
     (get-sid-classes-path)
@@ -510,7 +557,7 @@
 
 (defn- -setup-project-manager?
   []
-  (if-let [projman (load-project-manager (get-config 'project.manager-name))]
+  (if-let [projman (load-project-manager (get-prop (get-properties) 'sevenri.project.manager))]
     (do
       (reset-project-manager projman)
       (when-not (ready? projman)
@@ -520,28 +567,28 @@
       true)
     false))
     
+;;;; shutdown
+
 (defn- -shutdown-project-manager?
   []
   (when-let [projman (get-project-manager)]
     (shutdown projman))
   true)
 
-(defn- -read-sevenri-version?
-  []
-  (def *sevenri-version* (read-sevenri-version))
-  true)
-
 ;;;;
 
 (defn startup-core?
   []
-  (-ensure-processes
-   -read-sevenri-version?
-   -create-dirs?
-   -aot-compile-sevenri-listeners?
-   -setup-project-manager?))
+  (apply while-each-true?
+         (do-each-after* print-fn-name*
+          -read-sevenri-version?
+          -setup-core-properties?
+          -setup-core-dirs?
+          -aot-compile-sevenri-listeners?
+          -setup-project-manager?)))
 
 (defn shutdown-core?
   []
-  (-ensure-processes
-   -shutdown-project-manager?))
+  (apply while-each-true?
+         (do-each-after* print-fn-name*
+          -shutdown-project-manager?)))

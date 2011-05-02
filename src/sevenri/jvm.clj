@@ -11,7 +11,7 @@
 
 (ns ^{:doc "Sevenri interface library to Java VM depedent features"}
   sevenri.jvm
-  (:use [sevenri config defs log])
+  (:use [sevenri config defs log props])
   (:import (java.awt EventQueue)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -114,7 +114,7 @@
 
 (defn register-awt-exception-handler
   [awt-exception-handler-name]
-  (System/setProperty "sun.awt.exception.handler" (str awt-exception-handler-name)))
+  (save-prop (get-properties) "sun.awt.exception.handler" awt-exception-handler-name))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
@@ -134,10 +134,12 @@
 
 (defn startup-jvm?
   []
-  (-ensure-processes
-   -acquire-system-app-context?
-   -register-awt-exception-handler?))
+  (apply while-each-true?
+         (do-each-after* print-fn-name*
+          -acquire-system-app-context?
+          -register-awt-exception-handler?)))
 
 (defn shutdown-jvm?
   []
-  true)
+  (apply while-each-true?
+         nil))

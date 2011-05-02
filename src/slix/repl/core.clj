@@ -11,7 +11,7 @@
 
 (ns slix.repl.core
   (:require clojure.main)
-  (:use [sevenri config core event log slix ui utils]
+  (:use [sevenri event slix ui]
         [slix.repl defs listeners])
   (:import (java.io File OutputStreamWriter PrintWriter)))
 
@@ -66,8 +66,7 @@
               *slix* repl-slix]
       (let [it (fn []
                  (in-ns ins)
-                 (use '[sevenri config core debug event jvm log slix os ui utils]
-                      '[slix.repl.core :only (repl clear-repl-content)])
+                 (use '[sevenri config core defs log slix props])
                  (when (pos? (.getLength (.getDocument con))) (println))
                  (try
                    (require 'clojure.stacktrace)

@@ -11,7 +11,7 @@
 
 (ns ^{:doc "slix, Sevenri library complex"}
   sevenri.slix
-  (:use [sevenri config core defs event log jvm os refs ui utils])
+  (:use [sevenri config core defs event log jvm os props refs ui utils])
   (:import (java.awt.event KeyAdapter KeyEvent)
            (java.beans ExceptionListener XMLEncoder XMLDecoder)
            (java.io BufferedOutputStream BufferedInputStream
@@ -73,24 +73,34 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-src-slix-path
+  "Return the path to the slix directory when no arguments are given.
+   When arguments are given, the first one should a slix name in symbol or
+   string (and sym2path is applied to it either way). The rest of the
+   arguments are optional path specifiers."
   ([]
-     (get-src-path (get-config 'src.slix.dir-name)))
+     (get-src-path (get-config 'src.slix.dir)))
   ([sn & paths]
      (apply get-src-path (get-slix-ns sn) paths)))
 
 (defmacro get-slix-path
+  "Shorthand of get-src-slix-path"
   ([]
      `(get-src-slix-path))
   ([sn & paths]
      `(get-src-slix-path ~sn ~@paths)))
 
 (defn get-src-library-slix-path
+  "Return the path to the library/slix directory when no arguments are
+   given. When arguments are given, the first one should a slix name in
+   symbol or string (and sym2path is applied to it either way). The rest of
+   the arguments are optional path specifiers."
   ([]
-     (get-src-library-path (get-config 'src.library.slix.dir-name)))
+     (get-src-library-path (get-config 'src.library.slix.dir)))
   ([sn & paths]
      (apply get-src-library-path (get-slix-ns sn) paths)))
 
 (defmacro get-library-slix-path
+  "Shorthand of get-src-library-slix-path"
   ([]
      `(get-src-library-slix-path))
   ([sn & paths]
@@ -99,28 +109,45 @@
 ;;;;
 
 (defn get-sid-classes-slix-path
+  "Return the path to the sid/classes/slix directory when no arguments are
+   given. When arguments are given, the first one should a slix name in
+   symbol or string (and sym2path is applied to it either way). The rest of
+   the arguments are optional path specifiers."
   [sn & paths]
   (apply get-sid-classes-path (get-slix-ns sn) paths))
 
 (defn get-sid-slix-path
+  "Return the path to the sid/slix directory when no arguments are given.
+   When arguments are given, the first one should a slix name in symbol or
+   string (and sym2path is applied to it either way). The rest of the
+   arguments are optional path specifiers."
   ([]
-     (get-sid-path (get-config 'sid.slix.dir-name)))
+     (get-sid-path (get-config 'sid.slix.dir)))
   ([sn & paths]
      (apply get-sid-path (get-slix-ns sn) paths)))
 
 (defn get-sid-slix-save-path
+  "Return the path to the -save- directory of the designated slix. the first
+   argument should a slix name in symbol or string (and sym2path is applied
+   to it either way). The rest of the arguments are optional path
+   specifiers."
   [sn & paths]
-  (apply get-sid-slix-path sn (get-config 'sid.slix.save.dir-name) paths))
+  (apply get-sid-slix-path sn (get-config 'sid.slix.save.dir) paths))
 
 (defn get-sid-slix-name-path
+  "Return the path to the designated slix instance directory. Call this
+   function either with a single slix object or with a slix name and an
+   instance name. The slix name is either in symbol or string (and sym2path
+   is applied to it)."
   ([slix]
      (get-sid-slix-name-path (slix-sn slix) (slix-name slix)))
   ([sn name]
-     (get-sid-slix-save-path sn name)))
+     (get-sid-slix-save-path sn (str name))))
 
  (defn get-slix-startup-file
+   "Return the path to the slix startup file."
    []
-   (get-sid-path (get-config 'sid.slix.dir-name) (get-config 'sid.slix.startup.file-name)))
+   (get-sid-path (get-config 'sid.slix.dir) (get-config 'sid.slix.startup.file-name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -280,7 +307,7 @@
   "Parse clj files (except scratch) and return slix namespaces without
    'slix.' prefix."
   []
-  (let [slxdn (get-config 'src.slix.dir-name)
+  (let [slxdn (get-config 'src.slix.dir)
         slxdt (str slxdn \.)
         csxdt (count slxdt)
         rpclj (re-pattern (str "/" slxdn "/.*\\.clj$"))
@@ -365,7 +392,7 @@
      (let [;; Find any files under sis/slix, convert them in string, and then sort them.
            afps (sort (map str (find-files #(.isFile %) (get-sid-slix-path))))
            ;; Remove up to sis/slix and go to the next stage.
-           -sv- (get-config 'sid.slix.save.dir-name)
+           -sv- (get-config 'sid.slix.save.dir)
            rptn (re-pattern (str "^" (get-sid-slix-path) "/(.*/" -sv- "/.*)$"))]
        (find-saved-slixes (filter identity (map #(second (re-find rptn %)) afps))
                           (sym2path (get-config 'sid.slix.save.frame-file-name))
@@ -424,7 +451,7 @@
 
 (defn get-slix-jvm-and-jar-paths
   [sn]
-  (let [pa [(get-slix-path sn (get-config 'src.slix.jvm.dir-name))]]
+  (let [pa [(get-slix-path sn (get-config 'src.slix.jvm.dir))]]
     (reduce (fn [a p] (conj a p)) pa (find-files '.jar (first pa)))))
 
 (defn get-slix-project-jar-paths
@@ -647,12 +674,13 @@
 (defn- -create-initial-frame
   [slix]
   (let [f (JFrame.)
-        n (slix-name slix)]
+        n (slix-name slix)
+        [w h] (read-prop (get-properties) 'slix.frame.size)]
     (doto f
       (.setLocationByPlatform *frame-location-by-platform*)
       (.setDefaultCloseOperation JFrame/DISPOSE_ON_CLOSE)
       (.setTitle (str n))
-      (.setSize (get-config 'frame.width) (get-config 'frame.height)))
+      (.setSize w h))
     f))
 
 (defn- -abort-open-slix
@@ -858,8 +886,9 @@
   ([]
      (alt-open-slix? *slix*))
   ([slix]
-     (let [args (slix-args slix)]
-       (and (map? args) ((get-config 'slix.arguments.alt-open) args)))))
+     (let [args (slix-args slix)
+           alt-open-kwd (read-prop (get-properties) 'slix.argkeyword.alt-open)]
+       (and (map? args) (alt-open-kwd args)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1077,7 +1106,7 @@
   [sn]
   (format (str "(ns ^{:slix true}\n"
                "  slix.%s\n"
-               "  (:use [sevenri config core event log slix ui utils]))\n\n"
+               "  (:use [sevenri config core event log props slix ui utils]))\n\n"
                "(defn opened\n"
                "  [event]\n"
                "  (set-slix-visible))\n") sn))
@@ -1273,17 +1302,11 @@
     (reset-system-event-queue (.getSystemEventQueue (java.awt.Toolkit/getDefaultToolkit))))
   true)
 
-(defn- -create-sid-slix-dirs?
+(defn- -setup-slix-dirs?
   []
-  (get-sid-classes-path)
-  (get-sid-slix-path)
-  (get-sid-trash-path)
-  true)
-
-(defn- -create-src-library-dirs?
-  []
-  (get-library-path)
-  (get-library-slix-path)
+  (with-make-path
+    (get-sid-slix-path)
+    (get-sid-trash-path))
   true)
 
 (defn- -cache-slix-sns?
@@ -1318,15 +1341,16 @@
 
 (defn startup-slix?
   []
-  (-ensure-processes
-   -acquire-base-class-loader?
-   -acquire-system-event-queue?
-   -create-sid-slix-dirs?
-   -create-src-library-dirs?
-   -cache-slix-sns?
-   -register-exception-listeners?
-   -aot-compile-slix-sevenri?))
+  (apply while-each-true?
+         (do-each-after* print-fn-name*
+          -acquire-base-class-loader?
+          -acquire-system-event-queue?
+          -setup-slix-dirs?
+          -cache-slix-sns?
+          -register-exception-listeners?
+          -aot-compile-slix-sevenri?)))
 
 (defn shutdown-slix?
   []
-  true)
+  (apply while-each-true?
+         nil))

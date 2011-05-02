@@ -633,10 +633,12 @@
 
 (defn startup-ui?
   []
-  (-ensure-processes
-   -add-awt-event-listeners?
-   -reset-event-delegator-class?))
+  (apply while-each-true?
+         (do-each-after* print-fn-name*
+          -add-awt-event-listeners?
+          -reset-event-delegator-class?)))
 
 (defn shutdown-ui?
   []
-  true)
+  (apply while-each-true?
+         nil))

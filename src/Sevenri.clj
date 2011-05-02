@@ -11,10 +11,10 @@
 
 (ns Sevenri
   (:gen-class)
-  (:use [sevenri defs refs]
-        [sevenri config core debug event jvm log main os slix startup ui]))
+  (:require [sevenri defs refs]
+            [sevenri config core event jvm log os props slix ui]
+            [sevenri debug main startup utils]))
 
 (defn -main
   [& args]
-  (require 'sevenri.main)
   (sevenri.main/run args))

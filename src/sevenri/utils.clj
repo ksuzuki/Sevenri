@@ -74,12 +74,6 @@
   [sq]
   (doseq [i (seq sq)] (printf "%s\n" i)))
 
-(defn System-properties
-  ([]
-         (System-properties ".*"))
-  ([^String rgex]
-         (filter #(re-find (re-pattern rgex) (str %)) (seq (System/getProperties)))))
-
 (defn classpath
   "Returns a sequence of File objects on CLASSPATH.
   Running test with this function prints non-existing local paths,
@@ -152,6 +146,12 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Deprecated - remove by 0.3.0
+
+(defn System-properties
+  ([]
+         (System-properties ".*"))
+  ([^String rgex]
+         (filter #(re-find (re-pattern rgex) (str %)) (seq (System/getProperties)))))
 
 (def -unsafe-chars- "[*?:|<>\"\\\\\\s]") ;; * ? : | < > " \ \s
 (def -sym2path-proxy- "_")
