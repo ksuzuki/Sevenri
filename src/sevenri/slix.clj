@@ -1339,6 +1339,19 @@
 
 ;;;;
 
+(defn- -setup-mac-dependents
+  []
+  (add-mac-about-handler (fn [] (open-slix 'sevenri.about))))
+
+(defn- -setup-platform-dependents?
+  []
+  (cond
+   (is-mac?) (-setup-mac-dependents)
+   :else nil)
+  true)
+
+;;;;
+
 (defn startup-slix?
   []
   (apply while-each-true?
@@ -1348,7 +1361,8 @@
           -setup-slix-dirs?
           -cache-slix-sns?
           -register-exception-listeners?
-          -aot-compile-slix-sevenri?)))
+          -aot-compile-slix-sevenri?
+          -setup-platform-dependents?)))
 
 (defn shutdown-slix?
   []

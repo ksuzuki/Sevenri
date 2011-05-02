@@ -48,6 +48,15 @@
   (doseq [wl windowListeners]
     (.addWindowListener frame wl)))
 
+(defn add-mac-about-handler
+  [handler]
+  (let [app (com.apple.eawt.Application/getApplication)]
+    (.addApplicationListener app (proxy [com.apple.eawt.ApplicationAdapter] []
+                                   (handleAbout [e]
+                                     (when (fn? handler)
+                                       (handler)
+                                       (.setHandled e true)))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Windows
 
@@ -87,6 +96,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown
 
+;;;; Mac
+
 (defn- -set-mac-dock-icon
   [app]
   (let [idr (reduce (fn [d p] (File. d (str (get-config p))))
@@ -109,7 +120,6 @@
   ;;
   (let [app (com.apple.eawt.Application/getApplication)]
     (future (-set-mac-dock-icon app))
-    (.removeAboutMenuItem app)
     (if (fn? *ok-to-quit-fn*)
       (do
         (.addApplicationListener app (proxy [com.apple.eawt.ApplicationAdapter] []
@@ -119,6 +129,10 @@
       (do
         (log-severe "-init-mac?: the quit handler is undefined")
         false))))
+
+;;;; Windows
+
+;;;; Linux
 
 ;;;;
 
