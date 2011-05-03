@@ -156,66 +156,33 @@
 
 (defn create-slix-properties*
   [sn]
-  (let [svnr-props (get-native (get-props))
-        svnr-saved (get-saved (get-props))
-        slix-props (Properties.)
-        slix-saved (atom {})
-        slixns-str (str (get-slix-ns sn) \.)
-        is-slix-pi? (fn [pi]
-                      (or (is-*slix*-pi? pi)
-                          (zero? (.indexOf (str pi) slixns-str))))]
-    ;;
-    (reify
-      PProperties
+  (let [props (Properties.)
+        saved (atom {})]
+    (reify PProperties
+      (get-prop [_ pi] (get-prop* props pi))
+      (get-prop [_ pi nfval] (get-prop* props pi nfval))
+      (put-prop [_ pi val] (put-prop* props pi val))
+      (save-prop [_ pi val] (let [key (str pi)]
+                              (reset! saved (assoc @saved key val))
+                              (.put props key val)))
+      (remove-prop [_ pi] (let [key (str pi)]
+                            (reset! saved (dissoc @saved key))
+                            (.remove props key)))
       ;;
-      (get-prop [_ pi]
-        (get-prop* (if (is-slix-pi? pi) slix-props svnr-props) pi))
-      (get-prop [_ pi nfval]
-        (get-prop* (if (is-slix-pi? pi) slix-props svnr-props) pi nfval))
-      (put-prop [_ pi val]
-        (put-prop* (if (is-slix-pi? pi) slix-props svnr-props) pi val))
-      (save-prop [_ pi val]
-        (let [key (str pi)]
-          (if (is-slix-pi? key)
-            (do
-              (reset! slix-saved (assoc @slix-saved key val))
-              (.put slix-props key val))
-            (save-prop* svnr-props key val svnr-saved))))
-      (remove-prop [_ pi]
-        (let [key (str pi)]
-          (if (is-slix-pi? key)
-            (do
-              (reset! slix-saved (dissoc @slix-saved key))
-              (.remove slix-props key))
-            (remove-prop* svnr-props key svnr-saved))))
+      (prop-keys [_] (enumeration-seq (.keys props)))
+      (prop-vals [_] (iterator-seq (.iterator (.values props))))
+      (prop-count [_] (.size props))
+      (prop-seq [_] (seq props))
       ;;
-      (prop-keys [_]
-        (concat (enumeration-seq (.keys slix-props))
-                (enumeration-seq (.keys svnr-props))))
-      (prop-vals [_]
-        (concat (iterator-seq (.iterator (.values slix-props)))
-                (iterator-seq (.iterator (.values svnr-props)))))
-      (prop-count [_]
-        (+ (.size slix-props) (.size svnr-props)))
-      (prop-seq [_]
-        (concat (seq slix-props) (seq svnr-props)))
+      (get-native [_] props)
+      (get-saved [_] saved)
+      (is-slix-props? [_] true)
       ;;
-      (get-native [_]
-        slix-props)
-      (get-saved [_]
-        slix-saved)
-      (is-slix-props? [_]
-        true)
+      (load-props [_ path file-name] (load-props* props path file-name))
+      (load-persistent-props [_ path file-name] (load-persistent-props* props path file-name saved))
+      (store-persistent-props [_ path file-name] (store-persistent-props* saved path file-name))
       ;;
-      (load-props [_ path file-name]
-        (load-props* slix-props path file-name))
-      (load-persistent-props [_ path file-name]
-        (load-persistent-props* slix-props path file-name slix-saved))
-      (store-persistent-props [_ path file-name]
-        (store-persistent-props* slix-saved path file-name))
-      ;;
-      (toString [this]
-        (str "Properties slix[" sn "#" (.hashCode this) "]")))))
+      (toString [this] (str "Properties slix[" sn "#" (.hashCode this) "]")))))
 
 (defn create-slix-properties
   ([slix]

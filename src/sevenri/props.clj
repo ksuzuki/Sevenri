@@ -32,8 +32,7 @@
 ;; A pi is a symbol or a string that specifies a property in a form which
 ;; uses dot to denote difference property domains. For example, the pi of
 ;; the current Sevenri's system instance directory name is
-;; 'sevenri.sid.name'. There is a special property domain prefix '*slix*',
-;; which denotes the current slix, if available.
+;; 'sevenri.sid.name'.
 ;;
 ;; Property Functions
 ;; Property fns operate on properties object returned from either
@@ -65,7 +64,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defprotocol PProperties
-  ;;
   (get-prop [props pi] [props pi not-found-val])
   (put-prop [props pi val])
   (save-prop [props pi val])
@@ -106,10 +104,6 @@
 (defmacro is-sevenri-pi?
   [pi]
   `(if (some #(zero? (.indexOf (str ~pi) %)) *sevenri-pi-prefixes*) true false))
-
-(defmacro is-*slix*-pi?
-  [pi]
-  `(zero? (.indexOf (str ~pi) "*slix*.")))
 
 ;;;;
 
@@ -165,6 +159,7 @@
                   (.put props key val)
                   (recur (rest keys) (assoc temp-saved key val)))
                 (reset! saved (merge @saved temp-saved)))))
+          file
           (catch Exception e
             (log-severe "load-persistent-props* failed:" file)
             nil))))))
@@ -175,7 +170,7 @@
     ;; There is something to persist.
     (let [path (File. (str path))
           file (File. path (str file-name))
-          ;; keyword normalizer
+          ;; normalize keyword string: escape '=' and ':'
           nrmk (fn [k] (.replace (.replace (str k) "=" "\\=") ":" "\\:"))]
       (when (if (or (.exists path) (.mkdirs path))
               true
@@ -199,14 +194,16 @@
                         kv-line (format "%s=%s\n" key-str val-str)]
                     (.write writer kv-line 0 (count kv-line))
                     (recur (rest kvs)))))
+              file
               (catch Exception e
-                (log-severe "store-persistent-props* failed:" file)))))))))
+                (log-severe "store-persistent-props* failed:" file)
+                nil))))))))
 
 ;;;;
 
 (defn create-properties*
   ([]
-     (create-properties* (Properties.) nil))
+     (create-properties* (Properties.)))
   ([props]
      (let [props (if props
                    (if (instance? Properties props)
@@ -216,51 +213,27 @@
                        (throw (IllegalArgumentException. "create-properties*: invalid props:" props))))
                    (Properties.))
            saved (atom {})]
-       ;;
-       (reify
-         PProperties
+       (reify PProperties
+         (get-prop [_ pi] (get-prop* props pi))
+         (get-prop [_ pi nfval] (get-prop* props pi nfval))
+         (put-prop [_ pi val] (put-prop* props pi val))
+         (save-prop [_ pi val] (save-prop* props pi val saved))
+         (remove-prop [_ pi] (remove-prop* props pi saved))
          ;;
-         (get-prop [_ pi]
-           (when-not (is-*slix*-pi? pi)
-             (get-prop* props pi)))
-         (get-prop [_ pi nfval]
-           (when-not (is-*slix*-pi? pi)
-             (get-prop* props pi nfval)))
-         (put-prop [_ pi val]
-           (when-not (is-*slix*-pi? pi)
-             (put-prop* props pi val)))
-         (save-prop [_ pi val]
-           (when-not (is-*slix*-pi? pi)
-             (save-prop* props pi val saved)))
-         (remove-prop [_ pi]
-           (when-not (is-*slix*-pi? pi)
-             (remove-prop* props pi saved)))
+         (prop-keys [_] (enumeration-seq (.keys props)))
+         (prop-vals [_] (iterator-seq (.iterator (.values props))))
+         (prop-count [_] (.size props))
+         (prop-seq [_] (seq props))
          ;;
-         (prop-keys [_]
-           (enumeration-seq (.keys props)))
-         (prop-vals [_]
-           (iterator-seq (.iterator (.values props))))
-         (prop-count [_]
-           (.size props))
-         (prop-seq [_]
-           (seq props))
+         (get-native [_] props)
+         (get-saved [_] saved)
+         (is-slix-props? [_] false)
          ;;
-         (get-native [_]
-           props)
-         (get-saved [_]
-           saved)
-         (is-slix-props? [_]
-           false)
+         (load-props [_ path file-name] (load-props* props path file-name))
+         (load-persistent-props [_ path file-name] (load-persistent-props* props path file-name saved))
+         (store-persistent-props [_ path file-name] (store-persistent-props* saved path file-name))
          ;;
-         (load-props [_ path file-name]
-           (load-props* props path file-name))
-         (load-persistent-props [_ path file-name]
-           (load-persistent-props* props path file-name saved))
-         (store-persistent-props [_ path file-name]
-           (store-persistent-props* saved path file-name))
-         ;;
-         (toString [this]
-           (str "Properties sevenri[#" (.hashCode this) "]"))))))
+         (toString [this] (str "Properties sevenri[#" (.hashCode this) "]"))))))
 
 ;;;;
 
