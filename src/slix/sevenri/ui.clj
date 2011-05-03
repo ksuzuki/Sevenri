@@ -23,7 +23,7 @@
         cp (.getContentPane fr)
         mp (MainPanel.)]
     (.add cp mp)
-    (let [[minw minh] (read-prop (get-properties) 'slix.frame.size)
+    (let [[minw minh] (read-prop (get-props) 'slix.frame.size)
           stdw 400
           stdh 250
           ssiz (.getScreenSize (Toolkit/getDefaultToolkit))

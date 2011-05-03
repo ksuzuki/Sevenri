@@ -90,7 +90,7 @@
 (defn get-ignorable-file-names-os
   []
   (cond
-   (is-mac?) (read-prop (get-properties) 'sevenri.platform.mac.ignorable-file-names)
+   (is-mac?) (read-prop (get-props) 'sevenri.platform.mac.ignorable-file-names)
    :else nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -115,7 +115,7 @@
   []
   (doseq [key ["apple.awt.graphics.UseQuartz"
                "apple.laf.useScreenMenuBar"]]
-    (let [val (if (= (str (get-prop (get-properties) key)) "true") "true" "false")]
+    (let [val (if (= (str (get-prop (get-props) key)) "true") "true" "false")]
       (System/setProperty key val)))
   ;;
   (let [app (com.apple.eawt.Application/getApplication)]

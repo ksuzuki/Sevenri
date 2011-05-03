@@ -114,7 +114,7 @@
 
 (defn register-awt-exception-handler
   [awt-exception-handler-name]
-  (save-prop (get-properties) "sun.awt.exception.handler" awt-exception-handler-name))
+  (save-prop (get-props) "sun.awt.exception.handler" awt-exception-handler-name))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; startup/shutdown

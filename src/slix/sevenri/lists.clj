@@ -142,7 +142,7 @@
                          alt-open? (pos? (bit-and (.getModifiersEx e) InputEvent/ALT_DOWN_MASK))]
                        (future
                          (let [oc (.getCursor frame)
-                               alt-open-kwd (read-prop (get-properties) 'slix.argkeyword.alt-open)]
+                               alt-open-kwd (read-prop (get-props) 'slix.argkeyword.alt-open)]
                            (.setCursor frame Cursor/WAIT_CURSOR)
                            (try
                              (deref

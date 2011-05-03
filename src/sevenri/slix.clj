@@ -18,6 +18,7 @@
                     File FileFilter FileInputStream FileOutputStream
                     InputStreamReader PushbackReader)
            (java.net URL URLClassLoader)
+           (java.util Properties)
            (javax.swing JFrame)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -42,7 +43,7 @@
 (slix-fn name)
 ;; :cl - per-slix class loader
 (slix-fn cl)
-;; :context - {:prop (ref {})}, plus {:app-context app-context} optionally
+;; :context - {:properties props, :prop_ (ref {})}, plus {:app-context app-context} optionally
 (slix-fn context)
 ;; :frame - associated JFrame
 (slix-fn frame)
@@ -63,12 +64,6 @@
      (get-slix-ns (str sn \. sym)))
   ([sn sym & syms]
      (apply get-slix-ns sn (str sym \. (first syms)) (rest syms))))
-
-(defn create-slix-context
-  ([]
-     {:prop_ (ref {})})
-  ([app-context]
-     {:prop_ (ref {}) :app-context app-context}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -148,6 +143,111 @@
    "Return the path to the slix startup file."
    []
    (get-sid-path (get-config 'sid.slix.dir) (get-config 'sid.slix.startup.file-name)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-slix-props
+  ([]
+     (when *slix*
+       (get-slix-props *slix*)))
+  ([slix]
+     (when (is-slix? slix)
+       (:properties (slix-context slix)))))
+
+(defn create-slix-properties*
+  [sn]
+  (let [svnr-props (get-native (get-props))
+        svnr-saved (get-saved (get-props))
+        slix-props (Properties.)
+        slix-saved (atom {})
+        slixns-str (str (get-slix-ns sn) \.)
+        is-slix-pi? (fn [pi]
+                      (or (is-*slix*-pi? pi)
+                          (zero? (.indexOf (str pi) slixns-str))))]
+    ;;
+    (reify
+      PProperties
+      ;;
+      (get-prop [_ pi]
+        (get-prop* (if (is-slix-pi? pi) slix-props svnr-props) pi))
+      (get-prop [_ pi nfval]
+        (get-prop* (if (is-slix-pi? pi) slix-props svnr-props) pi nfval))
+      (put-prop [_ pi val]
+        (put-prop* (if (is-slix-pi? pi) slix-props svnr-props) pi val))
+      (save-prop [_ pi val]
+        (let [key (str pi)]
+          (if (is-slix-pi? key)
+            (do
+              (reset! slix-saved (assoc @slix-saved key val))
+              (.put slix-props key val))
+            (save-prop* svnr-props key val svnr-saved))))
+      (remove-prop [_ pi]
+        (let [key (str pi)]
+          (if (is-slix-pi? key)
+            (do
+              (reset! slix-saved (dissoc @slix-saved key))
+              (.remove slix-props key))
+            (remove-prop* svnr-props key svnr-saved))))
+      ;;
+      (prop-keys [_]
+        (concat (enumeration-seq (.keys slix-props))
+                (enumeration-seq (.keys svnr-props))))
+      (prop-vals [_]
+        (concat (iterator-seq (.iterator (.values slix-props)))
+                (iterator-seq (.iterator (.values svnr-props)))))
+      (prop-count [_]
+        (+ (.size slix-props) (.size svnr-props)))
+      (prop-seq [_]
+        (concat (seq slix-props) (seq svnr-props)))
+      ;;
+      (get-native [_]
+        slix-props)
+      (get-saved [_]
+        slix-saved)
+      (is-slix-props? [_]
+        true)
+      ;;
+      (load-props [_ path file-name]
+        (load-props* slix-props path file-name))
+      (load-persistent-props [_ path file-name]
+        (load-persistent-props* slix-props path file-name slix-saved))
+      (store-persistent-props [_ path file-name]
+        (store-persistent-props* slix-saved path file-name))
+      ;;
+      (toString [this]
+        (str "Properties slix[" sn "#" (.hashCode this) "]")))))
+
+(defn create-slix-properties
+  ([slix]
+     (when (is-slix? slix)
+       (create-slix-properties (slix-sn slix) (slix-name slix))))
+  ([sn name]
+     (let [props (create-slix-properties* sn)]
+       ;; src.slix.sn.properties.default
+       (let [src-sn-path (get-src-slix-path sn (get-config 'src.slix.properties.dir))]
+         (load-props props src-sn-path (get-config 'src.slix.properties.default-file-name)))
+       ;; sid.slix.sn.properties.user
+       (let [sid-sn-path (get-sid-slix-path sn (get-config 'sid.slix.properties.dir))]
+         (load-props props sid-sn-path (get-config 'sid.slix.properties.user-file-name)))
+       ;; sid.slix.sn.-save-.name.properties.persistent
+       (let [sid-sn-name-path (get-path (get-sid-slix-name-path sn name)
+                                        (get-config 'sid.slix.properties.dir))]
+         (load-persistent-props props sid-sn-name-path (get-config 'sid.slix.save.persistent-file-name)))
+       ;;
+       props)))
+
+(defn save-slix-properties
+  ([]
+     (when *slix*
+       (save-slix-properties *slix*)))
+  ([slix]
+     (when (is-slix? slix)
+       (save-slix-properties (slix-sn slix) (slix-name slix) (get-slix-props slix))))
+  ([sn name props]
+     ;; sid.slix.sn.-save-.name.properties.persistent
+     (let [sid-sn-name-path (get-path (get-sid-slix-name-path sn name)
+                                      (get-config 'sid.slix.properties.dir))]
+       (store-persistent-props props sid-sn-name-path (get-config 'sid.slix.save.persistent-file-name)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -628,6 +728,18 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn create-slix-context
+  ([slix]
+     (create-slix-context (slix-sn slix) (slix-name slix) nil))
+  ([sn name]
+     (create-slix-context sn name nil))
+  ([sn name app-context]
+     (let [context {:properties (create-slix-properties sn name)
+                    :prop_ (ref {})}]
+       (if app-context
+         (assoc context :app-context app-context)
+         context))))
+
 (defn register-slix
   ([slix]
      (register-slix slix (slix-name slix)))
@@ -675,7 +787,7 @@
   [slix]
   (let [f (JFrame.)
         n (slix-name slix)
-        [w h] (read-prop (get-properties) 'slix.frame.size)]
+        [w h] (read-prop (get-props) 'slix.frame.size)]
     (doto f
       (.setLocationByPlatform *frame-location-by-platform*)
       (.setDefaultCloseOperation JFrame/DISPOSE_ON_CLOSE)
@@ -793,11 +905,13 @@
 
 (defn- -get-context-and-start-slix-creation
   ([slix]
-     (if-let [app-context (create-app-context (slix-name slix) (slix-cl slix))]
-       ;; EDT per slix
-       (-get-context-and-start-slix-creation slix (create-slix-context app-context))
-       ;; sharing the same, main EDT
-       (-get-context-and-start-slix-creation slix (create-slix-context))))
+     (let [sn (slix-sn slix)
+           name (slix-name slix)]
+       (if-let [app-context (create-app-context name (slix-cl slix))]
+         ;; EDT per slix
+         (-get-context-and-start-slix-creation slix (create-slix-context sn name app-context))
+         ;; sharing the same, main EDT
+         (-get-context-and-start-slix-creation slix (create-slix-context sn name)))))
   ([slix context]
      (let [slix (assoc slix :context context)]
        (future
@@ -887,7 +1001,7 @@
      (alt-open-slix? *slix*))
   ([slix]
      (let [args (slix-args slix)
-           alt-open-kwd (read-prop (get-properties) 'slix.argkeyword.alt-open)]
+           alt-open-kwd (read-prop (get-props) 'slix.argkeyword.alt-open)]
        (and (map? args) (alt-open-kwd args)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -923,6 +1037,7 @@
                              :sevenri.event/slix-saved
                              :sevenri.event/slix-error-save)]
                    (restore-saved-dynaclass-listeners slix)
+                   (save-slix-properties slix)
                    (post-event eid slix info)
                    eid)))))))))
 

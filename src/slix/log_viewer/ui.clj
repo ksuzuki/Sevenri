@@ -33,7 +33,7 @@
     (doto sp
       (.setVerticalScrollBarPolicy JScrollPane/VERTICAL_SCROLLBAR_ALWAYS))
     (.add cp sp)
-    (let [[minw minh] (read-prop (get-properties) 'slix.frame.size)
+    (let [[minw minh] (read-prop (get-props) 'slix.frame.size)
           ssize (.getScreenSize (java.awt.Toolkit/getDefaultToolkit))
           width (int (* (/ (.width ssize) 8) 5))
           hight (int (/ (.height ssize) 4))

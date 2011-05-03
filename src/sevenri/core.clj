@@ -408,8 +408,8 @@
   "Load and return a project manager with the given name. Return nil when
    loading it failed."
   [projman-name]
-  (let [projman-lib (symbol (str projman-name \. (get-prop (get-properties) 'sevenri.project.manager.lib-name)))
-        get-projman-fn (symbol (get-prop (get-properties) 'sevenri.project.manager.get-fn-name))]
+  (let [projman-lib (symbol (str projman-name \. (get-prop (get-props) 'sevenri.project.manager.lib-name)))
+        get-projman-fn (symbol (get-prop (get-props) 'sevenri.project.manager.get-fn-name))]
     (try
       (require projman-lib)
       (let [get-project-manager (ns-resolve projman-lib get-projman-fn)
@@ -533,7 +533,7 @@
 
 (defn- -setup-core-properties?
   []
-  (save-prop (get-properties) 'sevenri.sid.name (get-sid-name))
+  (save-prop (get-props) 'sevenri.sid.name (get-sid-name))
   true)
 
 (defn- -setup-core-dirs?
@@ -557,7 +557,7 @@
 
 (defn- -setup-project-manager?
   []
-  (if-let [projman (load-project-manager (get-prop (get-properties) 'sevenri.project.manager))]
+  (if-let [projman (load-project-manager (get-prop (get-props) 'sevenri.project.manager))]
     (do
       (reset-project-manager projman)
       (when-not (ready? projman)

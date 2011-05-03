@@ -56,7 +56,7 @@
                :save {:dir '-save-
                       :frame-file-name "frame.xml"
                       :state-file-name "state.clj"
-                      :properties {:persistent-file-name "persistent.properties"}}
+                      :persistent-file-name "persistent.properties"}
                :startup {:file-name "_startup_.clj"}}
 
         :temp {:dir 'temp}
@@ -93,7 +93,9 @@
                               :evtdelegator 'sevenri.listeners.evtdelegator}}
         
         :slix {:dir 'slix
-               :jvm {:dir 'jvm}}
+               :jvm {:dir 'jvm}
+               :properties {:dir 'properties
+                            :default-file-name "default.properties"}}
 
         :top-level-ns #{'library 'project 'properties 'resources 'sevenri 'slix}}
 
