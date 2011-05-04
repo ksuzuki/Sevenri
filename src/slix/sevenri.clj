@@ -21,12 +21,12 @@
 
 (defn update-lists
   []
-  (let [mpcs (get-main-panel-components (slix-frame))]
+  (let [slix *slix*]
     (future
-      (let [lstSn (:lstSn mpcs)
+      (let [lsn (:lstSn (get-main-panel-components (slix-frame slix)))
             sns (sort (map str (get-all-slix-sn)))
-            sis (get-selected-indices (seq (.getSelectedValues lstSn)) sns)]
-        (invoke-later #(doto lstSn
+            sis (get-selected-indices (seq (.getSelectedValues lsn)) sns)]
+        (invoke-later #(doto lsn
                          (.setListData (into-array String sns))
                          (.setSelectedIndices (into-array Integer/TYPE sis))))))))
 
