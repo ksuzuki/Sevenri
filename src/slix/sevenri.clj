@@ -11,7 +11,7 @@
 
 (ns ^{:slix true :singleton true}
   slix.sevenri
-  (:use [sevenri config core event log os slix ui])
+  (:use [sevenri config core event log os props slix ui])
   (:use [slix.sevenri aotlist lists ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -75,7 +75,7 @@
 
 (defn closing
   [event]
-  (when-not (can-slix-sevenri-close?)
+  (when-not (read-prop (slix-props) 'can.close)
     (event-response-donot-close)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

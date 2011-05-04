@@ -1159,6 +1159,7 @@
   ([shutdown?]
      ;; Exclude the slix 'Sevenri' because it's special and is closed at
      ;; the shutdown time.
+     (declare is-slix-sevenri?)
      (let [exclude-fn (fn [col] (filter #(not (is-slix-sevenri? %)) col))
            all-slixes (exclude-fn (get-slixes))
            vis-slixes (exclude-fn (map #(get-slix %) (get-z-ordered-frames)))
@@ -1312,13 +1313,23 @@
   (let [name (get-sevenri-name)]
     (open-slix-and-wait (.toLowerCase name) name)))
 
-(defn close-slix-sevenri-and-wait
-  []
-  (close-slix-and-wait (get-sevenri-name)))
-
 (defn get-slix-sevenri
   []
   (get-slix (get-sevenri-name)))
+
+(defn can-slix-sevenri-close
+  ([]
+     (when-let [slix (get-slix-sevenri)]
+       (get-prop (slix-props slix) 'can.close)))
+  ([can?]
+     (when-let [slix (get-slix-sevenri)]
+       (put-prop (slix-props slix) 'can.close (if can? "true" "false")))))
+
+(defn close-slix-sevenri-and-wait
+  []
+  (when-let [slix (get-slix-sevenri)]
+    (put-prop (slix-props slix) 'can.close "true")
+    (close-slix-and-wait slix)))
 
 (defn update-slix-sevenri-lists
   []
@@ -1337,10 +1348,6 @@
              (= (str name) (get-sevenri-name)))
       true
       false)))
-
-(defn can-slix-sevenri-close?
-  []
-  *slix-sevenri-can-close*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

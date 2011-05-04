@@ -172,12 +172,6 @@ which can be redefined."}
   [event-queue]
   (def *system-event-queue* event-queue))
 
-(def *slix-sevenri-can-close* false)
-
-(defn reset-slix-sevenri-can-close
-  [can?]
-  (def *slix-sevenri-can-close* can?))
-
 (def *log-xml-encoder-errors* false)
 
 (defn reset-log-xml-encoder-errors
