@@ -18,14 +18,14 @@
 
 (defn update-lists
   []
-  (let [mpcs (get-main-panel-components (slix-frame))]
+  (let [slix *slix*]
     (future
-      (let [lstSn (:lstSn mpcs)
+      (let [lsn (:lstSn (get-main-panel-components (slix-frame slix)))
             sns (sort (map str (get-all-slix-sn)))
-            sis (get-selected-indices (seq (.getSelectedValues lstSn)) sns)]
-        (invoke-later #(doto lstSn
-                         (.setListData (into-array String sns))
-                         (.setSelectedIndices (into-array Integer/TYPE sis))))))))
+            sis (get-selected-indices (seq (.getSelectedValues lsn)) sns)]
+        (invoke-later slix #(doto lsn
+                              (.setListData (into-array String sns))
+                              (.setSelectedIndices (into-array Integer/TYPE sis))))))))
 
 (defn aot-compile-slixes
   []
@@ -61,7 +61,8 @@
   (update-divider)
   (aot-compile-slixes)
   (update-lists)
-  (add-to-xref *slix* :update-lists-fn #'update-lists))
+  (let [slix *slix*]
+    (add-to-xref *slix* :update-lists-fn #(binding [*slix* slix] (update-lists)))))
 
 (defn saving
   [event]

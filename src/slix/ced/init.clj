@@ -178,11 +178,10 @@
 (defn setup-doc-watcher
   "Currently this is used to update the mod indicator."
   [doc mod-indicator]
-  (let [midupdater (fn []
-                     (.setText mod-indicator (if (.isModified doc) "*" "")))
-        dwatcher (fn []
-                   (invoke-later *slix* midupdater))]
-    (.setDocWatcher doc dwatcher)))
+  (let [slix *slix*
+        midupdater #(.setText mod-indicator (if (.isModified doc) "*" ""))
+        docwatcher #(invoke-later slix midupdater)]
+    (.setDocWatcher doc docwatcher)))
 
 (defn initial-setup
   []

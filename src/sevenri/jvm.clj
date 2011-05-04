@@ -65,6 +65,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(using-fns jvm slix
+           [slix-cl slix-context])
+
 (defn invoke-later-in-slix-context
   ":app-context must be available in slix's :context."
   [slix cljfn wait?]
@@ -72,17 +75,17 @@
     (let [bound-cljfn (bound-fn [] (cljfn))
           cljfn-runner (proxy [Runnable] []
                          (run []
-                              (try
-                                (bound-cljfn)
-                                (catch Exception e
-                                  (log-exception e)))))
-          app-context (:app-context (:context slix))
+                           (try
+                             (bound-cljfn)
+                             (catch Exception e
+                               (log-exception e)))))
+          app-context (:app-context (jvm-using-slix-context-slix slix))
           ac-thread-group (.getThreadGroup app-context)
           thread-in-ac (Thread. ac-thread-group (proxy [Runnable] []
                                                   (run []
-                                                       (if wait?
-                                                         (EventQueue/invokeAndWait cljfn-runner)
-                                                         (EventQueue/invokeLater cljfn-runner)))))]
+                                                    (if wait?
+                                                      (EventQueue/invokeAndWait cljfn-runner)
+                                                      (EventQueue/invokeLater cljfn-runner)))))]
       (doto thread-in-ac
         (.start)
         (.join)) ;; join here and wait for returning from EventQueue/invokeAndWait.
@@ -97,15 +100,16 @@
      (let [bound-cljfn (bound-fn [] (cljfn))
            cljfn-runner (proxy [Runnable] []
                           (run []
-                               (let [ct (Thread/currentThread)
-                                     ccl (.getContextClassLoader ct)]
-                                 (try
-                                   (.setContextClassLoader ct (or (:cl slix) ccl))
-                                   (bound-cljfn)
-                                   (catch Exception e
-                                     (log-exception e))
-                                   (finally
-                                    (.setContextClassLoader ct ccl))))))]
+                            (let [ct (Thread/currentThread)
+                                  scl (jvm-using-slix-cl-slix slix)
+                                  ccl (.getContextClassLoader ct)]
+                              (try
+                                (.setContextClassLoader ct (or scl ccl))
+                                (bound-cljfn)
+                                (catch Exception e
+                                  (log-exception e))
+                                (finally
+                                 (.setContextClassLoader ct ccl))))))]
        (if wait?
          (EventQueue/invokeAndWait cljfn-runner)
          (EventQueue/invokeLater cljfn-runner)))))

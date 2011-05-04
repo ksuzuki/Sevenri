@@ -27,43 +27,81 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro slix-fn
-  [name]
-  (let [fn-name# (symbol (str 'slix- name))
-        slix-keyword# (keyword name)]
-    `(defn ~fn-name#
-       ([] (~slix-keyword# ~'*slix*))
-       ([~'slix] (~slix-keyword# ~'slix)))))
+(defprotocol PSlix
+  "Protocol to deal with slix object"
+  (get-slix-sn [slix] "Return the slix name, a symbol.")
+  (get-slix-name [slix] "Return the slix instance name, a string.")
+  (get-slix-args [slix] "Return the arguments to the slix")
+  ;;
+  (get-slix-id [slix] "Return the unique symbol assigned to the slix")
+  (get-slix-cl [slix] "Return the class loader of the slix")
+  ;;
+  (get-slix-context [slix] "Return the context of the slix")
+  (get-slix-props [slix] "Return the properties of the slix (a part of the slix context)")
+  (get-slix-frame [slix] "Return the JFrame associated with the slix")
+  ;;
+  (get-slix-map [slix] "Return the slix as map"))
 
-;; :id - instance id
-(slix-fn id)
-;; :sn - slix name
-(slix-fn sn)
-;; :name - slix instance name
-(slix-fn name)
-;; :cl - per-slix class loader
-(slix-fn cl)
-;; :context - {:properties props, :prop_ (ref {})}, plus {:app-context app-context} optionally
-(slix-fn context)
-;; :frame - associated JFrame
-(slix-fn frame)
-;; :args - arguments
-(slix-fn args)
+(defn reify-slix*
+  "smap is a map with key-vals corresponding to methods."
+  [smap]
+  (reify PSlix
+    (get-slix-sn [_] (:sn smap))
+    (get-slix-name [_] (:name smap))
+    (get-slix-args [_] (:args smap))
+    ;;
+    (get-slix-id [_] (:id smap))
+    (get-slix-cl [_] (:cl smap))
+    ;;
+    (get-slix-context [_] (:context smap))
+    (get-slix-props [_] (:properties (:context smap)))
+    (get-slix-frame [_] (:frame smap))
+    ;;
+    (get-slix-map [_] smap)
+    ;;
+    (toString [this] (str "Slix " (:sn smap)
+                          "[name=\"" (:name smap) "\""
+                          ",args=[" (or (:args smap) "nil") "]"
+                          ",id=" (:id smap)
+                          ",cl=" (:cl smap)
+                          ",context=" (:context smap)
+                          ",frame=[" (:frame smap)"]]"))))
+
+(defn is-slix?
+  [obj]
+  (satisfies? PSlix obj))
 
 ;;;;
 
-(defn is-slix?
-  [object]
-  (and (map? object)
-       (every? identity [(slix-id object) (slix-sn object) (slix-name object)])))
+(defmacro def-slix-fn*
+  "Define slix-x fn which invokes corresponding PSlix method with *slix* or
+   a given slix."
+  [name]
+  (let [fn-name# (symbol (str 'slix- name))
+        method-name# (symbol (str 'get- fn-name#))]
+    `(defn ~fn-name#
+       ([] (~method-name# ~'*slix*))
+       ([~'slix] (~method-name# ~'slix)))))
+
+(def-slix-fn* sn)
+(def-slix-fn* name)
+(def-slix-fn* args)
+(def-slix-fn* id)
+(def-slix-fn* cl)
+(def-slix-fn* context)
+(def-slix-fn* props)
+(def-slix-fn* frame)
+(def-slix-fn* map)
 
 (defn get-slix-ns
-  ([sn]
-     (symbol (str 'slix \. sn)))
-  ([sn sym]
-     (get-slix-ns (str sn \. sym)))
-  ([sn sym & syms]
-     (apply get-slix-ns sn (str sym \. (first syms)) (rest syms))))
+  "Return slix namespace name, a symbol. The first argument is either slix
+   or slix-sn. The rest of the argument, if any, is sub namespace name."
+  ([sors]
+     (symbol (str "slix." (if (is-slix? sors) (slix-sn sors) sors))))
+  ([sors sns]
+     (get-slix-ns (str (if (is-slix? sors) (slix-sn sors) sors) \. sns)))
+  ([sors sns & snss]
+     (apply get-slix-ns sors (str sns \. (first snss)) (rest snss))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -146,14 +184,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-slix-props
-  ([]
-     (when *slix*
-       (get-slix-props *slix*)))
-  ([slix]
-     (when (is-slix? slix)
-       (:properties (slix-context slix)))))
-
 (defn create-slix-properties*
   [sn]
   (let [props (Properties.)
@@ -185,6 +215,8 @@
       (toString [this] (str "Properties slix[" sn "#" (.hashCode this) "]")))))
 
 (defn create-slix-properties
+  "Create the properties object local for a slix and load the default, user,
+   and persistent properties of the slix."
   ([slix]
      (when (is-slix? slix)
        (create-slix-properties (slix-sn slix) (slix-name slix))))
@@ -204,12 +236,12 @@
        props)))
 
 (defn save-slix-properties
+  "Save the persistent properties of a slix."
   ([]
-     (when *slix*
-       (save-slix-properties *slix*)))
+     (save-slix-properties *slix*))
   ([slix]
      (when (is-slix? slix)
-       (save-slix-properties (slix-sn slix) (slix-name slix) (get-slix-props slix))))
+       (save-slix-properties (slix-sn slix) (slix-name slix) (slix-props slix))))
   ([sn name props]
      ;; sid.slix.sn.-save-.name.properties.persistent
      (let [sid-sn-name-path (get-path (get-sid-slix-name-path sn name)
@@ -231,10 +263,10 @@
   @*xref-val*)
 
 (defmulti xref-with
-  (fn [object]
+  (fn [obj]
     (cond
-     (is-slix? object) :slix
-     (keyword? object) :key
+     (is-slix? obj) :slix
+     (keyword? obj) :key
      :else :val)))
 
 (defmethod xref-with :slix
@@ -284,21 +316,19 @@
 
 (defn add-to-xref
   [slix key val]
-  (when (and (is-slix? slix)
-             (declare get-slix)
-             (identical? slix (get-slix slix))
-             (keyword? key))
+  (declare get-slix)
+  (when (and (is-slix? slix) (get-slix slix)) (keyword? key))
     (remove-from-xref slix key)
     (dosync
      (ref-set *xref-slix* (assoc (get-xref-slix)
-                             slix
-                             (assoc (xref-with slix) key val)))
+                            slix
+                            (assoc (xref-with slix) key val)))
      (ref-set *xref-key* (assoc (get-xref-key)
                            key
                            (assoc (xref-with key) slix val)))
      (ref-set *xref-val* (assoc (get-xref-val)
                            val
-                           (assoc (xref-with val) slix key))))))
+                           (assoc (xref-with val) slix key)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -306,33 +336,36 @@
   ([]
      (vals @*slixes*))
   ([sn]
-     (when (or (symbol? sn) (string? sn))
-       (seq (filter #(= (symbol sn) (slix-sn %)) (get-slixes))))))
+     (seq (filter #(= (symbol (str sn)) (slix-sn %)) (get-slixes)))))
+
+;;;;
 
 (defmulti get-slix
-  (fn [object]
+  (fn [obj]
     (cond
-     (or (string? object) (symbol? object)) :name
-     (is-slix? object) :slix
-     (instance? JFrame object) :frame
+     (is-slix? obj) :slix
+     (instance? JFrame obj) :frame
+     (or (string? obj) (symbol? obj)) :name
      :else :default)))
 
-(defmethod get-slix :name
-  [object]
-  (get-prop_ *slixes* (str object)))
-
 (defmethod get-slix :slix
-  [object]
-  (when (identical? object (get-prop_ *slixes* (str (slix-name object))))
-    object))
+  [slix]
+  (when (identical? slix (get @*slixes* (slix-name slix)))
+    slix))
 
 (defmethod get-slix :frame
-  [object]
-  (first (filter #(identical? object (slix-frame %)) (get-slixes))))
+  [frame]
+  (first (filter #(identical? frame (slix-frame %)) (get-slixes))))
+
+(defmethod get-slix :name
+  [name]
+  (get @*slixes* (str name)))
 
 (defmethod get-slix :default
-  [object]
+  [obj]
   nil)
+
+;;;;
 
 (defn get-slix-names
   []
@@ -610,6 +643,7 @@
   ([slix body]
      (invoke-later slix body false))
   ([slix body wait?]
+     (when-not slix (throw (RuntimeException. "invoke-later: nil slix")))
      (binding [*slix* slix]
        (if-let [app-context (:app-context (slix-context slix))]
          (invoke-later-in-slix-context slix body wait?)
@@ -695,32 +729,29 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-slix-context
+(defn is-singleton-slix?
+  [obj]
+  (let [sn (if (is-slix? obj)
+             (slix-sn obj)
+             (symbol (str obj)))
+        fsn (filter #(= sn %) @*slix-sn-cache*)]
+    (if (seq fsn)
+      (true? (:singleton (get-slix-sn-meta (first fsn))))
+      false)))
+
+;;;;
+
+(defn- -create-slix-context
   ([slix]
-     (create-slix-context (slix-sn slix) (slix-name slix) nil))
+     (-create-slix-context (slix-sn slix) (slix-name slix) nil))
   ([sn name]
-     (create-slix-context sn name nil))
+     (-create-slix-context sn name nil))
   ([sn name app-context]
      (let [context {:properties (create-slix-properties sn name)
                     :prop_ (ref {})}]
        (if app-context
          (assoc context :app-context app-context)
          context))))
-
-(defn register-slix
-  ([slix]
-     (register-slix slix (slix-name slix)))
-  ([slix name]
-     (dosync
-      (ref-set *slixes* (assoc @*slixes* (str name) slix)))))
-
-(defn unregister-slix
-  ([slix]
-     (unregister-slix slix (slix-name slix)))
-  ([slix name]
-     (remove-from-xref slix)
-     (dosync
-      (ref-set *slixes* (dissoc @*slixes* (str name))))))
 
 (defn- -slix-is-opening
   [name opening?]
@@ -740,16 +771,6 @@
            (-slix-is-opening name true))
          false))))
 
-(defn is-singleton-slix?
-  [object]
-  (let [sn (if (is-slix? object)
-             (slix-sn object)
-             (symbol (str object)))
-        fsn (filter #(= sn %) @*slix-sn-cache*)]
-    (if (seq fsn)
-      (true? (:singleton (get-slix-sn-meta (first fsn))))
-      false)))
-
 (defn- -create-initial-frame
   [slix]
   (let [f (JFrame.)
@@ -762,6 +783,21 @@
       (.setSize w h))
     f))
 
+(defn- -register-slix
+  ([slix]
+     (-register-slix slix (slix-name slix)))
+  ([slix name]
+     (dosync
+      (ref-set *slixes* (assoc @*slixes* (str name) slix)))))
+
+(defn- -unregister-slix
+  ([slix]
+     (-unregister-slix slix (slix-name slix)))
+  ([slix name]
+     (remove-from-xref slix)
+     (dosync
+      (ref-set *slixes* (dissoc @*slixes* (str name))))))
+
 (defn- -abort-open-slix
   ([slix]
      (-abort-open-slix slix
@@ -771,8 +807,8 @@
      (-abort-open-slix slix eid reason true))
   ([slix eid reason post-event?]
      (-slix-is-opening (slix-name slix) false)
-     (when (identical? (get-slix (slix-name slix)) slix)
-       (unregister-slix slix))
+     (when (get-slix slix)
+       (-unregister-slix slix))
      (when-let [frame (slix-frame slix)]
        (.dispose frame))
      (when-let [app-context (:app-context (slix-context slix))]
@@ -850,7 +886,7 @@
        (doto frame
          (add-default-window-listener)
          (add-default-key-listener)))
-     (let [slix (assoc slix :frame frame)
+     (let [slix (reify-slix* (assoc (slix-map slix) :frame frame))
            eid (if saved?
                  :sevenri.event/slix-frame-loaded
                  :sevenri.event/slix-frame-created)]
@@ -858,7 +894,7 @@
        (-send-event-and-continue-unless
         nil ;; ignore any response
         slix eid send-creation-event
-        (register-slix slix)
+        (-register-slix slix)
         (-send-event-and-continue-unless
          nil ;; ditto
          slix :sevenri.event/slix-opened post-event
@@ -876,11 +912,11 @@
            name (slix-name slix)]
        (if-let [app-context (create-app-context name (slix-cl slix))]
          ;; EDT per slix
-         (-get-context-and-start-slix-creation slix (create-slix-context sn name app-context))
+         (-get-context-and-start-slix-creation slix (-create-slix-context sn name app-context))
          ;; sharing the same, main EDT
-         (-get-context-and-start-slix-creation slix (create-slix-context sn name)))))
+         (-get-context-and-start-slix-creation slix (-create-slix-context sn name)))))
   ([slix context]
-     (let [slix (assoc slix :context context)]
+     (let [slix (reify-slix* (assoc (slix-map slix) :context context))]
        (future
          (try
            (-open-slix slix (get-stdio))
@@ -889,7 +925,7 @@
 
 ;;;;
 
-(def -open-slix-args- nil)
+(def *open-slix-args* nil)
 
 (defn generate-slix-name
   ([sn]
@@ -916,11 +952,11 @@
        (let [sn (symbol sn)
              name (str name)
              cl (create-slix-class-loader sn)
-             slix {:id (gensym 'id) :sn sn :name name :cl cl :args -open-slix-args-}]
+             slix (reify-slix* {:id (gensym 'id) :sn sn :name name :cl cl :args *open-slix-args*})]
          (-get-context-and-start-slix-creation slix))
        (future
          (when-let [projman (get-project-manager)]
-           (build-and-run projman (get-slix-ns sn) sn name -open-slix-args-)
+           (build-and-run projman (get-slix-ns sn) sn name *open-slix-args*)
            :sevenri.event/slix-open-after-building-project)))))
 
 (defn open-slix-and-wait
@@ -957,10 +993,10 @@
    and arguments contained in an object args and notifies open events to it.
    Instance name is optional."
   ([args sn]
-     `(binding [-open-slix-args- ~args]
+     `(binding [*open-slix-args* ~args]
         (open-slix ~sn)))
   ([args sn name]
-     `(binding [-open-slix-args- ~args]
+     `(binding [*open-slix-args* ~args]
         (open-slix ~sn ~name))))
 
 (defn alt-open-slix?
@@ -1012,8 +1048,8 @@
   "Return a future object that notifies save events to slix instance
    specified by object, which can be slix instance or instance name in
    symbol or string. Return nil when object is invalid."
-  [object]
-  (when-let [slix (get-slix object)]
+  [obj]
+  (when-let [slix (get-slix obj)]
     (future (-save-slix slix (get-stdio)))))
 
 (defn save-slix-and-wait
@@ -1021,8 +1057,8 @@
    specified by object, which can be slix instance or instance name in
    symbol or string, and return the dereference to it. Return nil when
    object is invalid."
-  [object]
-  (when-let [saver (save-slix object)]
+  [obj]
+  (when-let [saver (save-slix obj)]
     @saver))
 
 (defn save-all-slixes-and-wait
@@ -1086,7 +1122,7 @@
                  ;; Unregister the slix. Then dispose its frame and
                  ;; optionally its app-context. Trash instance save
                  ;; directory if it's empty.
-                 (unregister-slix slix)
+                 (-unregister-slix slix)
                  (.dispose (slix-frame slix))
                  (when-let [ac (:app-context (slix-context slix))]
                    (dispose-app-context ac))
@@ -1101,8 +1137,8 @@
   "Return a future object that notifies close events to slix instance
    specified by object, which can be slix instance or instance name in
    symbol or string. Return nil when object is invalid."
-  [object]
-  (when-let [slix (get-slix object)]
+  [obj]
+  (when-let [slix (get-slix obj)]
     (future (-close-slix slix (get-stdio)))))
 
 (defn close-slix-and-wait
@@ -1110,8 +1146,8 @@
    specified by object, which can be slix instance or instance name in
    symbol or string, and return the dereference to it. Return nil when
    object is invalid."
-  [object]
-  (when-let [closer (close-slix object)]
+  [obj]
+  (when-let [closer (close-slix obj)]
     @closer))
 
 (defn close-all-slixes-and-wait
@@ -1164,8 +1200,8 @@
   "Return a future object that notifies delete events to slix instance
    specified by object, which can be slix instance or instance name in
    symbol or string. Return nil when object is invalid."
-  ([object]
-     (when-let [slix (get-slix object)]
+  ([obj]
+     (when-let [slix (get-slix obj)]
        (delete-slix (slix-sn slix) (slix-name slix))))
   ([sn name]
      (future (-delete-slix (symbol sn) name (get-stdio)))))
@@ -1175,8 +1211,8 @@
    specified by object, which can be slix instance or instance name in
    symbol or string, and return the dereference to it. Return nil when
    object is invalid."
-  ([object]
-     (when-let [deleter (delete-slix object)]
+  ([obj]
+     (when-let [deleter (delete-slix obj)]
        @deleter))
   ([sn name]
      (when-let [deleter (delete-slix sn name)]
@@ -1284,14 +1320,14 @@
 
 (defn update-slix-sevenri-lists
   []
-  (let [slix-sevenri (get-slix-sevenri)]
+  (when-let [slix-sevenri (get-slix-sevenri)]
     (when-let [update-lists-fn (:update-lists-fn (xref-with slix-sevenri))]
-      (when (fn? (var-get update-lists-fn))
+      (when (fn? update-lists-fn)
         (invoke-later slix-sevenri update-lists-fn)))))
 
 (defn is-slix-sevenri?
-  ([object]
-     (if-let [slix (get-slix object)]
+  ([obj]
+     (if-let [slix (get-slix obj)]
        (is-slix-sevenri? (slix-sn slix) (slix-name slix))
        false))
   ([sn name]
