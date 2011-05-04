@@ -434,8 +434,7 @@
 
 (defn get-sid-slix-frame-file
   ([]
-     (when *slix*
-       (get-sid-slix-frame-file *slix*)))
+     (get-sid-slix-frame-file *slix*))
   ([slix]
      (get-sid-slix-frame-file (slix-sn slix) (slix-name slix)))
   ([sn name]
@@ -446,8 +445,7 @@
 
 (defn get-sid-slix-state-file
   ([]
-     (when *slix*
-       (get-sid-slix-state-file *slix*)))
+     (get-sid-slix-state-file *slix*))
   ([slix]
      (get-sid-slix-state-file (slix-sn slix) (slix-name slix)))
   ([sn name]
@@ -456,21 +454,25 @@
      (let [dir (with-make-path (get-sid-slix-name-path sn name))]
        (get-path dir state-file-name))))
 
-(defn get-slix-file-bundle
+(defn get-sid-slix-file-bundle
   "Return [frame-file state-file] or nil"
   ([]
-     (when *slix*
-       (get-slix-file-bundle *slix*)))
+     (get-sid-slix-file-bundle *slix*))
   ([slix]
-     (get-slix-file-bundle (slix-sn slix) (slix-name slix)))
+     (get-sid-slix-file-bundle (slix-sn slix) (slix-name slix)))
   ([sn name]
      [(get-sid-slix-frame-file sn name) (get-sid-slix-state-file sn name)]))
+
+(defmacro get-slix-file-bundle
+  "Alias of get-sid-slix-file-bundle."
+  ([] `(get-sid-slix-file-bundle))
+  ([slix] `(get-sid-slix-file-bundle ~slix))
+  ([sn name] `(get-sid-slix-file-bundle ~sn ~name)))
 
 (defn is-slix-saved
   "Return [frame-file state-file/nil] or nil."
   ([]
-     (when *slix*
-       (is-slix-saved *slix*)))
+     (is-slix-saved *slix*))
   ([slix]
      (is-slix-saved (slix-sn slix) (slix-name slix)))
   ([sn name]
