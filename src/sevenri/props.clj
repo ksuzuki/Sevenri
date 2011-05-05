@@ -48,10 +48,23 @@
 ;; change to JVM properties (the ones which are accessed by
 ;; System/getProperty).
 ;;
-;; Property Domains and Load Order
-;; 1. JVM
-;; 2. sevenri (default, user, persistent)
-;; 3. slix (default, user, persistent)
+;; Property Domains, Files and Load Order
+;; There are three property domains; :sevenri, :slix, and :frame. The
+;; :sevenri domain properties are the ones of the JVM and Sevenri and
+;; 'get-props' returns the properties object to access them. The :slix
+;; domain Properties are the ones of slix and 'slix-props' returns the
+;; properites object to access them. The :frame domain properties are
+;; actually subset of :slix domain properties but are the ones considered as
+;; frame's properties and 'slix-frame-props' (or 'frame-props') returns the
+;; properties object to access them.
+;; When properties object is created, default, user defined, and any
+;; persistent propertiy key/values are pre-loaded from files named as
+;; 'default.properties', 'user.properties', and 'persistent.properties' in
+;; that order. Pesistent properties are the ones put to properties object
+;; using 'save-prop' and written out to the file when slix is closed and
+;; Sevenri shuts down.
+;; :frame properties are exceptional; no property loading and saving are
+;; done for :frame properties objects.
 ;;
 ;; Implementaion Notes
 ;; * Getting and putting values are actually handled by the 'get' and 'put'
@@ -60,6 +73,8 @@
 ;;   performed on props.
 ;; * Saved values are stored in a ref map, which can be extracted using
 ;;   'get-saved'
+;; * slix and frame Properties fns are defined in slix.clj.
+;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -76,7 +91,7 @@
   ;;
   (get-native [props])
   (get-saved [props])
-  (is-slix-props? [props])
+  (get-info [props])
   ;;
   (load-props [props path file-name])
   (load-persistent-props [props path file-name])
@@ -130,6 +145,13 @@
   (let [key (str pi)]
     (reset! saved (dissoc @saved key))
     (.remove props key)))
+
+(defn prop-seq*
+  [props]
+  (if (map? props)
+    (seq props)
+    (when (and (instance? java.util.Properties props) (pos? (count props)))
+      (map #(clojure.lang.MapEntry. (.getKey %) (.getValue %)) props))))
 
 (defn load-props*
   [^java.util.Properties props path file-name]
@@ -223,17 +245,17 @@
          (prop-keys [_] (enumeration-seq (.keys props)))
          (prop-vals [_] (iterator-seq (.iterator (.values props))))
          (prop-count [_] (.size props))
-         (prop-seq [_] (seq props))
+         (prop-seq [_] (prop-seq* props))
          ;;
          (get-native [_] props)
          (get-saved [_] saved)
-         (is-slix-props? [_] false)
+         (get-info [_] {:domain :sevenri})
          ;;
          (load-props [_ path file-name] (load-props* props path file-name))
          (load-persistent-props [_ path file-name] (load-persistent-props* props path file-name saved))
          (store-persistent-props [_ path file-name] (store-persistent-props* saved path file-name))
          ;;
-         (toString [this] (str "Properties sevenri[#" (.hashCode this) "]"))))))
+         (toString [this] (str "Properties[domain=:sevenri#" (.hashCode this) "]"))))))
 
 ;;;;
 

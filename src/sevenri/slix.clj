@@ -27,6 +27,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(def *slix-frame-props* "props")
+
 (defprotocol PSlix
   "Protocol to deal with slix object"
   (get-slix-sn [slix] "Return the slix name, a symbol.")
@@ -38,9 +40,15 @@
   ;;
   (get-slix-context [slix] "Return the context of the slix")
   (get-slix-props [slix] "Return the properties of the slix (a part of the slix context)")
+  ;;
   (get-slix-frame [slix] "Return the JFrame associated with the slix")
+  (get-slix-frame-props [slix-or-frame] "Return the frame properties of the slix.")
   ;;
   (get-slix-map [slix] "Return the slix as map"))
+
+(defn is-slix?
+  [obj]
+  (satisfies? PSlix obj))
 
 (defn reify-slix*
   "smap is a map with key-vals corresponding to methods."
@@ -55,7 +63,12 @@
     ;;
     (get-slix-context [_] (:context smap))
     (get-slix-props [_] (:properties (:context smap)))
+    ;;
     (get-slix-frame [_] (:frame smap))
+    (get-slix-frame-props [obj] (.getClientProperty (.getRootPane (if (is-slix? obj)
+                                                                    (get-slix-frame obj)
+                                                                    obj))
+                                                    *slix-frame-props*))
     ;;
     (get-slix-map [_] smap)
     ;;
@@ -66,10 +79,6 @@
                           ",cl=" (:cl smap)
                           ",context=" (:context smap)
                           ",frame=[" (:frame smap)"]]"))))
-
-(defn is-slix?
-  [obj]
-  (satisfies? PSlix obj))
 
 ;;;;
 
@@ -91,7 +100,12 @@
 (def-slix-fn* context)
 (def-slix-fn* props)
 (def-slix-fn* frame)
+(def-slix-fn* frame-props)
 (def-slix-fn* map)
+
+(defmacro frame-props
+  ([] `(slix-frame-props))
+  ([slix] `(slix-frame-props ~slix)))
 
 (defn get-slix-ns
   "Return slix namespace name, a symbol. The first argument is either slix
@@ -185,7 +199,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn create-slix-properties*
-  [sn]
+  [sn name]
   (let [props (Properties.)
         saved (atom {})]
     (reify PProperties
@@ -202,17 +216,17 @@
       (prop-keys [_] (enumeration-seq (.keys props)))
       (prop-vals [_] (iterator-seq (.iterator (.values props))))
       (prop-count [_] (.size props))
-      (prop-seq [_] (seq props))
+      (prop-seq [_] (prop-seq* props))
       ;;
       (get-native [_] props)
       (get-saved [_] saved)
-      (is-slix-props? [_] true)
+      (get-info [_] {:domain :slix :sn sn :name name})
       ;;
       (load-props [_ path file-name] (load-props* props path file-name))
       (load-persistent-props [_ path file-name] (load-persistent-props* props path file-name saved))
       (store-persistent-props [_ path file-name] (store-persistent-props* saved path file-name))
       ;;
-      (toString [this] (str "Properties slix[" sn "#" (.hashCode this) "]")))))
+      (toString [this] (str "Properties[domain=:slix#" (.hashCode this) ",sn=" sn ",name=" name "]")))))
 
 (defn create-slix-properties
   "Create the properties object local for a slix and load the default, user,
@@ -221,7 +235,7 @@
      (when (is-slix? slix)
        (create-slix-properties (slix-sn slix) (slix-name slix))))
   ([sn name]
-     (let [props (create-slix-properties* sn)]
+     (let [props (create-slix-properties* sn name)]
        ;; src.slix.sn.properties.default
        (let [src-sn-path (get-src-slix-path sn (get-config 'src.slix.properties.dir))]
          (load-props props src-sn-path (get-config 'src.slix.properties.default-file-name)))
@@ -248,87 +262,36 @@
                                       (get-config 'sid.slix.properties.dir))]
        (store-persistent-props props sid-sn-name-path (get-config 'sid.slix.save.persistent-file-name)))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
-(defn get-xref-slix
-  []
-  @*xref-slix*)
+(defn create-slix-frame-properties*
+  [sn name]
+  (let [props (atom {})]
+    (reify PProperties
+      (get-prop [_ pi] (pi @props))
+      (get-prop [_ pi nfval] (get @props pi nfval))
+      (put-prop [_ pi val] (let [v (get @props pi)] (reset! props (assoc @props pi val)) v))
+      (save-prop [_ _ _] nil)
+      (remove-prop [_ pi] (let [v (get @props pi)] (reset! props (dissoc @props pi)) v))
+      ;;
+      (prop-keys [_] (keys @props))
+      (prop-vals [_] (vals @props))
+      (prop-count [_] (count @props))
+      (prop-seq [_] (seq @props))
+      ;;
+      (get-native [_] @props)
+      (get-saved [_] nil)
+      (get-info [_] {:domain :frame :sn sn :name name})
+      ;;
+      (load-props [_ _ _] nil)
+      (load-persistent-props [_ _ _] nil)
+      (store-persistent-props [_ _ _] nil)
+      ;;
+      (toString [this] (str "Properties[domain=:frame#" (.hashCode this) ",sn=" sn ",name=" name "]")))))
 
-(defn get-xref-key
-  []
-  @*xref-key*)
-
-(defn get-xref-val
-  []
-  @*xref-val*)
-
-(defmulti xref-with
-  (fn [obj]
-    (cond
-     (is-slix? obj) :slix
-     (keyword? obj) :key
-     :else :val)))
-
-(defmethod xref-with :slix
-  [slix]
-  (get (get-xref-slix) slix))
-
-(defmethod xref-with :key
-  [key]
-  (key (get-xref-key)))
-
-(defmethod xref-with :val
-  [val]
-  (get (get-xref-val) val))
-
-(defn remove-from-xref
-  ([slix]
-     (when (is-slix? slix)
-       (doseq [[key _] (xref-with slix)]
-         (remove-from-xref slix key))))
-  ([slix key]
-     (when (and (is-slix? slix) (keyword? key))
-       (dosync
-        (let [old-ovs (xref-with key)]
-          (doseq [[_ val] (filter (fn [[o v]] (identical? o slix)) old-ovs)]
-            (let [old-oks (xref-with val)
-                  new-oks (reduce (fn [m [o k]] (if (identical? o slix)
-                                                  m
-                                                  (assoc m o k)))
-                                  {} old-oks)]
-              (ref-set *xref-val* (if (empty? new-oks)
-                                    (dissoc (get-xref-val) val)
-                                    (assoc (get-xref-val) val new-oks)))))
-          (let [new-ovs (reduce (fn [m [o v]] (if (identical? o slix)
-                                                m
-                                                (assoc m o v)))
-                                {} old-ovs)]
-            (ref-set *xref-key* (if (empty? new-ovs)
-                                  (dissoc (get-xref-key) key)
-                                  (assoc (get-xref-key) key new-ovs))))
-          (let [new-kvs (reduce (fn [m [k v]] (if (= k key)
-                                                m
-                                                (assoc m k v)))
-                                {} (xref-with slix))]
-            (ref-set *xref-slix* (if (empty? new-kvs)
-                                    (dissoc (get-xref-slix) slix)
-                                    (assoc (get-xref-slix) slix new-kvs)))))))))
-
-(defn add-to-xref
-  [slix key val]
-  (declare get-slix)
-  (when (and (is-slix? slix) (get-slix slix)) (keyword? key))
-    (remove-from-xref slix key)
-    (dosync
-     (ref-set *xref-slix* (assoc (get-xref-slix)
-                            slix
-                            (assoc (xref-with slix) key val)))
-     (ref-set *xref-key* (assoc (get-xref-key)
-                           key
-                           (assoc (xref-with key) slix val)))
-     (ref-set *xref-val* (assoc (get-xref-val)
-                           val
-                           (assoc (xref-with val) slix key)))))
+(defn add-slix-frame-properties
+  [frame sn name]
+  (.putClientProperty (.getRootPane frame) *slix-frame-props* (create-slix-frame-properties* sn name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -796,6 +759,7 @@
   ([slix]
      (-unregister-slix slix (slix-name slix)))
   ([slix name]
+     (declare remove-from-xref) ;; deprecated - remove by 0.3.0
      (remove-from-xref slix)
      (dosync
       (ref-set *slixes* (dissoc @*slixes* (str name))))))
@@ -888,6 +852,8 @@
        (doto frame
          (add-default-window-listener)
          (add-default-key-listener)))
+     ;; Add frame properties.
+     (add-slix-frame-properties frame (slix-sn slix) (slix-name slix))
      (let [slix (reify-slix* (assoc (slix-map slix) :frame frame))
            eid (if saved?
                  :sevenri.event/slix-frame-loaded
@@ -1334,6 +1300,7 @@
 (defn update-slix-sevenri-lists
   []
   (when-let [slix-sevenri (get-slix-sevenri)]
+    (declare xref-with) ;; Deprecated - remove by 0.3.0
     (when-let [update-lists-fn (:update-lists-fn (xref-with slix-sevenri))]
       (when (fn? update-lists-fn)
         (invoke-later slix-sevenri update-lists-fn)))))
@@ -1369,6 +1336,88 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Deprecated - remove by 0.3.0
+
+(defn get-xref-slix
+  []
+  @*xref-slix*)
+
+(defn get-xref-key
+  []
+  @*xref-key*)
+
+(defn get-xref-val
+  []
+  @*xref-val*)
+
+(defmulti xref-with
+  (fn [obj]
+    (cond
+     (is-slix? obj) :slix
+     (keyword? obj) :key
+     :else :val)))
+
+(defmethod xref-with :slix
+  [slix]
+  (get (get-xref-slix) slix))
+
+(defmethod xref-with :key
+  [key]
+  (key (get-xref-key)))
+
+(defmethod xref-with :val
+  [val]
+  (get (get-xref-val) val))
+
+(defn remove-from-xref
+  ([slix]
+     (when (is-slix? slix)
+       (doseq [[key _] (xref-with slix)]
+         (remove-from-xref slix key))))
+  ([slix key]
+     (when (and (is-slix? slix) (keyword? key))
+       (dosync
+        (let [old-ovs (xref-with key)]
+          (doseq [[_ val] (filter (fn [[o v]] (identical? o slix)) old-ovs)]
+            (let [old-oks (xref-with val)
+                  new-oks (reduce (fn [m [o k]] (if (identical? o slix)
+                                                  m
+                                                  (assoc m o k)))
+                                  {} old-oks)]
+              (ref-set *xref-val* (if (empty? new-oks)
+                                    (dissoc (get-xref-val) val)
+                                    (assoc (get-xref-val) val new-oks)))))
+          (let [new-ovs (reduce (fn [m [o v]] (if (identical? o slix)
+                                                m
+                                                (assoc m o v)))
+                                {} old-ovs)]
+            (ref-set *xref-key* (if (empty? new-ovs)
+                                  (dissoc (get-xref-key) key)
+                                  (assoc (get-xref-key) key new-ovs))))
+          (let [new-kvs (reduce (fn [m [k v]] (if (= k key)
+                                                m
+                                                (assoc m k v)))
+                                {} (xref-with slix))]
+            (ref-set *xref-slix* (if (empty? new-kvs)
+                                    (dissoc (get-xref-slix) slix)
+                                    (assoc (get-xref-slix) slix new-kvs)))))))))
+
+(defn add-to-xref
+  [slix key val]
+  (declare get-slix)
+  (when (and (is-slix? slix) (get-slix slix)) (keyword? key))
+    (remove-from-xref slix key)
+    (dosync
+     (ref-set *xref-slix* (assoc (get-xref-slix)
+                            slix
+                            (assoc (xref-with slix) key val)))
+     (ref-set *xref-key* (assoc (get-xref-key)
+                           key
+                           (assoc (xref-with key) slix val)))
+     (ref-set *xref-val* (assoc (get-xref-val)
+                           val
+                           (assoc (xref-with val) slix key)))))
+
+;;;;
 
 (defn put-slix-prop
   ([key val]
