@@ -48,15 +48,6 @@ which can be redefined."}
   (def *project-manager* manager))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; debug
-
-(def *swank-repl-is-running* false)
-
-(defn reset-swank-repl-is-running
-  [running?]
-  (def *swank-repl-is-running* running?))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; jvm
 
 (def *Sun-awt-is-available* (try
@@ -154,12 +145,6 @@ which can be redefined."}
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix
 
-(def *frame-location-by-platform* true)
-
-(defn reset-frame-location-by-platform
-  [by-platform?]
-  (def *frame-location-by-platform* by-platform?))
-
 (def *base-class-loader* nil)
 
 (defn reset-base-class-loader
@@ -172,12 +157,6 @@ which can be redefined."}
   [event-queue]
   (def *system-event-queue* event-queue))
 
-(def *log-xml-encoder-errors* false)
-
-(defn reset-log-xml-encoder-errors
-  [log?]
-  (def *log-xml-encoder-errors* log?))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; ui
 
@@ -188,7 +167,8 @@ which can be redefined."}
   (def *event-delegator-class*
     (Class/forName (str evtdelegator-name))))
 
-;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Deprecated - remove by 0.3.0
 
 (def *saved-dynaclass-listeners* '_*edl*_)
 

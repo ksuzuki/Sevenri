@@ -17,24 +17,24 @@
 
 (defn is-swank-repl-running?
   []
-  *swank-repl-is-running*)
+  (read-prop (get-props) 'sevenri.debug.swank.running))
 
 (defn run-swank-repl
   "Run swank-repl in a system thread."
   ([]
-     (run-swank-repl (get-prop (get-props) 'sevenri.debug.swank-port)))
+     (run-swank-repl (get-prop (get-props) 'sevenri.debug.swank.port)))
   ([port]
      (when-not (is-swank-repl-running?)
        (let [port (try
                     (Integer/parseInt (str port))
                     (catch Exception e
-                      (Integer/parseInt (get-prop (get-props) 'sevenri.debug.swank-port))))
-             encoding (get-prop (get-props) 'sevenri.debug.swank-encoding)
+                      (Integer/parseInt (get-prop (get-props) 'sevenri.debug.swank.port))))
+             encoding (get-prop (get-props) 'sevenri.debug.swank.encoding)
              ;;
              event-queue (.getSystemEventQueue (java.awt.Toolkit/getDefaultToolkit))
              source (Object.)
              runnable #(future
-                         (reset-swank-repl-is-running true)
+                         (put-prop (get-props) 'sevenri.debug.swank.running "true")
                          (require 'swank.swank)
                          ((ns-resolve 'swank.swank 'start-repl) port :encoding encoding))]
          (.postEvent event-queue (java.awt.event.InvocationEvent. source runnable))))))
@@ -44,7 +44,7 @@
 
 (defn- -run-swank-repl?
   []
-  (when-let [port (get-env (get-prop (get-props) 'sevenri.debug.env-name))]
+  (when-let [port (get-env (get-prop (get-props) 'sevenri.debug.envname))]
     (run-swank-repl port))
   true)
 

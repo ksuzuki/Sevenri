@@ -742,7 +742,7 @@
         n (slix-name slix)
         [w h] (read-prop (get-props) 'slix.frame.size)]
     (doto f
-      (.setLocationByPlatform *frame-location-by-platform*)
+      (.setLocationByPlatform (read-prop (get-props) 'slix.frame.location-by-platform))
       (.setDefaultCloseOperation JFrame/DISPOSE_ON_CLOSE)
       (.setTitle (str n))
       (.setSize w h))
@@ -1002,7 +1002,9 @@
                (let [saved? (atom false)
                      log? (if (= res ::sevenri.event/response-log-xml-encoder-errors)
                             true
-                            *log-xml-encoder-errors*)]
+                            (if-let [val (get-prop (slix-props slix) 'slix.log.xml-encoder.error)]
+                              (read-string val)
+                              (read-prop (get-props) 'slix.log.xml-encoder.error)))]
                  (invoke-and-wait slix #(reset! saved? (-save-slix-frame? slix log?)))
                  (let [eid (if @saved?
                              :sevenri.event/slix-saved
