@@ -9,10 +9,31 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns slix.sevenri.aotlist)
+(ns slix.sevenri.aotlist
+  (:use [sevenri log slix os]
+        [slix.sevenri.ui :only (enable-main-panel)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def *aot-compile-list* '[ced])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn aot-compile-slixes
+  []
+  (let [frame (slix-frame)]
+    (future
+      (let [msg "sevenri: aot-compile-slixes: aot-compile failed for:"]
+        (enable-main-panel frame false)
+        ;;
+        (doseq [sn *aot-compile-list*]
+          (if (aot-compile? sn 'aot)
+            (when-let [aot-os (cond
+                               (is-mac?) 'aot-mac
+                               :else nil)]
+              (when (.exists (get-slix-path sn (str aot-os '!clj)))
+                (when-not (aot-compile? sn aot-os)
+                  (log-warning msg aot-os))))
+            (log-warning msg sn)))
+        ;; 
+        (enable-main-panel frame true)))))

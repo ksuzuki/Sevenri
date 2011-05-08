@@ -547,9 +547,12 @@
                (recur (rest slixes)))))))))
 
 (defn invoke-slix-public-fn
-  [slix fn & params]
-  (binding [*slix* slix]
-    (apply fn params)))
+  [slix fnsym & params]
+  (when (and (is-slix? slix) fnsym)
+    (when-let [fnvar (get-public-fn (slix-public slix) (symbol fnsym))]
+      (when (and (var? fnvar) (fn? (var-get fnvar)))
+        (binding [*slix* slix]
+          (apply (var-get fnvar) params))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1458,13 +1461,10 @@
     (put-prop (slix-props slix) 'can.close "true")
     (close-slix-and-wait slix)))
 
-(defn update-slix-sevenri-lists
+(defn update-sn-list-of-slix-sevenri
   []
   (when-let [slix-sevenri (get-slix-sevenri)]
-    (declare xref-with) ;; Deprecated - remove by 0.3.0
-    (when-let [update-lists-fn (:update-lists-fn (xref-with slix-sevenri))]
-      (when (fn? update-lists-fn)
-        (invoke-later slix-sevenri update-lists-fn)))))
+    (invoke-slix-public-fn slix-sevenri 'update-sn-list)))
 
 (defn is-slix-sevenri?
   ([obj]
@@ -1485,7 +1485,7 @@
   ([slix title]
      (when-let [frame (slix-frame slix)]
        (.setTitle frame (str title))
-       (update-slix-sevenri-lists))))
+       (update-sn-list-of-slix-sevenri))))
 
 (defn set-slix-visible
   ([]

@@ -11,47 +11,16 @@
 
 (ns ^{:slix true :singleton true}
   slix.sevenri
-  (:use [sevenri config core event log os props slix ui])
-  (:use [slix.sevenri aotlist lists ui]))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn update-lists
-  []
-  (let [slix *slix*]
-    (future
-      (let [lsn (:lstSn (get-main-panel-components (slix-frame slix)))
-            sns (sort (map str (get-all-slix-sn)))
-            sis (get-selected-indices (seq (.getSelectedValues lsn)) sns)]
-        (invoke-later slix #(doto lsn
-                              (.setListData (into-array String sns))
-                              (.setSelectedIndices (into-array Integer/TYPE sis))))))))
-
-(defn aot-compile-slixes
-  []
-  (let [frame (slix-frame)]
-    (future
-      (let [msg "sevenri: aot-compile-slixes: aot-compile failed for:"]
-        (enable-main-panel frame false)
-        ;;
-        (doseq [sn *aot-compile-list*]
-          (if (aot-compile? sn 'aot)
-            (when-let [aot-os (cond
-                               (is-mac?) 'aot-mac
-                               :else nil)]
-              (when (.exists (get-slix-path sn (str aot-os '!clj)))
-                (when-not (aot-compile? sn aot-os)
-                  (log-warning msg aot-os))))
-            (log-warning msg sn)))
-        ;; 
-        (enable-main-panel frame true)))))
+  (:use [sevenri config core event log props slix ui])
+  (:use [slix.sevenri aotlist lists ui])
+  (:require [slix.sevenri public]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix event handlers
 
 (defn frame-created
   [event]
-  (post-frame-created))
+  (sevenri-frame-created))
 
 (defn opened
   [event]
@@ -60,9 +29,7 @@
   (set-slix-visible)
   (update-divider)
   (aot-compile-slixes)
-  (update-lists)
-  (let [slix *slix*]
-    (add-to-xref *slix* :update-lists-fn #(binding [*slix* slix] (update-lists)))))
+  (update-sn-list))
 
 (defn saving
   [event]
@@ -82,23 +49,23 @@
 
 (defn slix-created
   [event]
-  (update-lists))
+  (update-sn-list))
 
 (defn slix-opened
   [event]
-  (update-lists))
+  (update-sn-list))
 
 (defn slix-closed
   [event]
-  (update-lists))
+  (update-sn-list))
 
 (defn slix-deleted
   [event]
-  (update-lists))
+  (update-sn-list))
 
 (defn slix-purged
   [event]
-  (update-lists))
+  (update-sn-list))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

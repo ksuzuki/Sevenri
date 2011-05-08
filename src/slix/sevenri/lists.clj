@@ -220,3 +220,16 @@
                      (let [nm (get title-name-map (.getSelectedValue lstName))]
                        (.toFront (slix-frame (get-slix nm))))))
         :else nil)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn update-sn-list
+  []
+  (let [slix *slix*]
+    (future
+      (let [lsn (:lstSn (get-main-panel-components (slix-frame slix)))
+            sns (sort (map str (get-all-slix-sn)))
+            sis (get-selected-indices (seq (.getSelectedValues lsn)) sns)]
+        (invoke-later slix #(doto lsn
+                              (.setListData (into-array String sns))
+                              (.setSelectedIndices (into-array Integer/TYPE sis))))))))

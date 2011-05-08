@@ -17,7 +17,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn post-frame-created
+(defn sevenri-frame-created
   []
   (let [fr (slix-frame)
         cp (.getContentPane fr)
