@@ -40,6 +40,7 @@
   ;;
   (get-slix-context [slix] "Return the context of the slix")
   (get-slix-props [slix] "Return the properties of the slix (a part of the slix context)")
+  (get-slix-public [slix] "Return the public info of the slix (a part of the slix context)")
   ;;
   (get-slix-frame [slix] "Return the JFrame associated with the slix")
   (get-slix-frame-props [slix-or-frame] "Return the frame properties of the slix.")
@@ -49,6 +50,8 @@
 (defn is-slix?
   [obj]
   (satisfies? PSlix obj))
+
+;;;;
 
 (defn reify-slix*
   "smap is a map with key-vals corresponding to methods."
@@ -63,6 +66,7 @@
     ;;
     (get-slix-context [_] (:context smap))
     (get-slix-props [_] (:properties (:context smap)))
+    (get-slix-public [_] (:public (:context smap)))
     ;;
     (get-slix-frame [_] (:frame smap))
     (get-slix-frame-props [obj] (.getClientProperty (.getRootPane (if (is-slix? obj)
@@ -72,13 +76,13 @@
     ;;
     (get-slix-map [_] smap)
     ;;
-    (toString [this] (str "Slix " (:sn smap)
-                          "[name=\"" (:name smap) "\""
-                          ",args=[" (or (:args smap) "nil") "]"
-                          ",id=" (:id smap)
-                          ",cl=" (:cl smap)
-                          ",context=" (:context smap)
-                          ",frame=[" (:frame smap)"]]"))))
+    (toString [_] (str "Slix " (:sn smap)
+                       "[name=\"" (:name smap) "\""
+                       ",args=[" (:args smap) "]"
+                       ",id=" (:id smap)
+                       ",cl=" (:cl smap)
+                       ",context=" (:context smap)
+                       ",frame=[" (:frame smap)"]]"))))
 
 ;;;;
 
@@ -99,6 +103,7 @@
 (def-slix-fn* cl)
 (def-slix-fn* context)
 (def-slix-fn* props)
+(def-slix-fn* public)
 (def-slix-fn* frame)
 (def-slix-fn* frame-props)
 (def-slix-fn* map)
@@ -198,17 +203,55 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defprotocol PPropertiesListener
+  (add-listener [props pi listener]
+    "Add listener that is called when the value of the specified property by
+     pi is changed.")
+  (remove-listener [props pi listener]
+    "Remove listener associated to the property specified by pi.")
+  (get-listeners [props pi]
+    "Return a map containing pi as key and associated listener set as val."))
+
+(defn add-listener*
+  [pi listener pi-listeners]
+  (assoc pi-listeners pi (conj (or (get pi-listeners pi) #{}) listener)))
+
+(defn remove-listener*
+  [pi listener pi-listeners]
+  (if-let [listeners (get pi-listeners pi)]
+    (let [listeners (disj listeners listener)]
+      (if (empty? listeners)
+        (dissoc pi-listeners pi)
+        (assoc pi-listeners pi listeners)))
+    pi-listeners))
+   
+(defn put-prop**
+  [props pi val sn name pi-listeners]
+  (let [old (.put props (str pi) val)]
+    (doseq [listener (get pi-listeners pi)]
+      (let [m {:sn sn :name name :pi pi :old old :new val}]
+        (try
+          (listener m)
+          (catch Exception e
+            (log-warning "put-prop** exception m:" m
+                         "\n" (get-stack-trace-print-lines e))))))
+    old))
+
+;;;;
+
 (defn create-slix-properties*
   [sn name]
   (let [props (Properties.)
-        saved (atom {})]
-    (reify PProperties
+        saved (atom {})
+        plmap (atom {})] ;; plmap := pi-listeners map
+    (reify
+      PProperties
       (get-prop [_ pi] (get-prop* props pi))
       (get-prop [_ pi nfval] (get-prop* props pi nfval))
-      (put-prop [_ pi val] (put-prop* props pi val))
-      (save-prop [this pi val] (let [key (str pi)]
-                              (reset! saved (assoc @saved key val))
-                              (put-prop this key val)))
+      (put-prop [_ pi val] (put-prop** props pi val sn name @plmap))
+      (save-prop [this pi val] (do
+                                 (reset! saved (assoc @saved (str pi) val))
+                                 (put-prop this pi val)))
       (remove-prop [_ pi] (let [key (str pi)]
                             (reset! saved (dissoc @saved key))
                             (.remove props key)))
@@ -225,6 +268,13 @@
       (load-props [_ path file-name] (load-props* props path file-name))
       (load-persistent-props [_ path file-name] (load-persistent-props* props path file-name saved))
       (store-persistent-props [_ path file-name] (store-persistent-props* saved path file-name))
+      ;;
+      PPropertiesListener
+      (add-listener [_ pi listener] (when (fn? listener)
+                                      (reset! plmap (add-listener* pi listener @plmap))))
+      (remove-listener [_ pi listener] (when (fn? listener)
+                                         (reset! plmap (remove-listener* pi listener @plmap))))
+      (get-listeners [_ pi] (get @plmap pi))
       ;;
       (toString [this] (str "Properties[domain=:slix#" (.hashCode this) ",sn=" sn ",name=" name "]")))))
 
@@ -364,8 +414,6 @@
   [sn sym]
   (ns-resolve (get-slix-ns sn) sym))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defn find-all-slix-sn
   "Parse clj files (except scratch) and return slix namespaces without
    'slix.' prefix."
@@ -394,6 +442,116 @@
                      (catch Exception e
                        (log-severe "find-all-slix-sn failed:" f))))
                  cljfs))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; PSlixPublic
+;; Slixes supporting this protocol define fns corresponding to 'get-public-x'
+;; fn as 'public-x' in its slix-sn.public lib.
+
+(defprotocol PSlixPublic
+  "Protocol to extract details of slix public information"
+  (get-public-props [pub]
+    "Return a set of property name symbols that other slixes can safely
+     refer and use when, for example, adding update notification handler on
+     that property. Return nil when no such poperty exists.")
+  (contain-public-prop? [pub name]
+    "Return true when the public props contain the one specified by the name
+     symbol. Otherwise, false.")
+  ;;
+  (get-public-opens [pub]
+    "Return a map of data items being opened, such as paths, port numbers,
+     subject names, or nil. Data item type keyword as key and a set of data
+     items as val.")
+  (get-public-open [pub type-kwd]
+    "When the data item map contains the data items of the specified type,
+     return the data item set. Otherwise, nil.")
+  ;;
+  (get-public-fns [pub]
+    "Return a map of functions that other slixes can call, or nil. Function
+     name symbol (not fully qualified) as key and function var as val.")
+  (get-public-fn [pub name]
+    "When the function map contains the function specified by the name
+     symbol, return the function var. Otherwise, nil."))
+
+;;;;
+
+(defn get-slix-public-fn*
+  "Return the fn defined as return-public-kind in the slix.sn.public lib, or
+   nil."
+  [sn kind]
+  (let [pub-lib (get-slix-ns sn 'public)
+        pub-sym (symbol (str 'public- kind))]
+    (when (find-ns pub-lib)
+      (ns-resolve pub-lib pub-sym))))
+
+(defn call-slix-public-fn*
+  [sn name f]
+  (when-let [slix (get-slix name)]
+    (when (= sn (slix-sn slix))
+      (binding [*slix* slix]
+        (f)))))
+
+(defn create-slix-public
+  [sn name]
+  (reify PSlixPublic
+    (get-public-props [_] (when-let [f (get-slix-public-fn* sn 'props)]
+                            (when-let [s (call-slix-public-fn* sn name f)]
+                              (when (set? s)
+                                s))))
+    (contain-public-prop? [this name] (when-let [props (get-public-props this)]
+                                        (contains? props name)))
+    ;;
+    (get-public-opens [_] (when-let [f (get-slix-public-fn* sn 'opens)]
+                            (when-let [m (call-slix-public-fn* sn name f)]
+                              (when (map? m)
+                                m))))
+    (get-public-open [this type-kwd] (when-let [opens (get-public-opens this)]
+                                       (get opens type-kwd)))
+    ;;
+    (get-public-fns [_] (when-let [f (get-slix-public-fn* sn 'fns)]
+                          (when-let [m (call-slix-public-fn* sn name f)]
+                            (when (map? m)
+                              m))))
+    (get-public-fn [this name] (when-let [fns (get-public-fns this)]
+                                 (get fns name)))
+    ;;
+    (toString [this] (str "SlixPublic " sn "[name=\"" name "\""
+                          ",props=" (get-public-props this)
+                          ",opens=" (get-public-opens this)
+                          ",fn=" (get-public-fns this) "]"))))
+
+;;;;
+
+(defn find-slix-with-public-open-item
+  ([type-kwd item]
+     (find-slix-with-public-open-item type-kwd item nil))
+  ([type-kwd item sn]
+     (when (and (keyword? type-kwd) item)
+       (loop [slixes (if sn (get-slixes sn) (get-slixes))]
+         (when-let [slix (first slixes)]
+           (let [items (get-public-open (slix-public slix) type-kwd)]
+             (if (contains? items item)
+               slix
+               (recur (rest slixes)))))))))
+
+(defn find-slix-with-public-fn
+  ([name]
+     (find-slix-with-public-fn name nil))
+  ([name sn]
+     (when name
+       (loop [slixes (if sn (get-slixes sn) (get-slixes))]
+         (when-let [slix (first slixes)]
+           (when-let [fmap (get-public-fns (slix-public slix))]
+             (if (get fmap (symbol name))
+               slix
+               (recur (rest slixes)))))))))
+
+(defn invoke-slix-public-fn
+  [slix fn & params]
+  (binding [*slix* slix]
+    (apply fn params)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-sid-slix-frame-file
   ([]
@@ -712,8 +870,9 @@
   ([sn name]
      (-create-slix-context sn name nil))
   ([sn name app-context]
-     (let [context {:properties (create-slix-properties sn name)
-                    :prop_ (ref {})}]
+     (let [context {:prop_ (ref {}) ;; Deprecated - removed by 0.3.0
+                    :properties (create-slix-properties sn name)
+                    :public (create-slix-public sn name)}]
        (if app-context
          (assoc context :app-context app-context)
          context))))

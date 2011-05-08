@@ -45,8 +45,6 @@
 (defn ced-file-changed
   "Valid slix has to be bound to *slix*."
   [doc]
-  (add-to-xref *slix* :ced-file (.getFile doc)) ;; Deprecated - remove by 0.3.0
-  ;;
   (put-prop (slix-props) 'file (.getFile doc))
   (let [fname (.getFileName doc)
         fnlen (count fname)

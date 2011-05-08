@@ -12,6 +12,7 @@
 (ns slix.ced.init
   (:use [sevenri config core event log os slix ui]
         [slix.ced defs listeners input2action ui])
+  (:require [slix.ced public])
   (:import (java.awt Dimension Font)
            (java.io File FileInputStream InputStreamReader StringReader)
            (slix.ced caret cdoc ckit undoman)
@@ -91,18 +92,18 @@
 
 (defn ced-opening
   [event]
-  (let [file (get-ced-file)
-        ocfs (filter (fn [[o cf]] (= cf file)) (xref-with :ced-file))]
-    (when (seq ocfs)
-      (let [slix (ffirst ocfs)
-            args (slix-args)]
-        (invoke-later slix
-          #(do
-             (.toFront (slix-frame))
-             (postprocess-args (get-ced) args)))
-        (create-event-response
-         :sevenri.event/response-donot-open
-         :file-is-open-already)))))
+  "If the file is open already by another Ced, bring the Ced to the front
+   and optionally go to the specified line. Otherwise, continue opening the
+   specified file."
+  [event]
+  (when-let [ced-slix (find-slix-with-public-open-item :file (get-ced-file) 'ced)]
+    (let [args (slix-args)]
+      (invoke-later ced-slix #(do
+                                (.toFront (slix-frame))
+                                (postprocess-args (get-ced) args)))
+      (create-event-response
+       :sevenri.event/response-donot-open
+       :file-is-open-already))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
