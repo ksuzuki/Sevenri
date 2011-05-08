@@ -10,7 +10,7 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.ced.init
-  (:use [sevenri config core log os slix ui]
+  (:use [sevenri config core event log os slix ui]
         [slix.ced defs listeners input2action ui])
   (:import (java.awt Dimension Font)
            (java.io File FileInputStream InputStreamReader StringReader)
@@ -35,31 +35,7 @@
             (= n 1) (.ced1 mpl)
             :else (.ced2 mpl)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-tab-size-spaces
-  []
-  (apply str (repeat *tab-size* \space)))
-
-(defn get-untabbing-string-reader
-  [file]
-  (let [stbuffer (StringBuffer.)]
-    (with-open [fistream (FileInputStream. file)
-                isreader (InputStreamReader. fistream *file-encoding*)]
-      (loop [col 0]
-        (when (.ready isreader)
-          (let [c (.read isreader)]
-            (cond
-             (= c (int \tab)) (let [n (mod col *tab-size*)]
-                                (.append stbuffer (subs (get-tab-size-spaces) n))
-                                (recur (+ col (- *tab-size* n))))
-             (= c (int \newline)) (do
-                                    (.append stbuffer (char c))
-                                    (recur 0))
-             :else (do
-                     (.append stbuffer (char c))
-                     (recur (inc col))))))))
-    (StringReader. (.toString stbuffer))))
+;;;;
 
 (defn get-ced-file
   "Return a File object specified by a file specifier. The specifer is
@@ -97,58 +73,11 @@
          fclj
          (get-library-path 'user (get-config 'src.library.user.scratch-file-name))))))
 
-(defn load-ced-file
-  []
-  (let [fclj (get-ced-file)]
-    (when (and fclj (.exists fclj))
-      (.read (get-ced) (get-untabbing-string-reader fclj) nil))
-    ;;
-    (let [doc (.getDocument (get-ced))
-          udm (undoman.)]
-      ;; Setup undoman and properties for doc.
-      (.setLimit udm -1) ;; no undo limit
-      (.addUndoableEditListener doc udm)
-      (.initProperties doc fclj *file-encoding* udm))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn create-ced-frame
-  []
-  (let [frm (slix-frame)
-        cpn (.getContentPane frm)
-        mpl (MainPanel.)
-        cd1 (.ced1 mpl)
-        cd2 (.ced2 mpl)
-        mid (.modIndicator mpl)
-        kit (ckit.)
-        fnt (get-font)]
-    ;; Setup ced1 and ced2, sharing the same kit and font.
-    (doseq [ced [cd1 cd2]]
-      (doto ced
-        (.setEditorKitForContentType (.getContentType kit) kit)
-        (.setContentType (.getContentType kit))
-        (.setFont fnt)
-        (.setForeground *foreground-color*)
-        (.setBackground *background-color*)
-        (.setCaretColor *caret-color*)
-        (.setEditable true)
-        (map-input-to-action)
-        (add-ced-listeners-and-properties mpl (if (identical? ced cd1) cd2 cd1))))
-    (add-listeners mpl)
-    ;;
-    (doto cpn
-      (.add mpl))
-    (doto frm
-      (.pack)
-      (.setFont (Font. "Courier", 0, 12))
-      (.setSize 640 400)
-      (.setMinimumSize (Dimension. 320 200)))))
-
-;;;;
-
-(defn process-args
+(defn postprocess-args
   ([ced]
-     (process-args ced (slix-args)))
+     (postprocess-args ced (slix-args)))
   ([ced args]
      (when-let [line (:line args)]
        (try
@@ -157,6 +86,25 @@
                pos (.lineNumberToStartPosition doc lin)]
            (when-not (neg? pos)
              (goto-line-centered ced doc pos)))))))
+
+;;;;
+
+(defn ced-opening
+  [event]
+  (let [file (get-ced-file)
+        ocfs (filter (fn [[o cf]] (= cf file)) (xref-with :ced-file))]
+    (when (seq ocfs)
+      (let [slix (ffirst ocfs)
+            args (slix-args)]
+        (invoke-later slix
+          #(do
+             (.toFront (slix-frame))
+             (postprocess-args (get-ced) args)))
+        (create-event-response
+         :sevenri.event/response-donot-open
+         :file-is-open-already)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-caret
   [frame ced]
@@ -175,29 +123,31 @@
         (caret.)))
     (caret.)))
 
-(defn setup-doc-watcher
-  "Currently this is used to update the mod indicator."
-  [doc mod-indicator]
-  (let [slix *slix*
-        midupdater #(.setText mod-indicator (if (.isModified doc) "*" ""))
-        docwatcher #(invoke-later slix midupdater)]
-    (.setDocWatcher doc docwatcher)))
-
-(defn initial-setup
+(defn create-ced-frame
   []
   (let [frm (slix-frame)
         cpn (.getContentPane frm)
-        mpl (.getComponent cpn 0)
-        spl (.splitter mpl)
+        mpl (MainPanel.)
         cd1 (.ced1 mpl)
         cd2 (.ced2 mpl)
         mid (.modIndicator mpl)
         lnc (.lineNumber mpl)
         fkw (.findKeyword mpl)
-        doc (.getDocument (get-ced))]
-    ;; Show the file name in the title. This also add the working file to
-    ;; the xref.
-    (update-title doc)
+        kit (ckit.)
+        fnt (get-font)]
+    ;; Setup ced1 and ced2, sharing the same kit and font and enable input methods.
+    (doseq [ced [cd1 cd2]]
+      (doto ced
+        (.setEditorKitForContentType (.getContentType kit) kit)
+        (.setContentType (.getContentType kit))
+        (.setFont fnt)
+        (.setForeground *foreground-color*)
+        (.setBackground *background-color*)
+        (.setCaretColor *caret-color*)
+        (.setEditable true)
+        (.enableInputMethods true)
+        (map-input-to-action)
+        (add-ced-listeners-and-properties mpl (if (identical? ced cd1) cd2 cd1))))
     ;; Install a custom caret for the current platform.
     (let [crt1 (get-caret frm cd1)]
       (.setBlinkRate crt1 500)
@@ -207,42 +157,116 @@
         (.setBlinkRate 500)
         (.setAdjustVisibility false))
       (.setCaret cd2 crt2))
-    ;; Remember *slix* and enable input methods.
-    (doseq [cd [cd1 cd2]]
-      (doto cd
-        (.putClientProperty *prop-ced-slix* *slix*)
-        (.enableInputMethods true)))
+    ;; Close the window with META+W.
+    (doseq [c [cd1 cd2 lnc fkw]]
+      (add-default-key-listener c))
+    (add-listeners mpl)
+    ;;
+    (.add cpn mpl)
+    (doto frm
+      (.pack)
+      (.setFont (Font. "Courier", 0, 12))
+      (.setSize 640 400)
+      (.setMinimumSize (Dimension. 320 200)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn get-tab-size-spaces
+  []
+  (apply str (repeat *tab-size* \space)))
+
+(defn get-untabbing-string-reader
+  [file]
+  (let [stbuffer (StringBuffer.)]
+    (with-open [fistream (FileInputStream. file)
+                isreader (InputStreamReader. fistream *file-encoding*)]
+      (loop [col 0]
+        (when (.ready isreader)
+          (let [c (.read isreader)]
+            (cond
+             (= c (int \tab)) (let [n (mod col *tab-size*)]
+                                (.append stbuffer (subs (get-tab-size-spaces) n))
+                                (recur (+ col (- *tab-size* n))))
+             (= c (int \newline)) (do
+                                    (.append stbuffer (char c))
+                                    (recur 0))
+             :else (do
+                     (.append stbuffer (char c))
+                     (recur (inc col))))))))
+    (StringReader. (.toString stbuffer))))
+
+(defn load-ced-file
+  []
+  (let [ced (get-ced)
+        fclj (get-ced-file)]
+    (when (and fclj (.exists fclj))
+      (.read ced (get-untabbing-string-reader fclj) nil))
+    ;; Make sure to grab the latest doc.
+    (let [doc (.getDocument ced)
+          udm (undoman.)]
+      ;; Setup undoman and properties for doc.
+      (.setLimit udm -1) ;; no undo limit
+      (.addUndoableEditListener doc udm)
+      (.initProperties doc fclj *file-encoding* udm)
+      doc)))
+
+;;;;
+
+(defn setup-doc-watcher
+  "Currently this is used to update the mod indicator."
+  [doc mod-indicator]
+  (let [slix *slix*
+        midupdater #(.setText mod-indicator (if (.isModified doc) "*" ""))
+        docwatcher #(invoke-later slix midupdater)]
+    (.setDocWatcher doc docwatcher)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn ced-opened
+  [event]
+  (let [doc (load-ced-file)
+        frm (slix-frame)
+        cpn (.getContentPane frm)
+        mpl (.getComponent cpn 0)
+        cd1 (.ced1 mpl)
+        cd2 (.ced2 mpl)
+        spl (.splitter mpl)
+        mid (.modIndicator mpl)
+        lnc (.lineNumber mpl)
+        fkw (.findKeyword mpl)]
     ;; Setup the doc watcher.
     (setup-doc-watcher doc mid)
-    ;; Share the same doc between ced1 and ced2.
-    (.setDocument cd2 doc)
+    ;; Share the same doc and Remember *slix*.
+    (doseq [cd [cd1 cd2]]
+      (.setDocument cd doc)
+      (.putClientProperty cd *prop-ced-slix* *slix*))
+    ;; Bind edit key listeners.
+    (doseq [c [cd1 cd2 lnc fkw]]
+      (add-ced-key-listener c frm doc))
     ;; Show only ced1 initially. Note: ced1 sits below ced2.
     (.setLastDividerLocation spl 0)
     (.setDividerLocation spl (double 0.0))
     (.requestFocusInWindow cd1)
-    ;; Close the window with META+W.
-    (doseq [c [cd1 cd2 lnc fkw]]
-      (add-default-key-listener c)
-      (add-ced-key-listener c frm doc))
+    ;; Notify use of the opened file.
+    (ced-file-changed doc)
     ;; Process args other than :file.
-    (process-args cd1)))
+    (postprocess-args cd1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn list-all-action-mappings
-  []
-  (when-let [am (.getActionMap (get-ced))]
-    (let [ams (map #(.toString %) (seq (.allKeys am)))]
-      (sort (proxy [java.util.Comparator][]
-              (compare [k1 k2] (.compareTo k1 k2)))
-            ams))))
-
-(defn list-all-input-mappings
-  []
-  (when-let [im (.getInputMap (get-ced))]
-    (letfn [(to-hrkey [ks]
-              (.replaceAll (.replace (.toUpperCase (.toString ks)) "PRESSED " "") " " "+"))]
-      (let [kms (map (fn [ks] [(to-hrkey ks) (.get im ks)]) (seq (.allKeys im)))]
-        (sort (proxy [java.util.Comparator][]
-                (compare [k1 k2] (.compareTo (first k1) (first k2))))
-              kms)))))
+(defn ced-closing
+  [event]
+  (let [doc (.getDocument (get-ced))]
+    (when (.isModified doc)
+      ;; Cannot deny closing and ask for save with these conditions
+      ;; sevenri.event/info-close-on-delete is true
+      ;; sevenri.event/slixes-closing
+      (cond
+       (true? (:sevenri.event/info-close-on-delete (get-event-info event)))
+         (.save doc)
+       (= (get-last-global-event) :sevenri.event/slixes-closing)
+         (.save doc)
+       :else
+         (do
+           (invoke-later #(ask-then-close doc))
+           :sevenri.event/response-donot-close)))))

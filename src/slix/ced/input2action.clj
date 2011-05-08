@@ -113,3 +113,23 @@
   (-map-input-to-action ced)
   (when (is-mac?)
     (-map-input-to-action-mac ced)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn list-all-action-mappings
+  [ced]
+  (when-let [am (.getActionMap ced)]
+    (let [ams (map #(.toString %) (seq (.allKeys am)))]
+      (sort (proxy [java.util.Comparator][]
+              (compare [k1 k2] (.compareTo k1 k2)))
+            ams))))
+
+(defn list-all-input-mappings
+  [ced]
+  (when-let [im (.getInputMap ced)]
+    (letfn [(to-hrkey [ks]
+              (.replaceAll (.replace (.toUpperCase (.toString ks)) "PRESSED " "") " " "+"))]
+      (let [kms (map (fn [ks] [(to-hrkey ks) (.get im ks)]) (seq (.allKeys im)))]
+        (sort (proxy [java.util.Comparator][]
+                (compare [k1 k2] (.compareTo (first k1) (first k2))))
+              kms)))))

@@ -29,10 +29,10 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn update-title
-  "Should be called in the *slix* context."
+(defn ced-file-changed
+  "Valid slix has to be bound to *slix*."
   [doc]
-  (add-to-xref *slix* :ced-file (.getFile doc))
+  (add-to-xref *slix* :ced-file (.getFile doc)) ;; Deprecated - remove by 0.3.0
   (let [fname (.getFileName doc)
         fnlen (count fname)
         fnstr (.substring fname 0 (if (re-find #"\.clj$" fname) (- fnlen 4) fnlen))

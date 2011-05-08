@@ -11,26 +11,15 @@
 
 (ns ^{:slix true}
   slix.ced
-  (:use [sevenri event log slix]
-        [slix.ced init ui]))
+  (:use [sevenri event slix]
+        [slix.ced init]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix event handlers
 
 (defn opening
   [event]
-  (let [file (get-ced-file)
-        ocfs (filter (fn [[o cf]] (= cf file)) (xref-with :ced-file))]
-    (when (seq ocfs)
-      (let [slix (ffirst ocfs)
-            args (slix-args)]
-        (invoke-later slix
-          #(do
-             (.toFront (slix-frame))
-             (process-args (get-ced) args)))
-        (create-event-response
-         :sevenri.event/response-donot-open
-         :file-in-editing-already)))))
+  (ced-opening event))
 
 (defn frame-created
   [event]
@@ -38,8 +27,7 @@
 
 (defn opened
   [event]
-  (load-ced-file)
-  (initial-setup)
+  (ced-opened event)
   (set-slix-visible))
 
 (defn saving
@@ -48,17 +36,4 @@
 
 (defn closing
   [event]
-  (let [doc (.getDocument (get-ced))]
-    (when (.isModified doc)
-      ;; Cannot deny closing and ask for save with these conditions
-      ;; sevenri.event/info-close-on-delete is true
-      ;; sevenri.event/slixes-closing
-      (cond
-       (true? (:sevenri.event/info-close-on-delete (get-event-info event)))
-         (.save doc)
-       (= (get-last-global-event) :sevenri.event/slixes-closing)
-         (.save doc)
-       :else
-         (do
-           (invoke-later #(ask-then-close doc))
-           :sevenri.event/response-donot-close)))))
+  (ced-closing event))

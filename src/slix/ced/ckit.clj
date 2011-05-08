@@ -17,7 +17,7 @@
   (:use [sevenri config core log slix]
         [slix.ced defs listeners indent]
         [slix.ced.find :only (find-context-namespace)]
-        [slix.ced.ui :only (update-title popup-warning)]
+        [slix.ced.ui :only (ced-file-changed popup-warning)]
         [library.slix.ced doclib])
   (:import (java.awt FileDialog)
            (java.awt.event FocusEvent)
@@ -407,8 +407,8 @@
               (if save?
                 (do
                   (.saveAs doc fpath)
-                  (when-let [oplt (.getClientProperty ced *prop-ced-slix*)]
-                    (invoke-later oplt #(update-title doc)))
+                  (when-let [slix (.getClientProperty ced *prop-ced-slix*)]
+                    (invoke-later slix #(ced-file-changed doc)))
                   (ced-notify-save fpath))
                 ;; FIX ME: need a better warning.
                 (log-warning "ced: failed to save as:" fpath)))))))))
