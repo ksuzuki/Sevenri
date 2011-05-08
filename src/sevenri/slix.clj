@@ -206,9 +206,9 @@
       (get-prop [_ pi] (get-prop* props pi))
       (get-prop [_ pi nfval] (get-prop* props pi nfval))
       (put-prop [_ pi val] (put-prop* props pi val))
-      (save-prop [_ pi val] (let [key (str pi)]
+      (save-prop [this pi val] (let [key (str pi)]
                               (reset! saved (assoc @saved key val))
-                              (.put props key val)))
+                              (put-prop this key val)))
       (remove-prop [_ pi] (let [key (str pi)]
                             (reset! saved (dissoc @saved key))
                             (.remove props key)))

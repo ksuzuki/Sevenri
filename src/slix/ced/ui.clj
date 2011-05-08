@@ -29,10 +29,25 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; !!! Workaround for referencing protocol methods from aot-compiled lib !!!
+;; This lib will be aot-compiled along with ckit when it's aot-compiled by
+;; the slix Sevenri at startup and at that time reference to PProperties is
+;; baked in the .class file using the compile-time created, munged class
+;; name 'sevenri/props/PProperties', which is no longer available when
+;; Sevenri restarts because the Clojure compiler is smart enough to not
+;; recompile libs unless touched. So resolving calls to the protocol methods
+;; fails as NoClassDefFound error when loading the .class file.
+;; To workaround the issue, reference to sevenri.props/put-prop, for
+;; example, is resolved explicitly like below. Note also that sevenri.props
+;; is not :use-d in the ns form above.
+(def put-prop (ns-resolve 'sevenri.props 'put-prop))
+
 (defn ced-file-changed
   "Valid slix has to be bound to *slix*."
   [doc]
   (add-to-xref *slix* :ced-file (.getFile doc)) ;; Deprecated - remove by 0.3.0
+  ;;
+  (put-prop (slix-props) 'file (.getFile doc))
   (let [fname (.getFileName doc)
         fnlen (count fname)
         fnstr (.substring fname 0 (if (re-find #"\.clj$" fname) (- fnlen 4) fnlen))
