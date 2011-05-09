@@ -203,38 +203,135 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defprotocol PPropertiesListener
-  (add-listener [props pi listener]
-    "Add listener that is called when the value of the specified property by
-     pi is changed.")
-  (remove-listener [props pi listener]
-    "Remove listener associated to the property specified by pi.")
-  (get-listeners [props pi]
-    "Return a map containing pi as key and associated listener set as val."))
+(defprotocol PPropertyListener
+  "Protocol for managing property listener"
+  (add-listener [props pi slix listener]
+    "Add the listener of the slix, which is called when the value of the
+     property specified by pi is changed.")
+  (remove-listener [props pi slix listener] [props pi slix] [props pi-or-slix]
+    "Remove the listener of the slix associated to the property specified by
+     pi, all listeners of the slix for pi, all listeners of the slix for all
+     pis, and all slix-listeners for pi.")
+  (get-listeners [props pi slix] [props pi-or-slix]
+    "Return a map containing pi as key and a set of the associated listeners
+     of the slix as val, collection of slix-listeners for pi, or collection
+     of the listeners of the slixe for all pis."))
+
+;; Implementation of PropertyListener data
+;;
+;; pi-slix-listeners :=
+;; {piA {slixA #{listenerA listenerB ...}
+;;       slixB #{listenerA listenerB ...}
+;;         :              :
+;;       slixX #{listenerA listenerB ...}}
+;;
+;;  piB {slixA #{listenerA listenerB ...}
+;;       slixB #{listenerA listenerB ...}
+;;         :              :
+;;       slixX #{listenerA listenerB ...}}
+;;   :     :              :
+;;  piX {slixA #{listenerA listenerB ...}
+;;       slixB #{listenerA listenerB ...}}
+;;         :              :
+;;       slixX #{listenerA listenerB ...}}}
 
 (defn add-listener*
-  [pi listener pi-listeners]
-  (assoc pi-listeners pi (conj (or (get pi-listeners pi) #{}) listener)))
+  [pi slix listener pi-slix-listeners]
+  (if (and pi (is-slix? slix) (var? listener) (fn? (var-get listener)))
+    ;; All params are OK.
+    (if-let [slix-listeners (get pi-slix-listeners pi)]
+      ;; There is a slix-listeners map for pi.
+      (assoc pi-slix-listeners
+        pi (assoc slix-listeners
+             slix (conj (get slix-listeners slix) listener)))
+      ;; No slix-listeners associated to pi yet.
+      (assoc pi-slix-listeners pi {slix #{listener}}))
+    ;; Invalid params. Return pi-slix-listeners untouched.
+    pi-slix-listeners))
 
 (defn remove-listener*
-  [pi listener pi-listeners]
-  (if-let [listeners (get pi-listeners pi)]
-    (let [listeners (disj listeners listener)]
-      (if (empty? listeners)
-        (dissoc pi-listeners pi)
-        (assoc pi-listeners pi listeners)))
-    pi-listeners))
-   
+  ([pi slix listener pi-slix-listeners]
+     (if (and pi (is-slix? slix) (var? listener) (fn? (var-get listener)))
+       (if-let [slix-listeners (get pi-slix-listeners pi)]
+         ;; There is a slix-listeners map for pi.
+         (let [listeners (disj (get slix-listeners slix) listener)]
+           (if (empty? listeners)
+             ;; No listeners for slix
+             (let [slix-listeners (dissoc slix-listeners slix)]
+               (if (empty? slix-listeners)
+                 ;; No slix-listeners for pi
+                 (dissoc pi-slix-listeners pi)
+                 ;; There's slix-listeners still.
+                 (assoc pi-slix-listeners pi slix-listeners)))
+             ;; There's listeners for slix still.
+             (assoc pi-slix-listeners
+               pi (assoc slix-listeners slix listeners))))
+         ;; Unknown pi
+         pi-slix-listeners)
+       ;; Invalid params. Return pi-slix-listeners untouched.
+       pi-slix-listeners))
+  ([pi slix pi-slix-listeners]
+     (if (and pi (is-slix? slix))
+       (if-let [slix-listeners (get pi-slix-listeners pi)]
+         ;; There is a slix-listeners map for pi.
+         (let [slix-listeners (dissoc slix-listeners slix)]
+           (if (empty? slix-listeners)
+             ;; No slix-listeners for pi
+             (dissoc pi-slix-listeners pi)
+             ;; There's slix-listeners still.
+             (assoc pi-slix-listeners pi slix-listeners)))
+         ;; Unknown pi
+         pi-slix-listeners)
+       ;; Invalid params. Return pi-slix-listeners untouched.
+       pi-slix-listeners))
+  ([pi-or-slix pi-slix-listeners]
+     (if (is-slix? pi-or-slix)
+       ;; Remove slix-listeners for each pi.
+       (let [slix pi-or-slix]
+         (reduce (fn [psl pi] (remove-listener* pi slix psl))
+                 pi-slix-listeners
+                 (keys pi-slix-listeners)))
+       ;; Remove pi and associated slix-listeners.
+       (let [pi pi-or-slix]
+         (dissoc pi-slix-listeners pi)))))
+
+(defn get-listeners*
+  ([pi slix pi-slix-listeners]
+     (when (and pi (is-slix? slix))
+       (get (get pi-slix-listeners pi) slix)))
+  ([pi-or-slix pi-slix-listeners]
+     (if (is-slix? pi-or-slix)
+       ;; Return slix-listeners for all pis
+       (let [slix pi-or-slix]
+         (filter identity (map #(get % slix) (vals pi-slix-listeners))))
+       ;; Return slix-listeners for pi
+       (let [pi pi-or-slix]
+         (get pi-slix-listeners pi)))))
+
 (defn put-prop**
-  [props pi val sn name pi-listeners]
+  "Update the prop specified by pi. Then invoke listeners associated to it.
+   Remove the listener when failed on its invokation, or the entire listeners
+   if the slix owning them is invalid."
+  [props pi val sn name ref-pi-slix-listeners]
   (let [old (.put props (str pi) val)]
-    (doseq [listener (get pi-listeners pi)]
-      (let [m {:sn sn :name name :pi pi :old old :new val}]
-        (try
-          (listener m)
-          (catch Exception e
-            (log-warning "put-prop** exception m:" m
-                         "\n" (get-stack-trace-print-lines e))))))
+    (when (contains? @ref-pi-slix-listeners pi)
+      ;; There are listeners on pi.
+      (let [event {:sn sn :name name :pi pi :old old :new val}]
+        (doseq [slix-listeners (get @ref-pi-slix-listeners pi)]
+          (let [[slix listeners] slix-listeners]
+            (declare get-slix)
+            (if (get-slix slix)
+              (doseq [listener listeners]
+                (when-not (try (binding [*slix* slix] (listener event))
+                               true
+                               (catch Exception e
+                                 (log-warning "put-prop** exception on event:" event
+                                              "\n" (get-stack-trace-print-lines e))
+                                 false))
+                  ;; Get rid of broken listener.
+                  (reset! ref-pi-slix-listeners (remove-listener* pi slix listener @ref-pi-slix-listeners))))
+              ;; Invalid slix. Get rid of slix-listeners.
+              (reset! ref-pi-slix-listeners (remove-listener* pi slix @ref-pi-slix-listeners)))))))
     old))
 
 ;;;;
@@ -243,12 +340,12 @@
   [sn name]
   (let [props (Properties.)
         saved (atom {})
-        plmap (atom {})] ;; plmap := pi-listeners map
+        pslmp (atom {})] ;; plmap := pi-slix-listeners map
     (reify
       PProperties
       (get-prop [_ pi] (get-prop* props pi))
       (get-prop [_ pi nfval] (get-prop* props pi nfval))
-      (put-prop [_ pi val] (put-prop** props pi val sn name @plmap))
+      (put-prop [_ pi val] (put-prop** props pi val sn name pslmp))
       (save-prop [this pi val] (do
                                  (reset! saved (assoc @saved (str pi) val))
                                  (put-prop this pi val)))
@@ -269,12 +366,13 @@
       (load-persistent-props [_ path file-name] (load-persistent-props* props path file-name saved))
       (store-persistent-props [_ path file-name] (store-persistent-props* saved path file-name))
       ;;
-      PPropertiesListener
-      (add-listener [_ pi listener] (when (fn? listener)
-                                      (reset! plmap (add-listener* pi listener @plmap))))
-      (remove-listener [_ pi listener] (when (fn? listener)
-                                         (reset! plmap (remove-listener* pi listener @plmap))))
-      (get-listeners [_ pi] (get @plmap pi))
+      PPropertyListener
+      (add-listener [_ pi slix listener] (reset! pslmp (add-listener* pi slix listener @pslmp)))
+      (remove-listener [_ pi slix listener] (reset! pslmp (remove-listener* pi slix listener @pslmp)))
+      (remove-listener [_ pi slix] (reset! pslmp (remove-listener* pi slix @pslmp)))
+      (remove-listener [_ pi-or-slix] (reset! pslmp (remove-listener* pi-or-slix @pslmp)))
+      (get-listeners [_ pi slix] (get-listeners* pi slix @pslmp))
+      (get-listeners [_ pi-or-slix] (get-listeners* pi-or-slix @pslmp))
       ;;
       (toString [this] (str "Properties[domain=:slix#" (.hashCode this) ",sn=" sn ",name=" name "]")))))
 
