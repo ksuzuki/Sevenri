@@ -52,11 +52,9 @@
       (doto cfgtxt
         (.setText (slurp confgf :encoding "UTF-8"))
         (.setCaretPosition 0))
-      ;; Let Ced call this fn when it saves the project file.
-      (add-to-xref
-       slix
-       :ced-notify-save
-       [confgf (fn [f] (invoke-later slix #(show-config slix controls project)))]))))
+      ;; Ask the path watcher to call this fn when the project file updated.
+      (watch-path (get-path-watcher) confgf :update
+                  slix (fn [_] (invoke-later #(show-config slix controls project)))))))
 
 (defn get-project-name-listener
   [controls set-title]

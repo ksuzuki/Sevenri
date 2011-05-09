@@ -157,6 +157,12 @@ which can be redefined."}
   [event-queue]
   (def *system-event-queue* event-queue))
 
+(def *path-watcher* nil)
+
+(defn reset-path-watcher
+  [watcher]
+  (def *path-watcher* watcher))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; ui
 

@@ -97,9 +97,9 @@
             ceds [ced (.getClientProperty ced *prop-ced-other-ced*)]
             crls (.getCaretListeners ced)
             frls (.getFocusListeners ced)
-            oplt (.getClientProperty ced *prop-ced-slix*)]
+            slix (.getClientProperty ced *prop-ced-slix*)]
         (future
-          (invoke-and-wait oplt
+          (invoke-and-wait slix
             #(do
                (doseq [ct ctls] (.setEnabled ct false))
                (doseq [cd ceds] (.setEditable cd false))
@@ -108,14 +108,14 @@
           ;;
           (let [ubo-contxt (atom nil)]
             (doseq [li (range bli (inc eli))]
-              (invoke-and-wait oplt
+              (invoke-and-wait slix
                 #(setup-doc-context ced nil
                    (let [pos (min (dec (get-doc-context :max-pos))
                                   (.getStartOffset (.getElement elm li)))]
                      (.setCaretPosition ced pos)
                      (reset! ubo-contxt (indent-region ced pos @ubo-contxt)))))))
           ;;
-          (invoke-and-wait oplt
+          (invoke-and-wait slix
             #(do
                (doseq [fl frls] (.addFocusListener ced fl))
                (doseq [cl crls] (.addCaretListener ced cl))
@@ -123,7 +123,7 @@
                (doseq [ct ctls] (.setEnabled ct true))
                (.setCaretPosition ced (.getOffset pos))))
           ;;
-          (invoke-later oplt
+          (invoke-later slix
             #(invoke-new-caret-position-actions ced (.getCaretPosition ced))))))))
 
 (defn do-indent
@@ -340,16 +340,11 @@
           (.invokeDocWatcher doc))))))
 
 (defn ced-notify-save
-  "v := [file notify-fn]"
-  [file]
-  #_(lg "ced: ced-notify-save:" file)
-  (doseq [sv (filter (fn [[_ [f nf]]] (and (= file f) (fn? nf)))
-                     (xref-with :ced-notify-save))]
-    (try
-      (let [[_ [_ nf]] sv]
-        (nf file))
-      (catch Exception e
-        (log-exception e)))))
+  [ced file]
+  (let [slix (.getClientProperty ced *prop-ced-slix*)
+        ;; workaround for referencing protocol methods from aot-compiled lib
+        notify-path-event (ns-resolve 'sevenri.slix 'notify-path-event)]
+    (notify-path-event (get-path-watcher) file :update slix)))
 
 (defn save-action
   []
@@ -362,7 +357,7 @@
             ;; FIX ME: need a better UI msg.
             (log-severe "ced: failed to trash file prior to save:" file))
           (.save doc)
-          (ced-notify-save file))))))
+          (ced-notify-save ced file))))))
 
 (defn save-as-action
   []
@@ -409,7 +404,7 @@
                   (.saveAs doc fpath)
                   (when-let [slix (.getClientProperty ced *prop-ced-slix*)]
                     (invoke-later slix #(ced-file-changed doc)))
-                  (ced-notify-save fpath))
+                  (ced-notify-save ced fpath))
                 ;; FIX ME: need a better warning.
                 (log-warning "ced: failed to save as:" fpath)))))))))
 

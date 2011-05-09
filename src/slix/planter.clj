@@ -38,5 +38,6 @@
 
 (defn closing
   [event]
-  (when (is-lein-agent-busy? *slix*)
-    (event-response-donot-close)))
+  (if (is-lein-agent-busy? *slix*)
+    (event-response-donot-close)
+    (unwatch-path (get-path-watcher) *slix*)))
