@@ -377,10 +377,12 @@
   ([handler]
      (-set-event-handler-to-delegator handler (-get-event-delegator)))
   ([handler event-delegator]
-     (when (and (fn? handler)
-                (instance? (-get-event-delegator-class) event-delegator))
-       (.setHandler event-delegator handler)
-       event-delegator)))
+     (if (and handler (instance? (-get-event-delegator-class) event-delegator))
+       (do
+         (.setHandler event-delegator handler)
+         event-delegator)
+       (throw (IllegalArgumentException.
+               "-set-event-handler-to-delegator: null-handler or invalid event-delegator")))))
 
 ;;;;
 
@@ -395,11 +397,11 @@
    In listener-intf-id-method-handler-vec consistes two items; the first item
    is listener interface in question and the second item is a map of handling
    id and a pair of listener method and handler in vector.
-   Each pair of listener method and handler is bound to the handling id, and
-   the event delegator with the same id is assigned the handler for the
-   listener method. When no event delegator for and id is found, a new event
-   delegator with the id is created and assigned the corresponding handler
-   for method.
+   Each pair of listener method and handler is bound to the handling id
+   symbol or string, and the event delegator with the same id is assigned
+   the handler for the listener method. When no event delegator for and id
+   is found, a new event delegator with the id is created and assigned the
+   corresponding handler for method.
    If remove-unref-delegators? is true, the delegators of which ids not
    specified in listener-intf-id-method-handler-vec are removed.
 
@@ -410,9 +412,9 @@
                               idn [listener-method-x handler-x] }
 
    listener-intf is such like 'java.awt.event.ActionListener'. listener-method
-   is like 'actionPerformed'. listener-method can be nil. In that case the
-   corresponding handler receives the event object for all listener methods
-   defined by listener-intf."
+   is a symbol or a string, like 'actionPerformed. it can be nil, and in
+   that case the corresponding handler receives the event object for all
+   listener methods defined by listener-intf."
   ([comp listener-intf-id-method-handler-vec]
      (set-event-handlers comp listener-intf-id-method-handler-vec false))
   ([comp listener-intf-id-method-handler-vec remove-unref-delegators?]
@@ -438,7 +440,7 @@
                                         (assoc m (.getId ed) ed)))
                                     {}
                                     event-delegator-listeners)
-           method-handler-ids (apply hash-set (keys id-method-handler-map))
+           method-handler-ids (apply hash-set (map str (keys id-method-handler-map)))
            delegator-ids (apply hash-set (keys id-delegator-map))
            unset-method-handler-ids (cljset/difference method-handler-ids delegator-ids)
            unref-delegator-ids (cljset/difference delegator-ids method-handler-ids)]
@@ -447,16 +449,17 @@
            "unref-delegator-ids:" unref-delegator-ids)
        ;; Assign handler to delegator
        (doseq [[id delegator] id-delegator-map]
-         (when-let [method-handler (get id-method-handler-map id)]
+         (when-let [method-handler (or (get id-method-handler-map (symbol id)) (get id-method-handler-map id))]
            (let [[method handler] method-handler]
              (-set-event-handler-to-delegator handler delegator))))
        ;; Add new event delegator for unset handler/method.
        (when (seq unset-method-handler-ids)
          (doseq [id unset-method-handler-ids]
-           (let [[method handler] (get id-method-handler-map id)
+           (let [[method handler] (or (get id-method-handler-map (symbol id)) (get id-method-handler-map id))
                  delegator (-set-event-handler-to-delegator handler (-get-event-delegator id))
                  ;; Specify "" for the 4th arg to get whole event object in the handler.
-                 delegator-listener (EventHandler/create listener-intf delegator "handleEvent" "" method)]
+                 event-handler (EventHandler/create listener-intf delegator "handleEvent" "" (when method (str method)))
+                 delegator-listener event-handler]
              ;; Clojure's .invoke is expecting args in array...
              (.invoke add-listener-method comp (into-array [delegator-listener])))))
        ;; Remove unreferened delegators if requested.

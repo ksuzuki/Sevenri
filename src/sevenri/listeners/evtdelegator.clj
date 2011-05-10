@@ -17,9 +17,9 @@
    :constructors {[java.lang.String][]}
    :methods [^{:static true} [getPersistenceDelegate [] java.lang.Object]
              [getId [] java.lang.String]
-             [getHandler [] clojure.lang.AFunction]
+             [getHandler [] java.lang.Object]
              [setId [java.lang.String] void]
-             [setHandler [clojure.lang.AFunction] void]
+             [setHandler [java.lang.Object] void]
              [handleEvent [java.util.EventObject] void]]
    :main false))
 
@@ -49,12 +49,12 @@
   (reset! (.state this) [(str id) (.getHandler this)]))
 
 (defn -setHandler
-  [this afn]
-  (if (fn? afn)
-    (reset! (.state this) [(.getId this) afn])
-    (throw (IllegalArgumentException. "evtdelegator: setHandler: handler is not a fn"))))
+  [this handler]
+  (if handler
+    (reset! (.state this) [(.getId this) handler])
+    (throw (IllegalArgumentException. "evtdelegator: setHandler: null-handler"))))
 
 (defn -handleEvent
   [this event]
-  (when-let [afn (.getHandler this)]
-    (afn event)))
+  (when-let [handler (.getHandler this)]
+    (handler event)))
