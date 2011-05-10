@@ -69,10 +69,9 @@
     (get-slix-public [_] (:public (:context smap)))
     ;;
     (get-slix-frame [_] (:frame smap))
-    (get-slix-frame-props [obj] (.getClientProperty (.getRootPane (if (is-slix? obj)
-                                                                    (get-slix-frame obj)
-                                                                    obj))
-                                                    *slix-frame-props*))
+    (get-slix-frame-props [obj] (.getClientProperty
+                                 (.getRootPane (if (is-slix? obj) (get-slix-frame obj) obj))
+                                 *slix-frame-props*))
     ;;
     (get-slix-map [_] smap)
     ;;
@@ -206,15 +205,16 @@
 (defprotocol PPropertyListener
   "Protocol for managing property listener"
   (add-listener [props pi slix listener]
-    "Add the listener of the slix, which is called when the value of the
-     property specified by pi is changed.")
+    "Add the listener owned by the slix, which is called when the value of
+     the property specified by the pi is changed.")
   (remove-listener [props pi slix listener] [props pi slix] [props pi-or-slix]
-    "Remove the listener of the slix associated to the property specified by
-     pi, all listeners of the slix for pi, all listeners of the slix for all
-     pis, and all slix-listeners for pi.")
+    "Remove the listener owned by the slix and associated to the property
+     specified by the pi, all listeners owned by the slix for the pi, all
+     listeners owned by the slix for all pis, or all slix-listeners for the
+     pi.")
   (get-listeners [props pi slix] [props pi-or-slix]
-    "Return a set of listeners of the specified slix of the specified pi,
-     the slix-listeners map of the specified pi, or a seq of [pi listeners]
+    "Return a set of listeners owned by the slix for the specified pi, the
+     slix-listeners map of the specified pi, or a seq of [pi listeners]
      of the specified slix for all pis."))
 
 ;; pi-slix-listeners structure
@@ -257,14 +257,14 @@
          ;; There is a slix-listeners map for pi.
          (let [listeners (disj (get slix-listeners slix) listener)]
            (if (empty? listeners)
-             ;; No listeners for slix
+             ;; No listeners owned by slix
              (let [slix-listeners (dissoc slix-listeners slix)]
                (if (empty? slix-listeners)
                  ;; No slix-listeners for pi
                  (dissoc pi-slix-listeners pi)
                  ;; There's slix-listeners still.
                  (assoc pi-slix-listeners pi slix-listeners)))
-             ;; There's listeners for slix still.
+             ;; There's listeners owned by slix still.
              (assoc pi-slix-listeners
                pi (assoc slix-listeners slix listeners))))
          ;; Unknown pi
@@ -569,10 +569,11 @@
   ;;
   (get-public-fns [pub]
     "Return a map of functions that other slixes can call, or nil. Function
-     name symbol (not fully qualified) as key and function var as val.")
+     name symbol (not fully qualified) as key and function var or object as
+     val.")
   (get-public-fn [pub name]
     "When the function map contains the function specified by the name
-     symbol, return the function var. Otherwise, nil."))
+     symbol, return the function var or object. Otherwise, nil."))
 
 ;;;;
 
@@ -1602,11 +1603,23 @@
 ;; JDK7.
 
 (defprotocol PPathWatch
-  "Event types: :create, :update, :remove"
-  (watch-path [watcher path event slix listener])
-  (unwatch-path [watcher path event slix] [watcher slix] [watcher])
-  (get-watching-paths [watcher] [watcher path-or-slix])
-  (notify-path-event [watcher path event slix]))
+  "Default event types - :create, :update, :remove"
+  (add-path-event-listener [watcher path event slix listener]
+    "Add the listener owned by the six for the event on the path.")
+  ;;
+  (remove-path-event-listener [watcher path event slix]
+    "Remove the listener owned by the slix for the event on the path.")
+  (remove-path-event-listeners [watcher slix] [watcher]
+    "Remove all the listeners owned by the slix or slixes that are no longer
+     valid.")
+  ;;
+  (get-watching-paths [watcher] [watcher path-or-slix]
+    "Return the map of slix-event-listeners of the specified path or a seq
+     of [path event-listeners-owned-by-the-slix] for all paths.")
+  ;;
+  (notify-path-event [watcher path event slix]
+    "Notify the event on the path to listeners. slix is the one causing the
+     event."))
 
 ;; path-slix-event-listeners structure
 ;; path-slix-event-listeners :=
@@ -1618,7 +1631,7 @@
 ;;    :      :           :
 ;;  pathX {slixX {:remove listenerX}}}
 
-(defn watch-path*
+(defn add-path-event-listener*
   [path event slix listener path-slix-event-listeners]
   (if (and (keyword? event) (is-slix? slix)
            (fn? (if (var? listener) (var-get listener) listener)))
@@ -1632,33 +1645,35 @@
     ;; Invalid params. Return path-slix-event-listeners untouched.
     path-slix-event-listeners))
 
-(defn unwatch-path*
-  ([path event slix path-slix-event-listeners]
-     (if (and (keyword? event) (is-slix? slix))
-       (let [path (get-path path)
-             slix-event-listeners (get path-slix-event-listeners path)
-             event-listeners (get slix-event-listeners slix)]
-         (if (and slix-event-listeners event-listeners)
-           ;; There is slix-event-listeners.
-           (let [event-listeners (dissoc event-listeners event)]
-             (if (empty? event-listeners)
-               ;; No event-listeners for slix
-               (let [slix-event-listeners (dissoc slix-event-listeners slix)]
-                 (if (empty? slix-event-listeners)
-                   ;; No slix-event-listeners for path
-                   (dissoc path-slix-event-listeners path)
-                   ;; There's slix-event-listeners for path still.
-                   (assoc path-slix-event-listeners path slix-event-listeners)))
-               ;; There's event-listeners for slix still.
-               (assoc path-slix-event-listeners
-                 path (assoc slix-event-listeners slix event-listeners))))
-           ;; Unknown path or slix
-           path-slix-event-listeners))
-       ;; Invalid params. Return path-slix-event-listeners untouched.
-       path-slix-event-listeners))
+(defn remove-path-event-listener*
+  [path event slix path-slix-event-listeners]
+  (if (and (keyword? event) (is-slix? slix))
+    (let [path (get-path path)
+          slix-event-listeners (get path-slix-event-listeners path)
+          event-listeners (get slix-event-listeners slix)]
+      (if (and slix-event-listeners event-listeners)
+        ;; There is slix-event-listeners.
+        (let [event-listeners (dissoc event-listeners event)]
+          (if (empty? event-listeners)
+            ;; No event-listeners for slix
+            (let [slix-event-listeners (dissoc slix-event-listeners slix)]
+              (if (empty? slix-event-listeners)
+                ;; No slix-event-listeners for path
+                (dissoc path-slix-event-listeners path)
+                ;; There's slix-event-listeners for path still.
+                (assoc path-slix-event-listeners path slix-event-listeners)))
+            ;; There's event-listeners for slix still.
+            (assoc path-slix-event-listeners
+              path (assoc slix-event-listeners slix event-listeners))))
+        ;; Unknown path or slix
+        path-slix-event-listeners))
+    ;; Invalid params. Return path-slix-event-listeners untouched.
+    path-slix-event-listeners))
+
+(defn remove-path-event-listeners*
   ([slix path-slix-event-listeners]
      (if (is-slix? slix)
-       ;; Remove all event-listeners of the slix for all paths.
+       ;; Remove all event-listeners owned by the slix for all paths.
        (reduce (fn [psel path]
                  (let [slix-event-listeners (dissoc (get psel path) slix)]
                    (if (empty? slix-event-listeners)
@@ -1673,7 +1688,7 @@
      (reduce (fn [psel slix]
                (if (get-slix slix)
                  psel
-                 (unwatch-path* slix psel)))
+                 (remove-path-event-listeners* slix psel)))
              path-slix-event-listeners
              (distinct (apply concat (map keys (vals path-slix-event-listeners)))))))
 
@@ -1681,7 +1696,7 @@
   [path-or-slix path-slix-event-listeners]
   (if (is-slix? path-or-slix)
     (let [slix path-or-slix]
-      ;; Return a seq of [path event-listeners] of the slix for all paths.
+      ;; Return a seq of [path event-listeners-owned-by-the-slix] for all paths.
       (seq (remove nil? (map #(when-let [event-listeners (get (get path-slix-event-listeners %) slix)]
                                 [% event-listeners])
                              (keys path-slix-event-listeners)))))
@@ -1711,9 +1726,11 @@
                       (log-warning "notify-path-event* exception on event:" evnt
                                    "\n" (get-stack-trace-print-lines e))
                       ;; Get rid of broken listener.
-                      (reset! ref-path-slix-event-listeners (unwatch-path* p event slix @ref-path-slix-event-listeners)))))
+                      (reset! ref-path-slix-event-listeners
+                              (remove-path-event-listener* p event slix @ref-path-slix-event-listeners)))))
                 ;; Invalid slix. Get rid of it and its listeners.
-                (reset! ref-path-slix-event-listeners (unwatch-path* slix @ref-path-slix-event-listeners))))))))))
+                (reset! ref-path-slix-event-listeners
+                        (remove-path-event-listeners* slix @ref-path-slix-event-listeners))))))))))
 
 ;;;;
 
@@ -1725,12 +1742,19 @@
   []
   (let [psel (atom {})] ;; psel := path-slix-event-listeners
     (reify PPathWatch
-      (watch-path [_ path event slix listener] (reset! psel (watch-path* path event slix listener @psel)))
-      (unwatch-path [_ path event slix] (reset! psel (unwatch-path* path event slix @psel)))
-      (unwatch-path [_ slix] (reset! psel (unwatch-path* slix @psel)))
-      (unwatch-path [_] (reset! psel (unwatch-path* @psel)))
+      (add-path-event-listener [_ path event slix listener]
+        (reset! psel (add-path-event-listener* path event slix listener @psel)))
+      ;;
+      (remove-path-event-listener [_ path event slix]
+        (reset! psel (remove-path-event-listener* path event slix @psel)))
+      (remove-path-event-listeners [_ slix]
+        (reset! psel (remove-path-event-listeners* slix @psel)))
+      (remove-path-event-listeners [_]
+        (reset! psel (remove-path-event-listeners* @psel)))
+      ;;
       (get-watching-paths [_] @psel)
       (get-watching-paths [_ path-or-slix] (get-watching-paths* path-or-slix @psel))
+      ;;
       (notify-path-event [_ path event slix] (notify-path-event* path event slix psel))
       ;;
       (toString [this] (str "PPathWatch [" (get-watching-paths this) "]")))))

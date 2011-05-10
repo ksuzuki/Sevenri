@@ -53,8 +53,8 @@
         (.setText (slurp confgf :encoding "UTF-8"))
         (.setCaretPosition 0))
       ;; Ask the path watcher to call this fn when the project file updated.
-      (watch-path (get-path-watcher) confgf :update
-                  slix (fn [_] (invoke-later #(show-config slix controls project)))))))
+      (add-path-event-listener (get-path-watcher) confgf :update
+                               slix (fn [_] (invoke-later #(show-config slix controls project)))))))
 
 (defn get-project-name-listener
   [controls set-title]

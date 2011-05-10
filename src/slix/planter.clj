@@ -40,4 +40,4 @@
   [event]
   (if (is-lein-agent-busy? *slix*)
     (event-response-donot-close)
-    (unwatch-path (get-path-watcher) *slix*)))
+    (remove-path-event-listeners (get-path-watcher) *slix*)))
