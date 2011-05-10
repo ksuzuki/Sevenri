@@ -394,18 +394,16 @@
 
 (defn set-event-handlers
   "Set an event handler for an event listener method to an event delegator.
-   In listener-intf-id-method-handler-vec consistes two items; the first item
-   is listener interface in question and the second item is a map of handling
-   id and a pair of listener method and handler in vector.
-   Each pair of listener method and handler is bound to the handling id
-   symbol or string, and the event delegator with the same id is assigned
-   the handler for the listener method. When no event delegator for and id
-   is found, a new event delegator with the id is created and assigned the
-   corresponding handler for method.
+   listener-intf is a listener interface and id-method-handler-map is a map
+   of handling id as key and a pair of listener method and handler in vector
+   as value. Each pair of listener method and handler is bound to the
+   handling id (a symbol or a string), and the event delegator with the same
+   id is assigned the handler for the listener method.
+   When no event delegator for and id is found, a new event delegator with
+   the id is created and assigned the corresponding handler for method.
    If remove-unref-delegators? is true, the delegators of which ids not
-   specified in listener-intf-id-method-handler-vec are removed.
+   specified in id-method-handler-map are removed.
 
-   listener-intf-id-method-handler-vec := [ listener-intf id-method-hander-map ]
    id-method-handler-map := { id1 [listener-method-a handler-a],
                               id2 [listener-method-b handler-b],
                                :           :              :
@@ -415,11 +413,10 @@
    is a symbol or a string, like 'actionPerformed. it can be nil, and in
    that case the corresponding handler receives the event object for all
    listener methods defined by listener-intf."
-  ([comp listener-intf-id-method-handler-vec]
-     (set-event-handlers comp listener-intf-id-method-handler-vec false))
-  ([comp listener-intf-id-method-handler-vec remove-unref-delegators?]
+  ([comp listener-intf id-method-handler-map]
+     (set-event-handlers comp listener-intf id-method-handler-map false))
+  ([comp listener-intf id-method-handler-map remove-unref-delegators?]
      (let [comp-class (.getClass comp)
-           [listener-intf id-method-handler-map] listener-intf-id-method-handler-vec
            intf-name (last (.split (str (.getName listener-intf)) "\\."))
            listener-intf-array (into-array [listener-intf])
            ;;
@@ -468,6 +465,17 @@
            (doseq [event-delegator-listener event-delegator-listeners]
              (when (= id (.getId (get-handler-target event-delegator-listener)))
                (.invoke remove-listener-method comp (into-array [event-delegator-listener])))))))))
+
+(defn set-event-handler-set
+  "Given a seq of the pairs of listener-intf and id-method-handler-map, call
+   set-event-handlers for each pair with comp."
+  [comp & listener-intf-id-method-handler-maps]
+  (when-not (even? (count listener-intf-id-method-handler-maps))
+    (throw (IllegalArgumentException. "set-event-handler-set: odd listener-intf/id-method-handler-map")))
+  (loop [pairs listener-intf-id-method-handler-maps]
+    (when (seq pairs)
+      (set-event-handlers comp (first pairs) (second pairs))
+      (recur (nnext pairs)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Deprecated - remove by 0.3.0
