@@ -109,7 +109,7 @@
 
 (defmacro frame-props
   ([] `(slix-frame-props))
-  ([slix] `(slix-frame-props ~slix)))
+  ([slix-or-frame] `(slix-frame-props ~slix-or-frame)))
 
 (defn get-slix-ns
   "Return slix namespace name, a symbol. The first argument is either slix
