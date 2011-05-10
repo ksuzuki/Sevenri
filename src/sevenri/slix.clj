@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "slix, Sevenri library complex"}
+(ns ^{:doc "slix - Sevenri library complex"}
   sevenri.slix
   (:use [sevenri config core defs event log jvm os props refs ui utils])
   (:import (java.awt.event KeyAdapter KeyEvent)
@@ -1869,14 +1869,12 @@
 
 (defn- -acquire-base-class-loader?
   []
-  (when-not *base-class-loader*
-    (reset-base-class-loader (.getContextClassLoader (Thread/currentThread))))
+  (redef! *base-class-loader* (.getContextClassLoader (Thread/currentThread)))
   true)
 
 (defn- -acquire-system-event-queue?
   []
-  (when-not *system-event-queue*
-    (reset-system-event-queue (.getSystemEventQueue (java.awt.Toolkit/getDefaultToolkit))))
+  (redef! *system-event-queue* (.getSystemEventQueue (java.awt.Toolkit/getDefaultToolkit)))
   true)
 
 (defn- -setup-slix-dirs?
@@ -1916,7 +1914,7 @@
 
 (defn- -setup-path-watcher?
   []
-  (reset-path-watcher (create-path-watcher*))
+  (redef! *path-watcher* (create-path-watcher*))
   true)
 
 ;;;;

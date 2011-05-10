@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri interface library to Java VM depedent features"}
+(ns ^{:doc "Sevenri interface lib to access Java VM depedent features"}
   sevenri.jvm
   (:use [sevenri config defs log props])
   (:import (java.awt EventQueue)))
@@ -126,7 +126,7 @@
 (defn- -acquire-system-app-context?
   []
   (when-not *system-app-context*
-    (reset-system-app-context (get-app-context)))
+    (redef! *system-app-context* (get-app-context)))
   true)
 
 (defn- -register-awt-exception-handler?

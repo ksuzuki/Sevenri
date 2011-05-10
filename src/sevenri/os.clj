@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri interface library to OS depedent features"}
+(ns ^{:doc "Sevenri interface lib to access OS depedent features"}
   sevenri.os
   (:use [sevenri config defs log props])
   (:import (java.io File)

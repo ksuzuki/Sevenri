@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.props
+(ns ^{:doc "Sevenri unified properties lib"}
+  sevenri.props
   (:use [sevenri config defs log])
   (:import (java.io File)
            (java.io FileInputStream InputStreamReader)
@@ -297,7 +298,7 @@
 (defn- -setup-properties?
   []
   (try
-    (reset-properties (create-sevenri-properties))
+    (redef! *properties* (create-sevenri-properties))
     true
     (catch Exception e
       (log-severe "-setup-properties? failed:\n" (get-stack-trace-print-lines e))

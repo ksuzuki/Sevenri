@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri system core library"}
+(ns ^{:doc "Sevenri core lib"}
   sevenri.core
   (:require [clojure.java io])
   (:use [sevenri config defs log props refs utils]
@@ -559,7 +559,7 @@
   []
   (if-let [projman (load-project-manager (get-prop (get-props) 'sevenri.project.manager))]
     (do
-      (reset-project-manager projman)
+      (redef! *project-manager* projman)
       (when-not (ready? projman)
         (future
           (when-not (setup? projman)

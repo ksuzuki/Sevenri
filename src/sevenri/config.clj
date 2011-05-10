@@ -9,14 +9,14 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri system configuration library"}
+(ns ^{:doc "Sevenri configuration lib"}
   sevenri.config
   (:use sevenri.defs)
   (:import (java.io File)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *sevenri-config*
+(redef! *config*
  {:doc {:dir 'doc
         :apidoc-urls-file-name "apidoc_urls.clj"}
 
@@ -36,10 +36,11 @@
                   :sevenri {:dir 'sevenri}}
 
         :log {:dir 'log
-              :logger 'Sevenri-logger
-              :logger-header "sevenri:"
+              :logger-name "Sevenri-logger"
               :file-name "sevenri"
-              :file-count 5}
+              :file-count 5
+              :popup {:level java.util.logging.Level/WARNING
+                      :sec 3}}
 
         :properties {:dir 'properties
                      :user-file-name "user.properties"
@@ -125,9 +126,11 @@
   "Sevenri configuration information access fn. Return a value of a target
    configuration keyword which is expressed in a format of each interim
    keyword connected by period."
-  [key]
-  (let [keys (map #(keyword %) (.split (str key) "\\."))]
-    (get-in *sevenri-config* keys)))
+  ([]
+     *config*)
+  ([key]
+     (let [keys (map #(keyword %) (.split (str key) "\\."))]
+       (get-in *config* keys))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; dsr (dot Sevenri) and sid (Sevenri instance directory) structure
@@ -163,9 +166,9 @@
          (when-not (.exists path)
            (when-not (.mkdir path)
              (throw (RuntimeException. (str "create-sid: mkdir failed:" path))))))
-       (reset-dsr-path dsr-path)
-       (reset-sid-name sid-name)
-       (reset-sid-path sid-path)
+       (redef! *dsr-path* dsr-path)
+       (redef! *sid-name* sid-name)
+       (redef! *sid-path* sid-path)
        *sid-path*)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

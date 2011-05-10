@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri debug library"}
+(ns ^{:doc "Sevenri debug lib"}
   sevenri.debug
   (:use [sevenri config defs log props]))
 

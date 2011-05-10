@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri user interface library"}
+(ns ^{:doc "Sevenri user interface lib"}
   sevenri.ui
   (:require [clojure.set :as cljset])
   (:use [sevenri config defs event log refs])
@@ -624,10 +624,11 @@
   ;;
   true)
 
-(defn- -reset-event-delegator-class?
+(defn- -setup-event-delegator-class?
   []
-  (reset-event-delegator-class (get-config 'src.sevenri.listeners.evtdelegator))
-  true)
+  (let [evtdelegator-class (Class/forName (str (get-config 'src.sevenri.listeners.evtdelegator)))]
+    (redef! *event-delegator-class* evtdelegator-class)
+    true))
 
 ;;;;
 
@@ -636,7 +637,7 @@
   (apply while-each-true?
          (do-each-after* print-fn-name*
           -add-awt-event-listeners?
-          -reset-event-delegator-class?)))
+          -setup-event-delegator-class?)))
 
 (defn shutdown-ui?
   []

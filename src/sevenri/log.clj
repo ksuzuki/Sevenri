@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri logging facility library"}
+(ns ^{:doc "Sevenri logging lib"}
   sevenri.log
   (:require [clojure.stacktrace :as cst])
   (:use [sevenri config defs refs])
@@ -21,17 +21,31 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn get-sevenri-logger-name
-  []
-  *sevenri-logger-name*)
-
 (defn get-sevenri-logger
   []
   *sevenri-logger*)
 
+(defn get-sevenri-logger-name
+  []
+  *sevenri-logger-name*)
+
+(defn get-sevenri-logger-popup-info
+  []
+  {:level *sevenri-logger-popup-level* :sec *sevenri-logger-popup-sec*})
+
 (defn get-sevenri-log-file
   []
   *sevenri-log-file*)
+
+(defn get-sid-log-dir
+  []
+  (let [dir (File. *sid-path* (str (get-config 'sid.log.dir)))]
+    (when-not (.exists dir)
+      (when-not (.mkdir dir)
+        (throw (RuntimeException. "get-sid-log-dir: mkdir failed"))))
+    dir))
+
+;;;;
 
 (defn get-std-in
   []
@@ -45,13 +59,7 @@
   []
   *standard-err*)
 
-(defn get-sid-log-dir
-  []
-  (let [dir (File. *sid-path* (str (get-config 'sid.log.dir)))]
-    (when-not (.exists dir)
-      (when-not (.mkdir dir)
-        (throw (RuntimeException. "get-sid-log-dir: mkdir failed"))))
-    dir))
+;;;;
 
 (defn get-last-exception
   []
@@ -61,7 +69,7 @@
 
 (defn print-msgs
   [& msgs]
-  (apply println *sevenri-logger-header* msgs))
+  (apply println "sevenri:" msgs))
 
 (defn print-info
   [& msgs]
@@ -208,7 +216,7 @@
              stpls (get-stack-trace-print-lines e)]
          (if *sevenri-logger*
            (.logp *sevenri-logger* Level/SEVERE *sevenri-logger-name* lemsg stpls)
-           (println *sevenri-logger-header* lemsg stpls))))
+           (println "sevenri:" lemsg stpls))))
      ;;
      (reset! *e* e)
      (future (dispatch-exception e ns))))
@@ -221,8 +229,7 @@
       (if *sevenri-logger*
         (.logp *sevenri-logger* Level/SEVERE *sevenri-logger-name* "log-uncaught-exception"
                (str "Uncaught exception in thread: " tname "\n" stpls))
-        (println *sevenri-logger-header*
-                 "log-exception: uncaught exception in thread:" tname "\n" stpls)))
+        (println "sevenri: log-exception: uncaught exception in thread:" tname "\n" stpls)))
     ;;
     (reset! *e* e)
     (future (dispatch-exception e nil))))
@@ -262,7 +269,7 @@
 (defn- -create-logging-properties
   []
   (let [lf (-create-new-log-file)]
-    (reset-sevenri-log-file lf)
+    (redef! *sevenri-log-file* lf)
     (str (println-str "java.util.logging.FileHandler.pattern =" (.getCanonicalPath lf)))))
 
 (defn- -get-logging-properties-inputstream
@@ -279,22 +286,25 @@
 
 (defn- -get-logger?
   []
-  (if *sevenri-logger*
-    true
-    (let [cfgs (-create-logging-properties)
-          logger-name (str (get-config 'sid.log.logger))
-          logger-header (get-config 'sid.log.logger-header)]
-      (with-open [is (-get-logging-properties-inputstream cfgs)]
-        (.readConfiguration (LogManager/getLogManager) is)
-        (reset-sevenri-logger logger-name logger-header (Logger/getLogger logger-name))
-        (when-not *sevenri-logger*
-          (throw (RuntimeException. "-get-logger? failed")))
-        (reset-sevenri-logger-popup Level/WARNING)
-        true))))
+  (let [cfgs (-create-logging-properties)
+        logger-name (get-config 'sid.log.logger-name)]
+    (with-open [is (-get-logging-properties-inputstream cfgs)]
+      (.readConfiguration (LogManager/getLogManager) is)
+      (when-not (Logger/getLogger logger-name)
+        (throw (RuntimeException. "-get-logger? failed"))))
+    ;;
+    (redef! *sevenri-logger* (Logger/getLogger logger-name))
+    (redef! *sevenri-logger-name* logger-name)
+    (redef! *sevenri-logger-popup-level* (get-config 'sid.log.popup.level))
+    (redef! *sevenri-logger-popup-sec* (get-config 'sid.log.popup.sec))
+    ;;
+    true))
 
 (defn -save-std-inouterr?
   []
-  (reset-standard-in-out-err *in* *out* *err*)
+  (redef! *standard-in*  *in*)
+  (redef! *standard-out* *out*)
+  (redef! *standard-err* *err*)
   true)
 
 (defn- -redirect-system-out-and-err?
@@ -325,10 +335,9 @@
   (let [handler (proxy [Thread$UncaughtExceptionHandler] []
                   (uncaughtException [t e]
                     (log-uncaught-exception t e)))]
-    (when-not *thread-default-uncaught-exception-handler*
-      (reset-thread-default-uncaught-exception-handler handler)
-      (Thread/setDefaultUncaughtExceptionHandler handler)))
-  true)
+    (redef! *thread-default-uncaught-exception-handler* handler)
+    (Thread/setDefaultUncaughtExceptionHandler handler)
+    true))
 
 (defn- -load-exception-listeners?
   []

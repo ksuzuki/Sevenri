@@ -9,10 +9,9 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri main library - the run fn starts everything."}
+(ns ^{:doc "Sevenri main lib - 'run' to start everything"}
   sevenri.main
-  (:use [sevenri config debug event log startup]
-        [sevenri.defs :only (reset-ok-to-quit-fn)]
+  (:use [sevenri config debug defs event log startup]
         [sevenri.core :only (create-sid-sevenri-lock-file?
                              lock-and-wait
                              unlock-and-resume)]
@@ -63,7 +62,7 @@
 (defn run
   [& args]
   (intern 'clojure.core '*command-line-args* (first args))
-  (reset-ok-to-quit-fn ok-to-quit?)
+  (redef! *ok-to-quit-fn* ok-to-quit?)
   (try
     (create-sid*)
     (when (create-sid-sevenri-lock-file?)

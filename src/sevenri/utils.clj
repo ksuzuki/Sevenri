@@ -9,7 +9,7 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri utility library"}
+(ns ^{:doc "Sevenri utility lib"}
   sevenri.utils
   (:import (java.io File)
            (java.lang.reflect Field Modifier Method Constructor)))

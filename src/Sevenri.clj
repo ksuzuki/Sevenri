@@ -9,7 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns Sevenri
+(ns ^{:doc "Sevenri bootloader"}
+  Sevenri
   (:gen-class)
   (:require [sevenri defs refs]
             [sevenri config core event jvm log os props slix ui]
