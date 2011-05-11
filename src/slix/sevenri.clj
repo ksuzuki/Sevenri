@@ -20,7 +20,7 @@
 
 (defn frame-created
   [event]
-  (sevenri-frame-created))
+  (create-sevenri-frame))
 
 (defn opened
   [event]

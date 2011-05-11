@@ -27,7 +27,7 @@
           (put-prop fprops 'mail.panel.components mpcs)
           mpcs))))
 
-(defn sevenri-frame-created
+(defn create-sevenri-frame
   []
   (let [frame (slix-frame)
         [minw minh] (read-prop (get-props) 'slix.frame.size)
