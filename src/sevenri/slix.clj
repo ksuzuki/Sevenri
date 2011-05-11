@@ -27,8 +27,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(def *slix-frame-props* "props")
-
 (defprotocol PSlix
   "Protocol to deal with slix object"
   (get-slix-sn [slix] "Return the slix name, a symbol.")
@@ -43,7 +41,6 @@
   (get-slix-public [slix] "Return the public info of the slix (a part of the slix context)")
   ;;
   (get-slix-frame [slix] "Return the JFrame associated with the slix")
-  (get-slix-frame-props [slix-or-frame] "Return the frame properties of the slix.")
   ;;
   (get-slix-map [slix] "Return the slix as map"))
 
@@ -69,9 +66,6 @@
     (get-slix-public [_] (:public (:context smap)))
     ;;
     (get-slix-frame [_] (:frame smap))
-    (get-slix-frame-props [obj] (.getClientProperty
-                                 (.getRootPane (if (is-slix? obj) (get-slix-frame obj) obj))
-                                 *slix-frame-props*))
     ;;
     (get-slix-map [_] smap)
     ;;
@@ -80,8 +74,8 @@
                        ",args=[" (:args smap) "]"
                        ",id=" (:id smap)
                        ",cl=" (:cl smap)
-                       ",context=" (:context smap)
-                       ",frame=[" (:frame smap)"]]"))))
+                       ",context=[" (:context smap) "]"
+                       ",frame=[" (:frame smap) "]]"))))
 
 ;;;;
 
@@ -104,22 +98,51 @@
 (def-slix-fn* props)
 (def-slix-fn* public)
 (def-slix-fn* frame)
-(def-slix-fn* frame-props)
 (def-slix-fn* map)
 
-(defmacro frame-props
-  ([] `(slix-frame-props))
-  ([slix-or-frame] `(slix-frame-props ~slix-or-frame)))
+;;;;
+
+(defmulti get-slix
+  (fn [obj]
+    (cond
+     (is-slix? obj) :slix
+     (instance? JFrame obj) :frame
+     :else :default)))
+
+(defmethod get-slix :slix
+  [slix]
+  (when (identical? slix (get @*slixes* (slix-name slix)))
+    slix))
+
+(defmethod get-slix :frame
+  [frame]
+  (.getClientProperty (.getRootPane frame) "*slix*"))
+
+(defmethod get-slix :default
+  [obj]
+  (get @*slixes* (str obj)))
+
+;;;;
 
 (defn get-slix-ns
   "Return slix namespace name, a symbol. The first argument is either slix
    or slix-sn. The rest of the argument, if any, is sub namespace name."
-  ([sors]
-     (symbol (str "slix." (if (is-slix? sors) (slix-sn sors) sors))))
-  ([sors sns]
-     (get-slix-ns (str (if (is-slix? sors) (slix-sn sors) sors) \. sns)))
-  ([sors sns & snss]
-     (apply get-slix-ns sors (str sns \. (first snss)) (rest snss))))
+  ([slix-or-sn]
+     (symbol (str "slix." (if (is-slix? slix-or-sn) (slix-sn slix-or-sn) slix-or-sn))))
+  ([slix-or-sn sub-ns]
+     (get-slix-ns (str (if (is-slix? slix-or-sn) (slix-sn slix-or-sn) slix-or-sn) \. sub-ns)))
+  ([slix-or-sn sub-ns & sub-nss]
+     (apply get-slix-ns slix-or-sn (str sub-ns \. (first sub-nss)) (rest sub-nss))))
+
+(defn get-slixes
+  ([]
+     (vals @*slixes*))
+  ([sn]
+     (seq (filter #(= (symbol (str sn)) (slix-sn %)) (get-slixes)))))
+
+(defn get-slix-names
+  []
+  (keys @*slixes*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -442,48 +465,19 @@
 
 (defn add-slix-frame-properties
   [frame sn name]
-  (.putClientProperty (.getRootPane frame) *slix-frame-props* (create-slix-frame-properties* sn name)))
+  (.putClientProperty (.getRootPane frame) "*props*" (create-slix-frame-properties* sn name)))
+
+(defn frame-props
+  [frame]
+  (.getClientProperty (.getRootPane frame) "*props*"))
+
+(defmacro slix-frame-props
+  ([]
+     `(frame-props (slix-frame)))
+  ([slix]
+     `(frame-props (slix-frame ~slix))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defn get-slixes
-  ([]
-     (vals @*slixes*))
-  ([sn]
-     (seq (filter #(= (symbol (str sn)) (slix-sn %)) (get-slixes)))))
-
-;;;;
-
-(defmulti get-slix
-  (fn [obj]
-    (cond
-     (is-slix? obj) :slix
-     (instance? JFrame obj) :frame
-     (or (string? obj) (symbol? obj)) :name
-     :else :default)))
-
-(defmethod get-slix :slix
-  [slix]
-  (when (identical? slix (get @*slixes* (slix-name slix)))
-    slix))
-
-(defmethod get-slix :frame
-  [frame]
-  (first (filter #(identical? frame (slix-frame %)) (get-slixes))))
-
-(defmethod get-slix :name
-  [name]
-  (get @*slixes* (str name)))
-
-(defmethod get-slix :default
-  [obj]
-  nil)
-
-;;;;
-
-(defn get-slix-names
-  []
-  (keys @*slixes*))
 
 (defn add-to-slix-sn-cache
   [sn]
@@ -689,22 +683,37 @@
   ([sn name]
      [(get-sid-slix-frame-file sn name) (get-sid-slix-state-file sn name)]))
 
-(defmacro get-slix-file-bundle
-  "Alias of get-sid-slix-file-bundle."
+(defn get-sid-slix-file-bundle-saved
+  "Return [frame-file/nil state-file/nil] or nil."
+  ([]
+     (get-sid-slix-file-bundle-saved *slix*))
+  ([slix]
+     (get-sid-slix-file-bundle-saved (slix-sn slix) (slix-name slix)))
+  ([sn name]
+     (let [[f s] (get-sid-slix-file-bundle sn name)
+           frame-file (when (.exists f) f)
+           state-file (when (.exists s) s)]
+       (when (or frame-file state-file)
+         [frame-file state-file]))))
+
+(defmacro slix-file-bundle
+  "Shorthand of get-sid-slix-file-bundle."
   ([] `(get-sid-slix-file-bundle))
   ([slix] `(get-sid-slix-file-bundle ~slix))
   ([sn name] `(get-sid-slix-file-bundle ~sn ~name)))
 
-(defn is-slix-saved
-  "Return [frame-file state-file/nil] or nil."
+;;;;
+
+(defn is-slix-saved?
+  "Return true when slix bundle file(s) is saved."
   ([]
-     (is-slix-saved *slix*))
+     (is-slix-saved? *slix*))
   ([slix]
-     (is-slix-saved (slix-sn slix) (slix-name slix)))
+     (is-slix-saved? (slix-sn slix) (slix-name slix)))
   ([sn name]
-     (let [[f s] (get-slix-file-bundle sn name)]
-       (when (.exists f)
-         [f (when (.exists s) s)]))))
+     (if (get-sid-slix-file-bundle-saved sn name)
+       true
+       false)))
 
 (defn get-saved-slix-names
   "Return a seq of names or nil"
@@ -912,7 +921,7 @@
      (-load-slix-frame (slix-sn slix) (slix-name slix)))
   ([sn name]
      (try
-       (let [[f s] (get-slix-file-bundle sn name)]
+       (let [[f s] (get-sid-slix-file-bundle sn name)]
          (when (and (.exists f) (.canRead f))
            (with-open [xd (XMLDecoder. (BufferedInputStream. (FileInputStream. f)))]
              (.readObject xd))))
@@ -935,7 +944,7 @@
   [slix log-xml-encoder-errors?]
   (let [postsave-slix-frame-fns (-presave-slix-frame slix)]
     (try
-      (let [[f s] (get-slix-file-bundle (slix-sn slix) (slix-name slix))]
+      (let [[f s] (get-sid-slix-file-bundle (slix-sn slix) (slix-name slix))]
         (when (.exists f)
           (.delete f))
         (with-open [xe (XMLEncoder. (BufferedOutputStream. (FileOutputStream. f)))]
@@ -1083,7 +1092,7 @@
                ;; singleton exists
                (-abort-open-slix slix oeo-eid :sevenri.event/reason-singleton-slix)
                ;; continue opening
-               (let [saved? (if (is-slix-saved slix) true false)]
+               (let [saved? (is-slix-saved? slix)]
                  ;; opening
                  (-send-event-and-continue-unless
                   :sevenri.event/response-donot-open
@@ -1111,18 +1120,21 @@
                        (invoke-and-wait slix frame-creator)
                        (-open-slix slix saved? @frame))))))))))))
   ([slix saved? frame]
+     ;; Add frame properties.
+     (add-slix-frame-properties frame (slix-sn slix) (slix-name slix))
      ;; Install the default listeners.
      (when-not saved?
        (doto frame
          (add-default-window-listener)
          (add-default-key-listener)))
-     ;; Add frame properties.
-     (add-slix-frame-properties frame (slix-sn slix) (slix-name slix))
+     ;; Associate frame to slix.
      (let [slix (reify-slix* (assoc (slix-map slix) :frame frame))
            eid (if saved?
                  :sevenri.event/slix-frame-loaded
                  :sevenri.event/slix-frame-created)]
-       ;; frame created or loaded
+       ;; Refer slix back from frame.
+       (.putClientProperty (.getRootPane frame) "*slix*" slix)
+       ;; Notify frame creation or load.
        (-send-event-and-continue-unless
         nil ;; ignore any response
         slix eid send-creation-event
@@ -1217,7 +1229,7 @@
          ;; at the startup time.
          (declare is-slix-sevenri?)
          (when-not (is-slix-sevenri? sn name)
-           (when (is-slix-saved sn name)
+           (when (is-slix-saved? sn name)
              (open-slix-and-wait sn name)))))))
 
 (defmacro open-slix-with-args
@@ -1945,7 +1957,10 @@
 
 (defn- -setup-mac-dependents
   []
-  (add-mac-about-handler (fn [] (open-slix 'sevenri.about))))
+  (add-mac-about-handler (fn []
+                           (if-let [slix (get-slix "Sevenri.about")]
+                             (.toFront (slix-frame slix))
+                             (open-slix 'sevenri.about)))))
 
 (defn- -setup-platform-dependents?
   []

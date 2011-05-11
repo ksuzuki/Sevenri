@@ -55,9 +55,9 @@
 ;; 'get-props' returns the properties object to access them. The :slix
 ;; domain Properties are the ones of slix and 'slix-props' returns the
 ;; properites object to access them. The :frame domain properties are
-;; actually subset of :slix domain properties but are the ones considered as
-;; frame's properties and 'slix-frame-props' (or 'frame-props') returns the
-;; properties object to access them.
+;; actually a subset of :slix domain properties but are the ones considered
+;; as frame's properties and 'frame-props' returns the properties object to
+;; access them.
 ;; When properties object is created, default, user defined, and any
 ;; persistent propertiy key/values are pre-loaded from files named as
 ;; 'default.properties', 'user.properties', and 'persistent.properties' in

@@ -338,13 +338,13 @@
 
 (defn save-current-section-title-category
   [slix section-title-category]
-  (let [[frame-file state-file] (get-slix-file-bundle slix)
+  (let [[frame-file state-file] (slix-file-bundle slix)
           cont (or section-title-category [])]
       (spit state-file cont :encoding "UTF-8")))
 
 (defn load-last-section-title-category
   [slix]
-  (let [[frame-file state-file] (get-slix-file-bundle slix)]
+  (let [[frame-file state-file] (slix-file-bundle slix)]
     (when (.exists state-file)
       (try
         (read-string (slurp state-file :encoding "UTF-8"))
