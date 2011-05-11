@@ -10,74 +10,63 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.sevenri.ui
-  (:use [sevenri config core props slix ui]
-        [slix.sevenri defs])
+  (:use [sevenri props slix])
   (:import (java.awt Cursor Dimension Toolkit)
            (slix.sevenri.gui MainPanel)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn sevenri-frame-created
-  []
-  (let [fr (slix-frame)
-        cp (.getContentPane fr)
-        mp (MainPanel.)]
-    (.add cp mp)
-    (let [[minw minh] (read-prop (get-props) 'slix.frame.size)
-          stdw 400
-          stdh 250
-          ssiz (.getScreenSize (Toolkit/getDefaultToolkit))
-          posx (max 0 (- (.width ssiz) stdw))]
-    (doto fr
-      (.setMinimumSize (Dimension. minw minh))
-      (.setSize stdw stdh)
-      (.setLocation posx 0)))))
-
 (defn get-main-panel-components
   [frame]
-  (let [mp (.getComponent (.getContentPane frame) 0)]
-    {:mainPanel mp
-     :lblSevenri (.getLblSevenri mp)
-     :spDivider (.getSpDivider mp) :lstSn (.getLstSn mp) :lstName (.getLstName mp)}))
+  (let [fprops (frame-props frame)]
+    (or (get-prop fprops 'main.panel.components)
+        (let [mp (.getComponent (.getContentPane frame) 0)
+              mpcs {:main-panel mp
+                    :label-Sevenri (.getLblSevenri mp)
+                    :list-sn (.getLstSn mp) :divider (.getSpDivider mp) :list-name (.getLstName mp)}]
+          (put-prop fprops 'mail.panel.components mpcs)
+          mpcs))))
+
+(defn sevenri-frame-created
+  []
+  (let [frame (slix-frame)
+        [minw minh] (read-prop (get-props) 'slix.frame.size)
+        [stdw stdh] (read-prop (slix-props) 'frame.standard.size)
+        scrnsize (.getScreenSize (Toolkit/getDefaultToolkit))
+        posx (max 0 (- (.width scrnsize) stdw))]
+    (.add (.getContentPane frame) (MainPanel.))
+    (get-main-panel-components frame)
+    (doto frame
+      (.setMinimumSize (Dimension. minw minh))
+      (.setSize stdw stdh)
+      (.setLocation posx 0))))
 
 (defn enable-main-panel
   [frame enable?]
-  (.setEnabled (:mainPanel (get-main-panel-components frame)) enable?))
+  (.setEnabled (:main-panel (get-main-panel-components frame)) (if enable? true false)))
 
-(defn setup-main-panel
-  [list-listeners]
-  (let [mpcs (get-main-panel-components (slix-frame))
-        [sn-list-listener sn-list-mouse-listener
-         nm-list-listener nm-list-mouse-listener] list-listeners]
-    (.setText (:lblSevenri mpcs) (get-sevenri-name-and-version))
-    (.addListSelectionListener (:lstSn mpcs) sn-list-listener)
-    (.addMouseListener (:lstSn mpcs) sn-list-mouse-listener)
-    (.addListSelectionListener (:lstName mpcs) nm-list-listener)
-    (.addMouseListener (:lstName mpcs) nm-list-mouse-listener)
-    (doseq [c [(:lstSn mpcs) (:lstName mpcs)]]
-      (add-default-key-listener c))))
-
-(defn update-divider
+(defn set-divider
   ([]
-     (update-divider 0.35))
-  ([pos]
+     (set-divider (read-prop (slix-props) 'divider.initial.location)))
+  ([loc]
      (let [mpcs (get-main-panel-components (slix-frame))]
-       (.setDividerLocation (:spDivider mpcs) (double pos)))))
+       (.setDividerLocation (:divider mpcs) (double loc)))))
 
 (defn show-slixes-event-cursor
   [show?]
-  (let [frame (slix-frame)]
+  (let [frame (slix-frame)
+        fprps (frame-props frame)]
     (dosync
      (if show?
-       (if-let [cc (get-slix-prop *prop-cursor*)]
+       (if-let [cc (get-prop fprps 'cursor)]
          (ref-set cc [(first @cc) (inc (second @cc))])
          (let [cc (ref [(.getCursor frame) 1])]
-           (put-slix-prop *prop-cursor* cc)
+           (put-prop fprps 'cursor cc)
            (.setCursor frame Cursor/WAIT_CURSOR)))
       ;;
-      (when-let [cc (get-slix-prop *prop-cursor*)]
+      (when-let [cc (get-prop fprps 'cursor)]
         (if (zero? (dec (second @cc)))
           (do
-            (remove-slix-prop *prop-cursor*)
+            (remove-prop fprps 'cursor)
             (.setCursor frame (first @cc)))
           (ref-set cc [(first @cc) (dec (second @cc))])))))))

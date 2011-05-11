@@ -11,7 +11,7 @@
 
 (ns ^{:slix true :singleton true}
   slix.sevenri
-  (:use [sevenri config core event log props slix ui])
+  (:use [sevenri event props slix])
   (:use [slix.sevenri aotlist lists ui])
   (:require [slix.sevenri public]))
 
@@ -24,21 +24,11 @@
 
 (defn opened
   [event]
-  (setup-main-panel [(get-sn-list-listener) (get-sn-list-mouse-listener)
-                     (get-name-list-listener) (get-name-list-mouse-listener)])
+  (initialize)
   (set-slix-visible)
-  (update-divider)
-  (aot-compile-slixes)
-  (update-sn-list))
-
-(defn saving
-  [event]
-  (let [mpcs (get-main-panel-components (slix-frame))]
-    (save-dyna-listeners
-     [[(:lstSn mpcs) [(listener-triplet ListSelection)
-                      (listener-triplet Mouse)]]
-      [(:lstName mpcs) [(listener-triplet ListSelection)
-                        (listener-triplet Mouse)]]])))
+  (set-divider)
+  (update-sn-list)
+  (aot-compile-slixes))
 
 (defn closing
   [event]

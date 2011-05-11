@@ -10,11 +10,11 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.sevenri.lists
-  (:use [sevenri config core log props slix utils]
-        [slix.sevenri defs ui]
+  (:use [sevenri core log props slix ui]
+        [slix.sevenri ui]
         [clojure.java io])
   (:import (java.awt Cursor)
-           (java.awt.event InputEvent MouseAdapter)
+           (java.awt.event InputEvent MouseListener)
            (javax.swing.event ListSelectionListener)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -58,8 +58,8 @@
          (recur (rest nms) (if (seq fs)
                              (cons (str (slix-sn (first fs))) sns)
                              sns)))
-         (when (seq sns)
-           (sort sns)))))
+       (when (seq sns)
+         (sort sns)))))
 
 (defn get-slix-frame-titles-by-names
   ([nms]
@@ -89,147 +89,143 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn handle-sn-list-event*
-  [mpcs lstSn]
-  (let [sns (seq (.getSelectedValues lstSn))
-        lstName (:lstName mpcs)
-        lsls (seq (.getListSelectionListeners lstName))]
-    ;; Remove lstName listeners temporarily to prevent valueChanged event loop.
-    (doseq [lsl lsls]
-      (.removeListSelectionListener lstName lsl))
-    ;; Update the list.
-    (if-let [names (get-slix-names-by-sns sns)]
-      (let [name-title-map (get-slix-frame-titles-by-names names)
-            name-titles (map #(str (first %) " \"" (second %) "\"") name-title-map)
-            title-name-map (apply hash-map (interleave name-titles (keys name-title-map)))
-            sis (get-selected-indices (seq (.getSelectedValues lstName)) name-titles)]
-        (doto lstName
-          (.setListData (into-array String name-titles))
-          (.setSelectedIndices (into-array Integer/TYPE sis))
-          (.putClientProperty *prop-title-name-map* title-name-map)))
-      (.setListData lstName (into-array String [])))
-    ;; Restore listeners.
-    (doseq [lsl lsls]
-      (.addListSelectionListener lstName lsl))))
+(defn handle-list-sn-event*
+  [list-sn frame]
+  (let [fprps (frame-props frame)]
+    (when-not (get-prop fprps 'list.updating)
+      ;; Prevent recursive valueChanged event loop 
+      (put-prop fprps 'list.updating true)
+      ;; Start updating lists.
+      (let [mpcs (get-main-panel-components frame)
+            sns (seq (.getSelectedValues list-sn))
+            list-name (:list-name mpcs)
+            lsls (seq (.getListSelectionListeners list-name))]
+        (if-let [names (get-slix-names-by-sns sns)]
+          (let [name-title-map (get-slix-frame-titles-by-names names)
+                name-titles (map #(str (first %) " \"" (second %) "\"") name-title-map)
+                title-name-map (apply hash-map (interleave name-titles (keys name-title-map)))
+                sis (get-selected-indices (seq (.getSelectedValues list-name)) name-titles)]
+            (doto list-name
+              (.setListData (into-array String name-titles))
+              (.setSelectedIndices (into-array Integer/TYPE sis))
+              (.putClientProperty "title-name-map" title-name-map)))
+          (.setListData list-name (into-array String [])))
+        ;; Done.
+        (put-prop fprps 'list.updating false)))))
 
-(defn handle-sn-list-event
+(defn handle-list-sn-value-changed
   [e]
   (when-not (.getValueIsAdjusting e)
-    (when-let [frame (.getTopLevelAncestor (.getSource e))]
-      (let [mpcs (get-main-panel-components frame)
-            lstSn (:lstSn mpcs)]
-        (handle-sn-list-event* mpcs lstSn)))))
+    (let [list-sn (.getSource e)
+          frame (.getTopLevelAncestor list-sn)]
+      (handle-list-sn-event* list-sn frame))))
 
-(defn get-sn-list-listener
-  []
-  (proxy [ListSelectionListener] []
-    (valueChanged [e] (handle-sn-list-event e))))
-
-(defn get-sn-list-mouse-listener
-  []
-  (proxy [MouseAdapter] []
-    (mouseClicked
-     [e]
-     (let [cc (.getClickCount e)
-           lstSn (.getComponent e)
-           frame (.getTopLevelAncestor lstSn)]
-       (cond
-        (= cc 1) (let [mpcs (get-main-panel-components frame)]
-                   (handle-sn-list-event* mpcs lstSn))
-        (= cc 2) (when-not (.isSelectionEmpty lstSn)
-                   (let [sn (symbol (.getSelectedValue lstSn))
-                         open-lib? (pos? (bit-and (.getModifiersEx e) InputEvent/META_DOWN_MASK))
-                         alt-open? (pos? (bit-and (.getModifiersEx e) InputEvent/ALT_DOWN_MASK))]
-                       (future
-                         (let [oc (.getCursor frame)
-                               alt-open-kwd (read-prop (get-props) 'slix.argkeyword.alt-open)]
-                           (.setCursor frame Cursor/WAIT_CURSOR)
-                           (try
-                             (deref
-                              (cond
-                               open-lib? (open-slix-with-args {:file (get-slix-ns sn)} 'ced)
-                               alt-open? (open-slix-with-args {alt-open-kwd true} sn)
-                               :else (open-slix sn)))
-                             (finally
-                              (.setCursor frame oc)))))))
-        :else nil)))))
+(defn handle-list-sn-mouse-clicked
+  [e]
+  (let [cc (.getClickCount e)
+        list-sn (.getComponent e)
+        frame (.getTopLevelAncestor list-sn)]
+    (cond
+     (= cc 1) (handle-list-sn-event* list-sn frame)
+     (= cc 2) (when-not (.isSelectionEmpty list-sn)
+                (let [sn (symbol (.getSelectedValue list-sn))
+                      open-lib? (pos? (bit-and (.getModifiersEx e) InputEvent/META_DOWN_MASK))
+                      alt-open? (pos? (bit-and (.getModifiersEx e) InputEvent/ALT_DOWN_MASK))]
+                  (future
+                    (let [oc (.getCursor frame)
+                          alt-open-kwd (read-prop (get-props) 'slix.argkeyword.alt-open)]
+                      (.setCursor frame Cursor/WAIT_CURSOR)
+                      (try
+                        (deref
+                         (cond
+                          open-lib? (open-slix-with-args {:file (get-slix-ns sn)} 'ced)
+                          alt-open? (open-slix-with-args {alt-open-kwd true} sn)
+                          :else (open-slix sn)))
+                        (finally
+                         (.setCursor frame oc)))))))
+     :else nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn handle-name-list-event*
-  [mpcs lstName]
-  (let [title-name-map (.getClientProperty lstName *prop-title-name-map*)
-        sns-of-nms (reduce (fn [s o] (conj s o))
-                           #{}
-                           (map #(slix-sn (get-slix %)) (vals title-name-map)))
-        name-titles (.getSelectedValues lstName)
-        nms (map #(get title-name-map %) name-titles)
-        sns-by-nms (get-registered-sns-by-names nms)
-        ;;
-        lstSn (:lstSn mpcs)
-        lm (.getModel lstSn)
-        sns-listed (map #(.getElementAt lm %) (range (.getSize lm)))
-        ;;
-        snlsls (seq (.getListSelectionListeners lstSn))
-        nmlsls (seq (.getListSelectionListeners lstName))]
-    ;; Remove listeners temporarily to prevent valueChanged event loop.
-    (doseq [lsl snlsls]
-      (.removeListSelectionListener lstSn lsl))
-    (doseq [lsl nmlsls]
-      (.removeListSelectionListener lstName lsl))
-    ;; Update lists only when there are multiples sns.
-    (when (< 1 (count sns-of-nms))
-      (if-let [indecies (get-item-indices sns-listed sns-by-nms)]
-        (do
-          (.setListData lstName (into-array String name-titles))
-          (.setSelectedIndices lstName (into-array Integer/TYPE (range (count name-titles))))
-          (.setSelectedIndices lstSn (into-array Integer/TYPE indecies)))
-        (.setListData lstName (into-array String []))))
-    ;; Restore listeners.
-    (doseq [lsl nmlsls]
-      (.addListSelectionListener lstName lsl))
-    (doseq [lsl snlsls]
-      (.addListSelectionListener lstSn lsl))))
+(defn handle-list-name-event*
+  [list-name frame]
+  (let [fprps (frame-props frame)]
+    (when-not (get-prop fprps 'list.updating)
+      ;; Prevent recursive valueChanged event loop
+      (put-prop fprps 'list.updating true)
+      ;; Start updating lists.
+      (let [mpcs (get-main-panel-components frame)
+            title-name-map (.getClientProperty list-name "title-name-map")
+            sns-of-nms (reduce (fn [s o] (conj s o))
+                               #{}
+                               (map #(slix-sn (get-slix %)) (vals title-name-map)))
+            name-titles (.getSelectedValues list-name)
+            nms (map #(get title-name-map %) name-titles)
+            sns-by-nms (get-registered-sns-by-names nms)
+            ;;
+            list-sn (:list-sn mpcs)
+            lm (.getModel list-sn)
+            sns-listed (map #(.getElementAt lm %) (range (.getSize lm)))
+            ;;
+            snlsls (seq (.getListSelectionListeners list-sn))
+            nmlsls (seq (.getListSelectionListeners list-name))]
+        ;; Update lists only when there are multiples sns.
+        (when (< 1 (count sns-of-nms))
+          (if-let [indecies (get-item-indices sns-listed sns-by-nms)]
+            (do
+              (.setListData list-name (into-array String name-titles))
+              (.setSelectedIndices list-name (into-array Integer/TYPE (range (count name-titles))))
+              (.setSelectedIndices list-sn (into-array Integer/TYPE indecies)))
+            (.setListData list-name (into-array String []))))
+        ;; Done
+        (put-prop fprps 'list.updating false)))))
 
-(defn handle-name-list-event
+(defn handle-list-name-value-changed
   [e]
   (when-not (.getValueIsAdjusting e)
-    (when-let [frame (.getTopLevelAncestor (.getSource e))]
-      (let [mpcs (get-main-panel-components frame)
-            lstName (:lstName mpcs)]
-        (handle-name-list-event* mpcs lstName)))))
+    (let [list-name (.getSource e)
+          frame (.getTopLevelAncestor list-name)]
+      (handle-list-name-event* list-name frame))))
 
-(defn get-name-list-listener
-  []
-  (proxy [ListSelectionListener] []
-    (valueChanged [e] (handle-name-list-event e))))
-
-(defn get-name-list-mouse-listener
-  []
-  (proxy [MouseAdapter] []
-    (mouseClicked
-     [e]
-     (let [cc (.getClickCount e)
-           lstName (.getComponent e)]
-       (cond
-        (= cc 1) (let [frame (.getTopLevelAncestor lstName)
-                       mpcs (get-main-panel-components frame)]
-                   (handle-name-list-event* mpcs lstName))
-        (= cc 2) (let [title-name-map (.getClientProperty lstName *prop-title-name-map*)]
-                   (when-not (.isSelectionEmpty lstName)
-                     (let [nm (get title-name-map (.getSelectedValue lstName))]
-                       (.toFront (slix-frame (get-slix nm))))))
-        :else nil)))))
+(defn handle-list-name-mouse-clicked
+  [e]
+  (let [cc (.getClickCount e)
+        list-name (.getComponent e)
+        frame (.getTopLevelAncestor list-name)]
+    (cond
+     (= cc 1) (handle-list-name-event* list-name frame)
+     (= cc 2) (let [title-name-map (.getClientProperty list-name "title-name-map")]
+                (when-not (.isSelectionEmpty list-name)
+                  (let [nm (get title-name-map (.getSelectedValue list-name))]
+                    (.toFront (slix-frame (get-slix nm))))))
+     :else nil)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn initialize
+  []
+  (let [frame (slix-frame)
+        mpcs (get-main-panel-components frame)]
+    (put-prop (frame-props frame) 'list.updating false)
+    ;;
+    (.setText (:label-Sevenri mpcs) (get-sevenri-name-and-version))
+    ;;
+    (doto (:list-sn mpcs)
+      (set-event-handler-set ListSelectionListener {'lsl ['valueChanged handle-list-sn-value-changed]}
+                             MouseListener {'ml ['mouseClicked handle-list-sn-mouse-clicked]})
+      (add-default-key-listener))
+    (doto (:list-name mpcs)
+      (set-event-handler-set ListSelectionListener {'lsl ['valueChanged handle-list-name-value-changed]}
+                             MouseListener {'ml ['mouseClicked handle-list-name-mouse-clicked]})
+      (add-default-key-listener))))
 
 (defn update-sn-list
   []
   (let [slix *slix*]
-    (future
-      (let [lsn (:lstSn (get-main-panel-components (slix-frame slix)))
+    (invoke-later slix
+     #(let [lsn (:list-sn (get-main-panel-components (slix-frame slix)))
             sns (sort (map str (get-all-slix-sn)))
             sis (get-selected-indices (seq (.getSelectedValues lsn)) sns)]
-        (invoke-later slix #(doto lsn
-                              (.setListData (into-array String sns))
-                              (.setSelectedIndices (into-array Integer/TYPE sis))))))))
+        (doto lsn
+          (.setListData (into-array String sns))
+          (.setSelectedIndices (into-array Integer/TYPE sis)))))))
