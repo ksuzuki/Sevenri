@@ -10,11 +10,10 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.repl.listeners
-  (:use [sevenri log slix]
-        [slix.repl defs]
+  (:use [sevenri log props slix ui]
         [library.slix.ced paren])
   (:import (java.awt Color EventQueue)
-           (java.awt.event KeyAdapter KeyEvent)
+           (java.awt.event KeyListener KeyEvent)
            (javax.swing.event CaretListener)
            (javax.swing.text Position SimpleAttributeSet StyleConstants)))
 
@@ -22,7 +21,7 @@
 
 (defn clear-highlighting
   [txtpn doc]
-  (when-let [ppp (.getClientProperty txtpn *ppp-info*)]
+  (when-let [ppp (.getClientProperty txtpn "ppp-info")]
     (let [ppp [(.getOffset (aget ppp 0)) (.getOffset (aget ppp 1))]
           atr (SimpleAttributeSet.)
           len (.getLength doc)]
@@ -42,7 +41,7 @@
     (when ppp
       (let [ppi [(.createPosition doc (first ppp)) (.createPosition doc (second ppp))]
             atr (SimpleAttributeSet.)]
-        (.putClientProperty txtpn *ppp-info* (into-array ppi))
+        (.putClientProperty txtpn "ppp-info" (into-array ppi))
         (doto atr
           (StyleConstants/setForeground (.getSelectedTextColor txtpn))
           (StyleConstants/setBackground (.getSelectionColor txtpn)))
@@ -52,8 +51,8 @@
 
 (defn restart-repl
   [slix start-repl]
-  (when-let [repl-thread (get-slix-prop slix :repl-thread)]
-    (let [con (get-slix-prop slix :console)
+  (when-let [repl-thread (get-prop (slix-props slix) 'repl.thread)]
+    (let [con (get-prop (slix-props slix) 'console)
           exc (Exception. "^C")]
       (.resetIO con)
       (.stop repl-thread exc)
@@ -63,22 +62,19 @@
 
 (defn add-listeners
   [txtpn doc con start-repl slix]
-  (.setPPPInfoKey con *ppp-info*)
-  (.addCaretListener
-   txtpn
-   (proxy [CaretListener] []
-     (caretUpdate [e]
-       (clear-highlighting txtpn doc)
-       (let [cpos (.getDot e)
-             spos (.getPromptStartPosition con)]
-         (if (<= spos cpos)
-           (highlight-matching-paren txtpn doc cpos spos)
-           (.putClientProperty txtpn *ppp-info* nil))))))
-  (.addKeyListener
-   txtpn
-   (proxy [KeyAdapter] []
-     (keyPressed [e]
-       (let [kc (.getKeyCode e)
-             km (.getModifiers e)]
-         (when (and (= kc KeyEvent/VK_C) (pos? (bit-and km KeyEvent/CTRL_MASK)))
-           (restart-repl slix start-repl)))))))
+  (.setPPPInfoKey con "ppp-info")
+  (set-event-handler-set txtpn
+   CaretListener
+   {'cl ['caretUpdate (fn [e]
+                        (clear-highlighting txtpn doc)
+                        (let [cpos (.getDot e)
+                              spos (.getPromptStartPosition con)]
+                          (if (<= spos cpos)
+                            (highlight-matching-paren txtpn doc cpos spos)
+                            (.putClientProperty txtpn "ppp-info" nil))))]}
+   KeyListener
+   {'kl ['keyPressed (fn [e]
+                       (let [kc (.getKeyCode e)
+                             km (.getModifiers e)]
+                         (when (and (= kc KeyEvent/VK_C) (pos? (bit-and km KeyEvent/CTRL_MASK)))
+                           (restart-repl slix start-repl))))]}))

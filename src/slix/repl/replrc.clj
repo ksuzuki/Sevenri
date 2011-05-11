@@ -14,7 +14,7 @@
 (use '[clojure pprint]
      '[clojure.java browse io]
      '[clojure.java.shell :rename {sh cjsh}]
-     '[sevenri debug event utils]
+     '[sevenri debug event props utils]
      '[slix.repl.core :only (repl clear-repl-content)])
 
 ;; fns for repl
@@ -120,7 +120,7 @@
   "Emulate ls command. Default path is 'user.dir'.
    ls options should begin with '-' but no need to quote.
    File args can be either string, File object, or quoted symbol.
-   Depends on REPL's property :console."
+   Depends on REPL's property 'console."
   [& args]
   ;; Convert the ls options arg into string if any.
   (let [args (if (= (first (str (first args))) \-)
@@ -160,7 +160,7 @@
                                     ["" 0]
                                     items#)
                        ;; Dig out FontMetrics.
-                       txp# (.getTextPane (get-slix-prop :console))
+                       txp# (.getTextPane (get-prop (slix-props) ~''console))
                        fmx# (.getFontMetrics txp# (.getFont txp#))
                        ;; Figure out required columns and rows. OK to use
                        ;; the width of the textpane because it's mapped to

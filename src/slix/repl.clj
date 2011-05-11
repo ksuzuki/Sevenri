@@ -24,7 +24,7 @@
 
 (defn opened
   [event]
-  (customize-repl-frame)
+  (ui-initialize)
   (start-repl)
   (set-slix-visible))
 

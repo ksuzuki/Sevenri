@@ -11,8 +11,8 @@
 
 (ns slix.repl.core
   (:require clojure.main)
-  (:use [sevenri event slix ui]
-        [slix.repl defs listeners])
+  (:use [sevenri event props slix ui]
+        [slix.repl listeners])
   (:import (java.io File OutputStreamWriter PrintWriter)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -80,7 +80,7 @@
                    (.write *out* (.getPromptCharacter con))))
             rf (bound-fn [] (clojure.main/repl :init it :prompt pf))]
         (invoke-later repl-slix #(let [rt (Thread. rf)]
-                                    (put-slix-prop slix :repl-thread rt)
+                                    (put-prop (slix-props slix) 'repl.thread rt)
                                     (.start rt))))))
 
 (defn start-repl
@@ -98,56 +98,48 @@
        ;; Not found. Fallback to this slix.
        (start-repl (slix-name) *slix*)))
   ([repl-slix-name repl-slix]
-     (let [op *slix*
+     (let [sx *slix*
            fr (slix-frame)
            cn (.getComponent (.getContentPane fr) 0)
            tp (.getTextPane cn)
            sd (.getDocument cn)
            rc (setup-replrc repl-slix)
-           in (let [opon (slix-sn repl-slix)]
-                (if (= opon 'repl)
+           in (let [sxsn (slix-sn repl-slix)]
+                (if (= sxsn 'repl)
                   'user
-                  (get-slix-ns opon)))
-           sr #(start-repl* op repl-slix cn in rc)]
-       ;; Remember start-in namespace, replrc, and console.
-       (put-slix-prop :inns in)
-       (put-slix-prop :replrc rc)
-       (put-slix-prop :console cn)
+                  (get-slix-ns sxsn)))
+           sr #(start-repl* sx repl-slix cn in rc)]
+       ;; Remember console.
+       (put-prop (slix-props) 'console cn)
        ;; Add listeners to textpane.
-       (add-listeners tp sd cn sr op)
+       (add-listeners tp sd cn sr sx)
        ;; Start repl.
        (sr))))
 
 (defn saving-repl
+  "Save only 'Repl' and discard other repls."
   [event]
   (if (= (slix-name) "Repl")
-    ;; save only 'Repl' and don't report any XMLEncoder errors.
-    (do
-      (when (is-event-info-save-on-close? event)
-        (.suspend (get-slix-prop :repl-thread)))
-      (save-dyna-listeners
-       [[(slix-frame) [(listener-triplet Window)]]
-        [(.getTextPane (get-slix-prop :console)) [(listener-triplet Caret)
-                                                   (listener-triplet Key)]]]))
-    ;; Discard others.
+    (when (is-event-info-save-on-close? event)
+      (.suspend (get-prop (slix-props) 'repl.thread)))
     (event-response-donot-save)))
 
 (defn saved-repl
   [event]
   (when (and (= (slix-name) "Repl")
              (is-event-info-save-on-close? event))
-    (.resume (get-slix-prop :repl-thread))))
+    (.resume (get-prop (slix-props) 'repl.thread))))
 
 (defn end-repl
   [event]
   ;; CloseIO then stop repl thread to suppress unnecessary ThreadDeath
-  ;; message is left printed in repl window.
-  (.closeIO (get-slix-prop :console))
-  (.stop (get-slix-prop :repl-thread)))
+  ;; message printed in repl window.
+  (.closeIO (get-prop (slix-props) 'console))
+  (.stop (get-prop (slix-props) 'repl.thread)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn clear-repl-content
   []
-  (when-let [console (get-slix-prop :console)]
+  (when-let [console (get-prop (slix-props) 'console)]
     (.setText (.getTextPane console) "")))
