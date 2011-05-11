@@ -54,21 +54,8 @@
   (.getProperty this *prop-file*))
 
 (defn -getFileName
-  "Return the file name of this file. If the file is a Sevenri source file,
-   that is, it's a clj which belongs to a Sevenri's top-level namespace,
-   return the name including the namespace without '.clj'."
   [this]
-  (when-let [f (.getProperty this *prop-file*)]
-    (let [cfp (str f)
-          rpt (str "^"
-                   (get-src-path)
-                   "/(("
-                   (apply str (interleave (get-sevenri-namespaces) (repeat \|)))
-                   ")/.*)\\.clj$")
-          rfd (re-find (re-pattern rpt) cfp)]
-      (if rfd
-        (str (second rfd))
-        (.getName f)))))
+  (.getName (.getFile this)))
 
 (defn -getUndoMan
   [this]

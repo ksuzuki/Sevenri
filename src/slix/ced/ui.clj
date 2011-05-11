@@ -43,14 +43,20 @@
 (def put-prop (ns-resolve 'sevenri.props 'put-prop))
 
 (defn ced-file-changed
-  "Valid slix has to be bound to *slix*."
+  "Valid slix has to be bound to *slix*. Also show the file name in the
+   Ced window title. If the file is under Sevenri src directory, the part of
+   path under src is also included in the file name."
   [doc]
-  (put-prop (slix-props) 'file (.getFile doc))
-  (let [fname (.getFileName doc)
-        fnlen (count fname)
-        fnstr (.substring fname 0 (if (re-find #"\.clj$" fname) (- fnlen 4) fnlen))
-        title (str (slix-name) " - " (path2sym fnstr))]
-    (set-slix-title title)))
+  (let [abs-file (.getAbsoluteFile (.getFile doc))]
+    (put-prop (slix-props) 'file abs-file)
+    (let [fpath (.getAbsolutePath abs-file)
+          reclj (re-find #"\.clj$" fpath)
+          spath (first (filter (fn [p] (zero? (.indexOf fpath p)))
+                               (map #(.getPath (get-src-path %)) (get-sevenri-namespaces))))
+          sindx (inc (count (.getParent (java.io.File. (or spath fpath)))))
+          eindx (- (count fpath) (if reclj 4 0))
+          title (str (slix-name) " - " (path2sym (subs fpath sindx eindx)))]
+      (set-slix-title title))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

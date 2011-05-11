@@ -365,7 +365,7 @@
     (actionPerformed [event]
       (ced-action event
         (let [frm (.getTopLevelAncestor ced)
-              dlg (FileDialog. frm "Save As Sevenri File" FileDialog/SAVE)
+              dlg (FileDialog. frm "Save As" FileDialog/SAVE)
               doc (.getDocument ced)
               fpt (.getFile doc)
               fnm (if (instance? File fpt)
@@ -373,23 +373,13 @@
                     "untitiled.clj")
               dir (if (instance? File fpt)
                     (.getParent fpt)
-                    (str (get-user-path)))
-              rpt #"(.*)\.clj$"
-              flt (proxy [FilenameFilter] []
-                    (accept [dir name]
-                      (if (re-find rpt name)
-                        true
-                        false)))]
+                    (str (get-user-path)))]
           (doto dlg
             (.setDirectory dir)
             (.setFile fnm)
-            (.setFilenameFilter flt)
             (.show))
-          (when-let [f (.getFile dlg)]
-            (let [f-clj (if-let [m (re-find rpt f)]
-                          (second m)
-                          f)
-                  fpath (File. (str (.replace (str (.getDirectory dlg) (sym2path f-clj)) \- \_) '.clj))
+          (when-let [fname (.getFile dlg)]
+            (let [fpath (File. (.getDirectory dlg) (.replace fname \- \_))
                   fpdir (.getParentFile fpath)
                   save? (if (and (.exists fpath) (trash-path? fpath))
                           true
@@ -414,21 +404,14 @@
     (actionPerformed [event]
       (ced-action event
         (let [frm (.getTopLevelAncestor ced)
-              dlg (FileDialog. frm "Open Sevenri File" FileDialog/LOAD)
+              dlg (FileDialog. frm "Open File" FileDialog/LOAD)
               doc (.getDocument ced)
               fpt (.getFile doc)
               dir (if (instance? File fpt)
                     (.getParent fpt)
-                    (str (get-user-path)))
-              rpt #"(.*)\.clj$"
-              flt (proxy [FilenameFilter] []
-                    (accept [dir name]
-                      (if (re-find rpt name)
-                        true
-                        false)))]
+                    (str (get-user-path)))]
           (doto dlg
             (.setDirectory dir)
-            (.setFilenameFilter flt)
             (.show))
           #_(lg "opening file:" (File. (.getDirectory dlg) (.getFile dlg)))
           (when-let [f (.getFile dlg)]

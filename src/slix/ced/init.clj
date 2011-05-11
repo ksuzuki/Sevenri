@@ -47,9 +47,9 @@
    * When it's a string, it should be either an absolute path or a relative
      path from the current Sevenri directory.
    * When it's a File object, it's taken as is.
-   Eithe way the .clj extension will be added to the specifier if missing.
-   The default scratch File object will be returned when the specified file
-   doesn't exist."
+   Eithe way the .clj extension will be added to the specifier if it doesn't
+   have extension. Finally, return the file object or, if it doesn't exist,
+   the default scratch file object."
   ([]
      (get-ced-file (:file (slix-args))))
   ([file]
@@ -65,9 +65,9 @@
                  (instance? File file) file
                  :else nil)
            fclj (when path
-                  (if (re-find #"\.clj$" (str path))
+                  (if (re-find #"\.[^.]+$" (.getPath path))
                     path
-                    (File. (str path '.clj))))]
+                    (File. (str (.getPath path) '.clj))))]
        ;; Fallback to the default scratch file when the specified file
        ;; doesn't exist.
        (if (and fclj (.exists (.getParentFile fclj)))
