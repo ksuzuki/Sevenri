@@ -11,10 +11,10 @@
 
 (ns ^{:slix true}
   slix.sevenri.about
-  (:use [sevenri config core event log slix ui utils]
+  (:use [sevenri config core event log props slix ui]
         [slix.sevenri drawicon])
   (:import (java.awt BorderLayout Color Font Transparency)
-           (java.awt.event MouseAdapter MouseEvent)
+           (java.awt.event MouseListener MouseEvent)
            (javax.imageio ImageIO)
            (javax.swing JLabel JPanel SwingConstants)))
 
@@ -66,12 +66,12 @@
 
 (defn add-mouse-listener
   [frame canvas]
-  (.addMouseListener frame (proxy [MouseAdapter] []
-                             (mouseClicked
-                              [e]
+  (set-event-handlers frame MouseListener
+                      {'ml ['mouseClicked
+                            (fn [e]
                               (if (pos? (bit-and MouseEvent/META_DOWN_MASK (.getModifiersEx e)))
                                 (save-image canvas)
-                                (.repaint canvas 0 0 0 (.getWidth canvas) (.getHeight canvas)))))))
+                                (.repaint canvas 0 0 0 (.getWidth canvas) (.getHeight canvas))))]}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix event handlers
@@ -85,24 +85,28 @@
   (let [fr (slix-frame)
         cp (.getContentPane fr)
         cv (create-canvas)]
+    (add-mouse-listener fr cv)
     (add-sevenri-banner cv)
     (.add cp cv)
-    (put-slix-prop :canvas cv)
-    (add-mouse-listener fr cv))
+    (put-prop (frame-props fr) 'canvas cv))
+  ;;
   (when (= (slix-name) "Sevenri.about")
     (set-slix-title "About Sevenri"))
   (set-slix-visible))
 
+;;;;
+
+(defmacro do-canvas-to-contentpane
+  [op]
+  `(. (.getContentPane (slix-frame)) ~op (get-prop (slix-frame-props) ~''canvas)))
+
 (defn saving
   [event]
-  (let [fr (slix-frame)
-        cp (.getContentPane fr)]
-    (save-dyna-listeners
-     [[fr [(listener-triplet Mouse)]]])
-    (.remove cp (get-slix-prop :canvas))))
+  ;; Suppress the 'proxy' canvas class not found err msg when the
+  ;; xml-encoder err log is turned on.
+  (do-canvas-to-contentpane remove))
 
 (defn saved
   [event]
-  (let [fr (slix-frame)
-        cp (.getContentPane fr)]
-    (.add cp (get-slix-prop :canvas))))
+  ;; Add the canvas back on the content pane.
+  (do-canvas-to-contentpane add))
