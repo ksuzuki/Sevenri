@@ -116,7 +116,7 @@
 
 (defmethod get-slix :frame
   [frame]
-  (.getClientProperty (.getRootPane frame) "*slix*"))
+  (.getClientProperty (.getRootPane frame) '*slix*))
 
 (defmethod get-slix :default
   [obj]
@@ -465,11 +465,11 @@
 
 (defn add-slix-frame-properties
   [frame sn name]
-  (.putClientProperty (.getRootPane frame) "*props*" (create-slix-frame-properties* sn name)))
+  (.putClientProperty (.getRootPane frame) '*props* (create-slix-frame-properties* sn name)))
 
 (defn frame-props
   [frame]
-  (.getClientProperty (.getRootPane frame) "*props*"))
+  (.getClientProperty (.getRootPane frame) '*props*))
 
 (defmacro slix-frame-props
   ([]
@@ -1132,8 +1132,8 @@
            eid (if saved?
                  :sevenri.event/slix-frame-loaded
                  :sevenri.event/slix-frame-created)]
-       ;; Refer slix back from frame.
-       (.putClientProperty (.getRootPane frame) "*slix*" slix)
+       ;; Refer to slix back from frame.
+       (.putClientProperty (.getRootPane frame) '*slix* slix)
        ;; Notify frame creation or load.
        (-send-event-and-continue-unless
         nil ;; ignore any response

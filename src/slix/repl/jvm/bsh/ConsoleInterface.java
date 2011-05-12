@@ -69,6 +69,7 @@ public interface ConsoleInterface {
     public JTextPane getTextPane();
     public DefaultStyledDocument getDocument();
     public int getPromptStartPosition();
+    public void setPPPInfoKey(Object key);
     // ksuzuki 2010/12/12 <<<
     // ksuzuki 2011/02/15 >>>
     public void closeIO();

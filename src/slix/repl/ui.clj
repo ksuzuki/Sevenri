@@ -58,11 +58,11 @@
   [frame txtpn]
   (when (is-translucent-supported?)
     (let [sp (slix-props (get-slix frame))
-          ov (or (.getClientProperty txtpn "opacity") (read-prop sp 'opacity.default))]
+          ov (or (.getClientProperty txtpn 'opacity) (read-prop sp 'opacity.default))]
       (set-window-opacity frame (float ov))
       (doto txtpn
-        (.putClientProperty "opacity" (int (* ov 100)))
-        (.putClientProperty "opacity.delta" (read-prop sp 'opacity.delta))))
+        (.putClientProperty 'opacity (int (* ov 100)))
+        (.putClientProperty 'opacity.delta (read-prop sp 'opacity.delta))))
     ;;
     (set-event-handlers txtpn
      KeyListener
@@ -74,8 +74,8 @@
                                             (= kc KeyEvent/VK_UP) (= kc KeyEvent/VK_DOWN))
                                         (= mk (bit-and mo mk)))
                                (let [ovo (get-window-opacity frame)
-                                     opc (.getClientProperty txtpn "opacity")
-                                     dlt (.getClientProperty txtpn "opacity.delta")
+                                     opc (.getClientProperty txtpn 'opacity)
+                                     dlt (.getClientProperty txtpn 'opacity.delta)
                                      ovn (cond
                                           (= kc KeyEvent/VK_LEFT)  (min 1.0 (- ovo dlt))
                                           (= kc KeyEvent/VK_RIGHT) (max 0.1 (+ ovo dlt))
@@ -94,7 +94,7 @@
                                  (when (pos? ovn)
                                    (set-window-opacity frame (float ovn))
                                    (when (or (= kc KeyEvent/VK_LEFT) (= kc KeyEvent/VK_RIGHT))
-                                     (.putClientProperty txtpn "opacity" (int (* ovn 100)))))))))]})))
+                                     (.putClientProperty txtpn 'opacity (int (* ovn 100)))))))))]})))
 
 (defn ui-initialize
   []

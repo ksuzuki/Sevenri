@@ -1,3 +1,5 @@
 #!/bin/bash
+javac bsh/util/JConsole.java
 find . -name '*.class' -print >bsh.classes.list
 jar cf bsh.jar @bsh.classes.list
+find . -name '*.class' -delete

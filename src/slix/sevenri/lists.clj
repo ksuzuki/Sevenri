@@ -108,7 +108,7 @@
             (doto list-name
               (.setListData (into-array String name-titles))
               (.setSelectedIndices (into-array Integer/TYPE sis))
-              (.putClientProperty "title-name-map" title-name-map)))
+              (.putClientProperty 'title.name.map title-name-map)))
           (.setListData list-name (into-array String [])))
         ;; Done.
         (put-prop fprps 'list.updating false)))))
@@ -155,7 +155,7 @@
       (put-prop fprps 'list.updating true)
       ;; Start updating lists.
       (let [mpcs (get-main-panel-components frame)
-            title-name-map (.getClientProperty list-name "title-name-map")
+            title-name-map (.getClientProperty list-name 'title.name.map)
             sns-of-nms (reduce (fn [s o] (conj s o))
                                #{}
                                (map #(slix-sn (get-slix %)) (vals title-name-map)))
@@ -194,7 +194,7 @@
         frame (.getTopLevelAncestor list-name)]
     (cond
      (= cc 1) (handle-list-name-event* list-name frame)
-     (= cc 2) (let [title-name-map (.getClientProperty list-name "title-name-map")]
+     (= cc 2) (let [title-name-map (.getClientProperty list-name 'title.name.map)]
                 (when-not (.isSelectionEmpty list-name)
                   (let [nm (get title-name-map (.getSelectedValue list-name))]
                     (.toFront (slix-frame (get-slix nm))))))

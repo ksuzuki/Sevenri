@@ -122,11 +122,11 @@ public class JConsole extends JScrollPane
 
     // ksuzuki 2010/12/14 >>>
     private int promptStart = 0;
-    private String pppInfoKey = null;
+    private Object pppInfoKey = null;
     public JTextPane getTextPane() { return text; }
     public DefaultStyledDocument getDocument() { return doc; }
     public int getPromptStartPosition() { return promptStart; }
-    public void setPPPInfoKey(String key) { pppInfoKey = key; }
+    public void setPPPInfoKey(Object key) { pppInfoKey = key; }
     // ksuzuki 2010/12/14 <<<
 
     public JConsole() {

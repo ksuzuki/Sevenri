@@ -21,7 +21,7 @@
 
 (defn clear-highlighting
   [txtpn doc]
-  (when-let [ppp (.getClientProperty txtpn "ppp-info")]
+  (when-let [ppp (.getClientProperty txtpn 'ppp-info)]
     (let [ppp [(.getOffset (aget ppp 0)) (.getOffset (aget ppp 1))]
           atr (SimpleAttributeSet.)
           len (.getLength doc)]
@@ -41,7 +41,7 @@
     (when ppp
       (let [ppi [(.createPosition doc (first ppp)) (.createPosition doc (second ppp))]
             atr (SimpleAttributeSet.)]
-        (.putClientProperty txtpn "ppp-info" (into-array ppi))
+        (.putClientProperty txtpn 'ppp-info (into-array ppi))
         (doto atr
           (StyleConstants/setForeground (.getSelectedTextColor txtpn))
           (StyleConstants/setBackground (.getSelectionColor txtpn)))
@@ -62,7 +62,7 @@
 
 (defn add-listeners
   [txtpn doc con start-repl slix]
-  (.setPPPInfoKey con "ppp-info")
+  (.setPPPInfoKey con 'ppp-info)
   (set-event-handler-set txtpn
    CaretListener
    {'cl ['caretUpdate (fn [e]
@@ -71,7 +71,7 @@
                               spos (.getPromptStartPosition con)]
                           (if (<= spos cpos)
                             (highlight-matching-paren txtpn doc cpos spos)
-                            (.putClientProperty txtpn "ppp-info" nil))))]}
+                            (.putClientProperty txtpn 'ppp-info nil))))]}
    KeyListener
    {'kl ['keyPressed (fn [e]
                        (let [kc (.getKeyCode e)
