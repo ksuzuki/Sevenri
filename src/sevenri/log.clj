@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri logging lib"}
-  sevenri.log
+(ns sevenri.log
+  "Sevenri logging lib"
   (:require [clojure.stacktrace :as cst])
   (:use [sevenri config defs refs])
   (:import (java.io ByteArrayInputStream ByteArrayOutputStream

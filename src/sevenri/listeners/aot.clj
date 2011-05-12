@@ -9,6 +9,6 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri AOT-compile library list"}
-  sevenri.listeners.aot
+(ns sevenri.listeners.aot
+  "Sevenri AOT-compile library list"
   (:use [sevenri.listeners awtehandler defwinlistener defkeylistener evtdelegator]))

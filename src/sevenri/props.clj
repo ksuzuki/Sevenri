@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri unified properties lib"}
-  sevenri.props
+(ns sevenri.props
+  "Sevenri unified properties lib"
   (:use [sevenri config defs log])
   (:import (java.io File)
            (java.io FileInputStream InputStreamReader)

@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri defs"}
-  sevenri.defs)
+(ns sevenri.defs
+  "Sevenri defs")
 
 (defmacro redef!
   "This macro should be called only at Sevenri startup time to alter the

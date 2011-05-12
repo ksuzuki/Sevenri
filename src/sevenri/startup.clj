@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri startup and shutdown lib"}
-  sevenri.startup
+(ns sevenri.startup
+  "Sevenri startup and shutdown lib"
   (:use [sevenri config defs log]
         [sevenri.utils :only (elapsed-msecs)]))
 

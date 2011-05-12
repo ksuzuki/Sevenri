@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri default window listener class"}
-  sevenri.listeners.defwinlistener
+(ns sevenri.listeners.defwinlistener
+  "Sevenri default window listener class"
   (:gen-class
    :extends java.awt.event.WindowAdapter
    :state defWinListeners

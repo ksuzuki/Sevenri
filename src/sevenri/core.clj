@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri core lib"}
-  sevenri.core
+(ns sevenri.core
+  "Sevenri core lib"
   (:require [clojure.java io])
   (:use [sevenri config defs log props refs utils]
         [sevenri.os :only (get-ignorable-file-names-os)])

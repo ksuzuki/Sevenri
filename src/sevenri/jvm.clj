@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri interface lib to access Java VM depedent features"}
-  sevenri.jvm
+(ns sevenri.jvm
+  "Sevenri interface lib to access Java VM depedent features"
   (:use [sevenri config defs log props])
   (:import (java.awt EventQueue)))
 

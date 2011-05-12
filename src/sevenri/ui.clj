@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri user interface lib"}
-  sevenri.ui
+(ns sevenri.ui
+  "Sevenri user interface lib"
   (:require [clojure.set :as cljset])
   (:use [sevenri config defs event log refs])
   (:import (clojure.lang IProxy)

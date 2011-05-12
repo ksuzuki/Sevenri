@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri default key listener class"}
-  sevenri.listeners.defkeylistener
+(ns sevenri.listeners.defkeylistener
+  "Sevenri default key listener class"
   (:gen-class
    :extends java.awt.event.KeyAdapter
    :state defKeyListeners

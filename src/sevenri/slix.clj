@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "slix - Sevenri library complex"}
-  sevenri.slix
+(ns sevenri.slix
+  "slix - Sevenri library complex"
   (:use [sevenri config core defs event log jvm os props refs ui utils])
   (:import (java.awt.event KeyAdapter KeyEvent)
            (java.beans ExceptionListener XMLEncoder XMLDecoder)

@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri event lib"}
-  sevenri.event
+(ns sevenri.event
+  "Sevenri event lib"
   (:use [sevenri config defs log jvm refs]
         [sevenri.core :only (lock-and-wait
                              unlock-and-resume

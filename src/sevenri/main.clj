@@ -9,8 +9,8 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:doc "Sevenri main lib - 'run' to start everything"}
-  sevenri.main
+(ns sevenri.main
+  "Sevenri main lib - 'run' to start everything"
   (:use [sevenri config debug defs event log startup]
         [sevenri.core :only (create-sid-sevenri-lock-file?
                              lock-and-wait
