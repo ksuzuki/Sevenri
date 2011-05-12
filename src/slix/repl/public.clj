@@ -9,10 +9,11 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns slix.repl.public)
+(ns slix.repl.public
+  (use [sevenri.slix :only (public-properties)]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn properties
-  []
-  (hash-set 'console))
+(public-properties
+  console "BeanShell JConsole: call getTextPane to get its text pane")
+

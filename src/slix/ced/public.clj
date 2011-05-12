@@ -14,10 +14,9 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn properties
-  []
-  (hash-set 'file))
+(public-properties
+ file "current open file")
 
 (defn opens
   []
-  (hash-map :file (hash-set (get-prop (slix-props) 'file))))
+  {:file (hash-set (get-prop (slix-props) 'file))})

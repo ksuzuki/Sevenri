@@ -651,6 +651,36 @@
              slix
              (recur (rest slixes))))))))
 
+;;;;
+
+(defmacro public-properties
+  "A macro to help define the public properties fn with description for each
+   property. 
+   prop-docs := prop-doc*
+   prop-doc  := prop doc?"
+  [& prop-docs]
+  (let [vrymf (fn [prop doc] (list (list 'vary-meta (list 'quote prop) 'assoc :doc doc)))
+        plist (loop [nps nil
+                     ops prop-docs]
+                (if (seq ops)
+                  (if (and (symbol? (last nps)) (string? (first ops)))
+                    (recur (concat (butlast nps) (vrymf (last nps) (first ops)))
+                           (rest ops))
+                    (if (symbol? (first ops))
+                      (recur (concat nps (list (first ops)))
+                             (rest ops))
+                      (recur nps (rest ops))))
+                  (map #(if (symbol? %) (list 'quote %) %) nps)))]
+    (when (seq plist)
+      `(defn ~'properties [] (hash-set ~@plist)))))
+
+(defmacro get-public-prop-description
+  ([name]
+     `(get-public-prop-description ~name ~'*slix*))
+  ([name slix]
+     `(when (is-slix? ~slix)
+        (:doc (meta (get (public-props (slix-public ~slix)) '~name))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-sid-slix-frame-file
