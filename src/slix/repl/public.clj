@@ -9,15 +9,10 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns slix.ced.public
-  (:use [sevenri props slix]))
+(ns slix.repl.public)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn properties
   []
-  (hash-set 'file))
-
-(defn opens
-  []
-  (hash-map :file (hash-set (get-prop (slix-props) 'file))))
+  (hash-set 'console))

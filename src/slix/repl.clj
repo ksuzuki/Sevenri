@@ -13,7 +13,8 @@
   slix.repl
   (:require clojure.main)
   (:use [sevenri config core debug event jvm log os slix ui utils]
-        [slix.repl core ui]))
+        [slix.repl core ui])
+  (:require slix.repl.public))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix event handlers

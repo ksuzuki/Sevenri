@@ -13,6 +13,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn public-fns
+(defn functions
   []
   {'update-sn-list (ns-resolve 'slix.sevenri.lists 'update-sn-list)})

@@ -545,78 +545,87 @@
 
 (defprotocol PSlixPublic
   "Protocol to extract details of slix public information"
-  (get-public-props [pub]
+  (public-props [pub]
     "Return a set of property name symbols that other slixes can safely
-     refer and use when, for example, adding update notification handler on
-     that property. Return nil when no such poperty exists.")
-  (contain-public-prop? [pub name]
-    "Return true when the public props contain the one specified by the name
-     symbol. Otherwise, false.")
+     refer to and use when, for example, adding update notification handler
+     on that property. Return nil when there is no such property.")
+  (get-public-prop [pub name]
+    "Return the value of the property specified by the name symbol or nil.")
+  (put-public-prop [pub name val]
+    "Put the value to the property specified by the name symbol. Return old
+     property value.")
   ;;
-  (get-public-opens [pub]
+  (public-opens [pub]
     "Return a map of data items being opened, such as paths, port numbers,
-     subject names, or nil. Data item type keyword as key and a set of data
-     items as val.")
+     subject names, etc. or nil. Data item type keyword as key and a set of
+     data items as val.")
   (get-public-open [pub type-kwd]
-    "When the data item map contains the data items of the specified type,
-     return the data item set. Otherwise, nil.")
+    "Return the set of the data items specified by the type keyword or nil.")
   ;;
-  (get-public-fns [pub]
-    "Return a map of functions that other slixes can call, or nil. Function
-     name symbol (not fully qualified) as key and function var or object as
-     val.")
+  (public-fns [pub]
+    "Return a map of functions that can be called or nil. Function name
+     symbol (not fully qualified) as key and function var/object as val.")
   (get-public-fn [pub name]
-    "When the function map contains the function specified by the name
-     symbol, return the function var or object. Otherwise, nil."))
+    "Return the function var/object specified by the name symbol."))
 
 ;;;;
 
-(defn get-slix-public-fn*
-  "Return the fn defined as return-public-kind in the slix.sn.public lib, or
-   nil."
-  [sn kind]
-  (let [pub-lib (get-slix-ns sn 'public)
-        pub-sym (symbol (str 'public- kind))]
-    (when (find-ns pub-lib)
-      (ns-resolve pub-lib pub-sym))))
-
-(defn call-slix-public-fn*
-  [sn name f]
-  (when-let [slix (get-slix name)]
-    (when (= sn (slix-sn slix))
-      (binding [*slix* slix]
-        (f)))))
+(defn get-slix-public*
+  "Call the public item getter function in the slix.sn.public lib or nil."
+  [sn name getter-name]
+  (when-let [public-lib (find-ns (get-slix-ns sn 'public))]
+    (when-let [getter (ns-resolve public-lib getter-name)]
+      (when-let [slix (get-slix name)]
+        (binding [*slix* slix]
+          (getter))))))
 
 (defn create-slix-public
   [sn name]
   (reify PSlixPublic
-    (get-public-props [_] (when-let [f (get-slix-public-fn* sn 'props)]
-                            (when-let [s (call-slix-public-fn* sn name f)]
-                              (when (set? s)
-                                s))))
-    (contain-public-prop? [this name] (when-let [props (get-public-props this)]
-                                        (contains? props name)))
+    (public-props [_] (when-let [s (get-slix-public* sn name 'properties)]
+                        (when (set? s) s)))
+    (get-public-prop [this prop-name] (when-let [props (public-props this)]
+                                        (when (contains? props prop-name)
+                                          (get-prop (slix-props (get-slix name)) prop-name))))
+    (put-public-prop [this prop-name val] (when-let [props (public-props this)]
+                                            (when (contains? props prop-name)
+                                              (put-prop (slix-props (get-slix name)) prop-name val))))
     ;;
-    (get-public-opens [_] (when-let [f (get-slix-public-fn* sn 'opens)]
-                            (when-let [m (call-slix-public-fn* sn name f)]
-                              (when (map? m)
-                                m))))
-    (get-public-open [this type-kwd] (when-let [opens (get-public-opens this)]
+    (public-opens [_] (when-let [m (get-slix-public* sn name 'opens)]
+                        (when (map? m) m)))
+    (get-public-open [this type-kwd] (when-let [opens (public-opens this)]
                                        (get opens type-kwd)))
     ;;
-    (get-public-fns [_] (when-let [f (get-slix-public-fn* sn 'fns)]
-                          (when-let [m (call-slix-public-fn* sn name f)]
-                            (when (map? m)
-                              m))))
-    (get-public-fn [this name] (when-let [fns (get-public-fns this)]
-                                 (get fns name)))
+    (public-fns [_] (when-let [m (get-slix-public* sn name 'functions)]
+                      (when (map? m) m)))
+    (get-public-fn [this fn-name] (when-let [fns (public-fns this)]
+                                    (get fns fn-name)))
     ;;
     (toString [this] (str "SlixPublic " sn "[name=\"" name "\""
-                          ",props=" (get-public-props this)
-                          ",opens=" (get-public-opens this)
-                          ",fn=" (get-public-fns this) "]"))))
+                          ",props=" (public-props this)
+                          ",opens=" (public-opens this)
+                          ",fn=" (public-fns this) "]"))))
+
+(defn invoke-public-fn
+  "Invoke the public function specified by the fn-name symbol with the
+   optional arguments in the slix context. Return the result of the function
+   call."
+  [slix fn-name & args]
+  (binding [*slix* slix]
+    (apply (get-public-fn (slix-public slix) fn-name) args)))
 
 ;;;;
+
+(defn find-slix-with-public-prop
+  ([prop-name]
+     (find-slix-with-public-prop prop-name nil))
+  ([prop-name sn]
+     (when (symbol? prop-name)
+       (loop [slixes (if sn (get-slixes sn) (get-slixes))]
+         (when-let [slix (first slixes)]
+           (if (get-public-prop (slix-public slix) prop-name)
+             slix
+             (recur (rest slixes))))))))
 
 (defn find-slix-with-public-open-item
   ([type-kwd item]
@@ -625,30 +634,22 @@
      (when (and (keyword? type-kwd) item)
        (loop [slixes (if sn (get-slixes sn) (get-slixes))]
          (when-let [slix (first slixes)]
-           (let [items (get-public-open (slix-public slix) type-kwd)]
+           (if-let [items (get-public-open (slix-public slix) type-kwd)]
              (if (contains? items item)
                slix
-               (recur (rest slixes)))))))))
+               (recur (rest slixes)))
+             (recur (rest slixes))))))))
 
 (defn find-slix-with-public-fn
-  ([name]
+  ([fn-name]
      (find-slix-with-public-fn name nil))
-  ([name sn]
-     (when name
+  ([fn-name sn]
+     (when (symbol? fn-name)
        (loop [slixes (if sn (get-slixes sn) (get-slixes))]
          (when-let [slix (first slixes)]
-           (when-let [fmap (get-public-fns (slix-public slix))]
-             (if (get fmap (symbol name))
-               slix
-               (recur (rest slixes)))))))))
-
-(defn invoke-slix-public-fn
-  [slix fnsym & params]
-  (when (and (is-slix? slix) fnsym)
-    (when-let [fnvar (get-public-fn (slix-public slix) (symbol fnsym))]
-      (when (and (var? fnvar) (fn? (var-get fnvar)))
-        (binding [*slix* slix]
-          (apply (var-get fnvar) params))))))
+           (if (get-public-fn (slix-public slix) fn-name)
+             slix
+             (recur (rest slixes))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1564,21 +1565,21 @@
 (defn can-slix-sevenri-close
   ([]
      (when-let [slix (get-slix-sevenri)]
-       (get-prop (slix-props slix) 'can.close)))
+       (get-public-prop (slix-public slix) 'can.close)))
   ([can?]
      (when-let [slix (get-slix-sevenri)]
-       (put-prop (slix-props slix) 'can.close (if can? "true" "false")))))
+       (put-public-prop (slix-public slix) 'can.close (if can? "true" "false")))))
 
 (defn close-slix-sevenri-and-wait
   []
   (when-let [slix (get-slix-sevenri)]
-    (put-prop (slix-props slix) 'can.close "true")
+    (put-public-prop (slix-public slix) 'can.close "true")
     (close-slix-and-wait slix)))
 
 (defn update-sn-list-of-slix-sevenri
   []
   (when-let [slix-sevenri (get-slix-sevenri)]
-    (invoke-slix-public-fn slix-sevenri 'update-sn-list)))
+    (invoke-public-fn slix-sevenri 'update-sn-list)))
 
 (defn is-slix-sevenri?
   ([obj]
