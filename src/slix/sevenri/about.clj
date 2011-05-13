@@ -66,12 +66,12 @@
 
 (defn add-mouse-listener
   [frame canvas]
-  (set-event-handlers frame MouseListener
-                      {'ml ['mouseClicked
-                            (fn [e]
-                              (if (pos? (bit-and MouseEvent/META_DOWN_MASK (.getModifiersEx e)))
-                                (save-image canvas)
-                                (.repaint canvas 0 0 0 (.getWidth canvas) (.getHeight canvas))))]}))
+  (set-listener-handlers frame MouseListener
+                         {'mc ['mouseClicked
+                               (fn [e]
+                                 (if (pos? (bit-and MouseEvent/META_DOWN_MASK (.getModifiersEx e)))
+                                   (save-image canvas)
+                                   (.repaint canvas 0 0 0 (.getWidth canvas) (.getHeight canvas))))]}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; slix event handlers

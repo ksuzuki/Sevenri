@@ -9,16 +9,16 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns sevenri.listeners.evtdelegator
-  "Sevenri persistent event listener delegator class"
+(ns sevenri.listeners.ehtarget
+  "Sevenri event handler target class"
   (:gen-class
-   :state state
+   :state idTarget
    :init init
    :constructors {[java.lang.String][]}
    :methods [^{:static true} [getPersistenceDelegate [] java.lang.Object]
              [getId [] java.lang.String]
-             [getHandler [] java.lang.Object]
              [setId [java.lang.String] void]
+             [getHandler [] java.lang.Object]
              [setHandler [java.lang.Object] void]
              [handleEvent [java.util.EventObject] void]]
    :main false))
@@ -38,21 +38,21 @@
 
 (defn -getId
   [this]
-  (first @(.state this)))
-
-(defn -getHandler
-  [this]
-  (second @(.state this)))
+  (first @(.idTarget this)))
 
 (defn -setId
   [this id]
-  (reset! (.state this) [(str id) (.getHandler this)]))
+  (reset! (.idTarget this) [(str id) (.getMethod this)]))
+
+(defn -getHandler
+  [this]
+  (second @(.idTarget this)))
 
 (defn -setHandler
   [this handler]
   (if handler
-    (reset! (.state this) [(.getId this) handler])
-    (throw (IllegalArgumentException. "evtdelegator: setHandler: null-handler"))))
+    (reset! (.idTarget this) [(.getId this) handler])
+    (throw (IllegalArgumentException. "ehtarget: setHandler: null handler"))))
 
 (defn -handleEvent
   [this event]

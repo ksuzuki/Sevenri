@@ -88,10 +88,10 @@
         :sevenri {:dir 'sevenri
                   :listeners {:dir 'listeners
                               :aot 'sevenri.listeners.aot
-                              :awtehandler 'sevenri.listeners.awtehandler
-                              :defkeylistener 'sevenri.listeners.defkeylistener
-                              :defwinlistener 'sevenri.listeners.defwinlistener
-                              :evtdelegator 'sevenri.listeners.evtdelegator}}
+                              :awt-exception-handler 'sevenri.listeners.awtehandler
+                              :default-key-listener 'sevenri.listeners.defkeylistener
+                              :default-window-listener 'sevenri.listeners.defwinlistener
+                              :event-handler-target 'sevenri.listeners.ehtarget}}
         
         :slix {:dir 'slix
                :jvm {:dir 'jvm}

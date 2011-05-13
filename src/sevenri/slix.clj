@@ -980,7 +980,7 @@
           (.delete f))
         (with-open [xe (XMLEncoder. (BufferedOutputStream. (FileOutputStream. f)))]
           ;;
-          (set-event-delegator-persistence-delegate xe)
+          (add-event-handler-target-persistence-delegate xe)
           ;; Ignore any exception if not log-xml-encoder-errors?.
           (when-not log-xml-encoder-errors?
             (.setExceptionListener xe (proxy [ExceptionListener][]

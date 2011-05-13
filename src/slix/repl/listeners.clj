@@ -63,9 +63,9 @@
 (defn add-listeners
   [txtpn doc con start-repl slix]
   (.setPPPInfoKey con 'ppp-info)
-  (set-event-handler-set txtpn
+  (set-listener-handler-set txtpn
    CaretListener
-   {'cl ['caretUpdate (fn [e]
+   {'cu ['caretUpdate (fn [e]
                         (clear-highlighting txtpn doc)
                         (let [cpos (.getDot e)
                               spos (.getPromptStartPosition con)]
@@ -73,7 +73,7 @@
                             (highlight-matching-paren txtpn doc cpos spos)
                             (.putClientProperty txtpn 'ppp-info nil))))]}
    KeyListener
-   {'kl ['keyPressed (fn [e]
+   {'kp ['keyPressed (fn [e]
                        (let [kc (.getKeyCode e)
                              km (.getModifiers e)]
                          (when (and (= kc KeyEvent/VK_C) (pos? (bit-and km KeyEvent/CTRL_MASK)))

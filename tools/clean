@@ -105,6 +105,7 @@ main()
 
     print_msg "Removing .class files on src/sevenri/listeners..."
     remove_file_type_on_path "class" ./src/sevenri/listeners
+    remove_path ./src/sevenri/listeners/ehtarget
 
     print_msg "Removing src/slix paths..."
     for path in "sevenri/jvm/gui/bin"; do

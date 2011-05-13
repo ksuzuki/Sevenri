@@ -211,12 +211,12 @@
     (.setText (:label-Sevenri mpcs) (get-sevenri-name-and-version))
     ;;
     (doto (:list-sn mpcs)
-      (set-event-handler-set ListSelectionListener {'lsl ['valueChanged handle-list-sn-value-changed]}
-                             MouseListener {'ml ['mouseClicked handle-list-sn-mouse-clicked]})
+      (set-listener-handler-set ListSelectionListener {'vc ['valueChanged handle-list-sn-value-changed]}
+                                MouseListener {'mc ['mouseClicked handle-list-sn-mouse-clicked]})
       (add-default-key-listener))
     (doto (:list-name mpcs)
-      (set-event-handler-set ListSelectionListener {'lsl ['valueChanged handle-list-name-value-changed]}
-                             MouseListener {'ml ['mouseClicked handle-list-name-mouse-clicked]})
+      (set-listener-handler-set ListSelectionListener {'vc ['valueChanged handle-list-name-value-changed]}
+                                MouseListener {'mc ['mouseClicked handle-list-name-mouse-clicked]})
       (add-default-key-listener))))
 
 (defn update-sn-list

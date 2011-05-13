@@ -131,7 +131,7 @@
 
 (defn- -register-awt-exception-handler?
   []
-  (register-awt-exception-handler (get-config 'src.sevenri.listeners.awtehandler))
+  (register-awt-exception-handler (get-config 'src.sevenri.listeners.awt-exception-handler))
   true)
 
 ;;;;

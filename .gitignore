@@ -25,7 +25,7 @@ src/library/slix/incantea/examples
 src/library/user
 src/project/*
 src/sevenri/listeners/*.class
-src/sevenri/listeners/evtdelegator/*
+src/sevenri/listeners/ehtarget/*
 src/slix/ced/jvm/gui/dist/*
 src/slix/sevenri/jvm/gui/dist/*
 

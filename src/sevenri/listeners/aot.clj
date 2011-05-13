@@ -11,4 +11,4 @@
 
 (ns sevenri.listeners.aot
   "Sevenri AOT-compile library list"
-  (:use [sevenri.listeners awtehandler defwinlistener defkeylistener evtdelegator]))
+  (:use [sevenri.listeners awtehandler defwinlistener defkeylistener ehtarget]))

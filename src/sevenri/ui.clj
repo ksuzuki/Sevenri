@@ -206,7 +206,7 @@
 
 (defn add-default-window-listener
   [frame]
-  (let [dwlc (Class/forName (str (get-config 'src.sevenri.listeners.defwinlistener)))
+  (let [dwlc (Class/forName (str (get-config 'src.sevenri.listeners.default-window-listener)))
         dwl (.newInstance dwlc)]
     (.addWindowListener frame dwl)
     (.addWindowFocusListener frame dwl)))
@@ -236,7 +236,7 @@
 
 (defn add-default-key-listener
   [comp]
-  (let [dklc (Class/forName (str (get-config 'src.sevenri.listeners.defkeylistener)))
+  (let [dklc (Class/forName (str (get-config 'src.sevenri.listeners.default-key-listener)))
         dkl (.newInstance dklc)]
     (.addKeyListener comp dkl)))
 
@@ -357,124 +357,146 @@
                             component shape (into-array Class [java.awt.Component java.awt.Shape])))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; EventListener
+;; Listener-X      EventHandler               
+;;   method-x <--- method-x-handler(Proxy)    event-handler-target
+;;                   "handleEvent" action     id
+;;                     target <-------------- target <---------------------------+
+;;                                            (handleEvent [e]                   |
+;;                                              (when target (target e)) ===> handler-x
 
-(defn- -get-event-delegator-class
+(defn- -get-event-handler-target-class
   []
-  *event-delegator-class*)
+  *event-handler-target-class*)
 
-(defn- -get-event-delegator-persistence-delegate
+(defn- -get-event-handler-target-persistence-delegate
   []
-  (.invoke (.getMethod (-get-event-delegator-class) "getPersistenceDelegate" nil) nil nil))
+  (.invoke (.getMethod (-get-event-handler-target-class) "getPersistenceDelegate" nil) nil nil))
 
-(defn- -get-event-delegator
+(defn- -create-event-handler-target
   ([]
-     (-get-event-delegator (gensym "ed")))
+     (-create-event-handler-target (gensym "lms")))
   ([id]
-     (let [ctor (.getConstructor (-get-event-delegator-class) (into-array Class [String]))]
+     (let [ctor (.getConstructor (-get-event-handler-target-class) (into-array Class [String]))]
        (.newInstance ctor (into-array [(str id)])))))
 
-(defn- -set-event-handler-to-delegator
+(defn- -set-handler-to-target
   ([handler]
-     (-set-event-handler-to-delegator handler (-get-event-delegator)))
-  ([handler event-delegator]
-     (if (and handler (instance? (-get-event-delegator-class) event-delegator))
+     (-set-handler-to-target handler (-create-event-handler-target)))
+  ([handler target]
+     (if (and handler (instance? (-get-event-handler-target-class) target))
        (do
-         (.setHandler event-delegator handler)
-         event-delegator)
+         (.setHandler target handler)
+         target)
        (throw (IllegalArgumentException.
-               "-set-event-handler-to-delegator: null-handler or invalid event-delegator")))))
+               "-set-handler-to-target: null handler or invalid event-handler-target")))))
+
+(defn- -get-listener-accessor-methods
+  [comp-class listener-intf]
+  (let [bean-info (java.beans.Introspector/getBeanInfo comp-class)
+        event-set-descs (filter #(= listener-intf (.getListenerType %))
+                                (.getEventSetDescriptors bean-info))]
+    (if (seq event-set-descs)
+      (let [esd (first event-set-descs)
+            add-method (.getAddListenerMethod esd)
+            get-method (.getGetListenerMethod esd)
+            remove-method (.getRemoveListenerMethod esd)]
+        (if (and add-method get-method remove-method)
+          [add-method get-method remove-method]
+          (throw (IllegalArgumentException. (str "-get-listener-method-triplet: " comp-class
+                                                 " missing listener accessor method(s) for " listener-intf)))))
+      (throw (IllegalArgumentException. (str "-get-listener-method-triplet: " comp-class
+                                             " has no EventSetDescription for " listener-intf))))))
 
 ;;;;
 
-(defn set-event-delegator-persistence-delegate
+(defn add-event-handler-target-persistence-delegate
   [xml-encoder]
-  (let [ed (-get-event-delegator-class)
-        pd (-get-event-delegator-persistence-delegate)]
-    (.setPersistenceDelegate xml-encoder ed pd)))
+  (let [ehtc (-get-event-handler-target-class)
+        ehtpd (-get-event-handler-target-persistence-delegate)]
+    (.setPersistenceDelegate xml-encoder ehtc ehtpd)))
 
-(defn set-event-handlers
-  "Set an event handler for an event listener method to an event delegator.
-   listener-intf is a listener interface and id-method-handler-map is a map
-   of handling id as key and a pair of listener method and handler in vector
-   as value. Each pair of listener method and handler is bound to the
-   handling id (a symbol or a string), and the event delegator with the same
-   id is assigned the handler for the listener method.
-   When no event delegator for and id is found, a new event delegator with
-   the id is created and assigned the corresponding handler for method.
-   If remove-unref-delegators? is true, the delegators of which ids not
-   specified in id-method-handler-map are removed.
+(defn set-listener-handlers
+  "For a listener interface, set up each listener method handler to handle
+   the event called on the listener method of the listener interface.
+   listener-intf is a listener interface name symbol, like
+   'java.awt.event.ActionListener, and id-method-handler-map is a map of
+   method id key and vector value consists of a pair of a listener method
+   name and a handler.
+   A listener method handler is associated to a listener method via a
+   'target' object, which the listener method invokes with an event object
+   to handle the event.
+   When the listener method target for an id doesn't exist, a new one with
+   the id is created and the handler is assigned to it.
+   When remove-unused-targets? is true, listener method targets with no
+   handler is assigned are removed.
 
-   id-method-handler-map := { id1 [listener-method-a handler-a],
-                              id2 [listener-method-b handler-b],
+   id-method-handler-map := { method-id1 [listener-method-a handler-a],
+                              method-id2 [listener-method-b handler-b],
                                :           :              :
-                              idn [listener-method-x handler-x] }
+                              method-idn [listener-method-x handler-x] }
 
-   listener-intf is such like 'java.awt.event.ActionListener'. listener-method
-   is a symbol or a string, like 'actionPerformed. it can be nil, and in
-   that case the corresponding handler receives the event object for all
-   listener methods defined by listener-intf."
+   method-id is a symbol or string. Likewise, listener-method is a symbol or
+   a string, such as 'actionPerformed. It can be nil, and in that case the
+   handler receives the event object for all listener methods defined by
+   listener-intf."
   ([comp listener-intf id-method-handler-map]
-     (set-event-handlers comp listener-intf id-method-handler-map false))
-  ([comp listener-intf id-method-handler-map remove-unref-delegators?]
+     (set-listener-handlers comp listener-intf id-method-handler-map false))
+  ([comp listener-intf id-method-handler-map remove-unused-targets?]
      (let [comp-class (.getClass comp)
            intf-name (last (.split (str (.getName listener-intf)) "\\."))
            listener-intf-array (into-array [listener-intf])
            ;;
-           add-listener-name (str "add" intf-name)
-           add-listener-method (.getMethod comp-class add-listener-name listener-intf-array)
-           get-listeners-name (str "get" intf-name "s")
-           get-listeners-method (.getMethod comp-class get-listeners-name nil)
-           remove-listener-name (str "remove" intf-name)
-           remove-listener-method (.getMethod comp-class remove-listener-name listener-intf-array)
+           [add-listener-method get-listeners-method remove-listener-method]
+             (-get-listener-accessor-methods comp-class listener-intf)
            ;;
-           get-handler-target (fn [l] (.getTarget (Proxy/getInvocationHandler l)))
-           event-delegator-listeners (filter #(and (instance? Proxy %)
-                                                   (Proxy/isProxyClass (.getClass %))
-                                                   (instance? (-get-event-delegator-class) (get-handler-target %)))
-                                             (.invoke get-listeners-method comp (into-array [])))
-           id-delegator-map (reduce (fn [m l]
-                                      (let [ed (get-handler-target l)]
-                                        (assoc m (.getId ed) ed)))
-                                    {}
-                                    event-delegator-listeners)
-           method-handler-ids (apply hash-set (map str (keys id-method-handler-map)))
-           delegator-ids (apply hash-set (keys id-delegator-map))
-           unset-method-handler-ids (cljset/difference method-handler-ids delegator-ids)
-           unref-delegator-ids (cljset/difference delegator-ids method-handler-ids)]
-       #_(lg "nid-delegator-map:" id-delegator-map "\n"
-           "unset-method-handler-ids:" unset-method-handler-ids "\n"
-           "unref-delegator-ids:" unref-delegator-ids)
-       ;; Assign handler to delegator
-       (doseq [[id delegator] id-delegator-map]
+           get-invocation-target (fn [l] (.getTarget (Proxy/getInvocationHandler l)))
+           event-handlers (filter #(and (instance? Proxy %)
+                                        (Proxy/isProxyClass (.getClass %))
+                                        (instance? (-get-event-handler-target-class) (get-invocation-target %)))
+                                  (.invoke get-listeners-method comp (into-array [])))
+           id-target-map (reduce (fn [m p]
+                                 (let [ehs (get-invocation-target p)]
+                                   (assoc m (.getId ehs) ehs)))
+                               {}
+                               event-handlers)
+           target-ids (apply hash-set (keys id-target-map))
+           ;;
+           ids (apply hash-set (map str (keys id-method-handler-map)))
+           using-target-ids (cljset/difference ids target-ids)
+           unused-target-ids (cljset/difference target-ids ids)]
+       #_(lg "id-target-map:" id-target-map "\n"
+             "using-target-ids:" using-target-ids "\n"
+             "unused-target-ids:" unused-target-ids)
+       ;; Assign handler to existing target.
+       (doseq [[id target] id-target-map]
          (when-let [method-handler (or (get id-method-handler-map (symbol id)) (get id-method-handler-map id))]
            (let [[method handler] method-handler]
-             (-set-event-handler-to-delegator handler delegator))))
-       ;; Add new event delegator for unset handler/method.
-       (when (seq unset-method-handler-ids)
-         (doseq [id unset-method-handler-ids]
-           (let [[method handler] (or (get id-method-handler-map (symbol id)) (get id-method-handler-map id))
-                 delegator (-set-event-handler-to-delegator handler (-get-event-delegator id))
-                 ;; Specify "" for the 4th arg to get whole event object in the handler.
-                 event-handler (EventHandler/create listener-intf delegator "handleEvent" "" (when method (str method)))
-                 delegator-listener event-handler]
-             ;; Clojure's .invoke is expecting args in array...
-             (.invoke add-listener-method comp (into-array [delegator-listener])))))
-       ;; Remove unreferened delegators if requested.
-       (when (and remove-unref-delegators? (seq unref-delegator-ids))
-         (doseq [id unref-delegator-ids]
-           (doseq [event-delegator-listener event-delegator-listeners]
-             (when (= id (.getId (get-handler-target event-delegator-listener)))
-               (.invoke remove-listener-method comp (into-array [event-delegator-listener])))))))))
+             (-set-handler-to-target handler target))))
+       ;; Add new target for unset method.
+       (doseq [id using-target-ids]
+         (let [[method handler] (or (get id-method-handler-map (symbol id)) (get id-method-handler-map id))
+               target (-set-handler-to-target handler (-create-event-handler-target id))
+               ;; Use "" for the 4th arg to get whole event object on the handling method.
+               event-handler (EventHandler/create listener-intf target "handleEvent" "" (when method (str method)))]
+           ;; Clojure's .invoke is expecting args in array...
+           (.invoke add-listener-method comp (into-array [event-handler]))))
+       ;; Remove unused targets if requested.
+       (when (and remove-unused-targets? (seq unused-target-ids))
+         (doseq [event-handler event-handlers]
+           (when (contains? unused-target-ids (.getId (get-invocation-target event-handler)))
+             (.invoke remove-listener-method comp (into-array [event-handler]))))))))
 
-(defn set-event-handler-set
+(defn set-listener-handler-set
   "Given a seq of the pairs of listener-intf and id-method-handler-map, call
-   set-event-handlers for each pair with comp."
+   set-listener-handlers for each pair with comp."
   [comp & listener-intf-id-method-handler-maps]
   (when-not (even? (count listener-intf-id-method-handler-maps))
-    (throw (IllegalArgumentException. "set-event-handler-set: odd listener-intf/id-method-handler-map")))
+    (throw (IllegalArgumentException. "set-listener-handler-set: odd listener-intf/id-method-handler-map")))
   (loop [pairs listener-intf-id-method-handler-maps]
     (when (seq pairs)
-      (set-event-handlers comp (first pairs) (second pairs))
+      (set-listener-handlers comp (first pairs) (second pairs))
       (recur (nnext pairs)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -635,10 +657,10 @@
   ;;
   true)
 
-(defn- -setup-event-delegator-class?
+(defn- -setup-event-handler-target-class?
   []
-  (let [evtdelegator-class (Class/forName (str (get-config 'src.sevenri.listeners.evtdelegator)))]
-    (redef! *event-delegator-class* evtdelegator-class)
+  (let [event-handler-target-class (Class/forName (str (get-config 'src.sevenri.listeners.event-handler-target)))]
+    (redef! *event-handler-target-class* event-handler-target-class)
     true))
 
 ;;;;
@@ -648,7 +670,7 @@
   (apply while-each-true?
          (do-each-after* print-fn-name*
           -add-awt-event-listeners?
-          -setup-event-delegator-class?)))
+          -setup-event-handler-target-class?)))
 
 (defn shutdown-ui?
   []
