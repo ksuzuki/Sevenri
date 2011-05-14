@@ -16,15 +16,13 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn add-ui
+(defn log-viewer-frame-created
   []
   (let [fr (slix-frame)
         cp (.getContentPane fr)
         ta (JTextArea.)
         sp (JScrollPane. ta)]
-    ;;
     (doto ta
-      (.setFont (Font. "Monospaced", Font/PLAIN 14))
       (.setLineWrap true)
       (.setWrapStyleWord true)
       (.setEditable false)
@@ -33,6 +31,7 @@
     (doto sp
       (.setVerticalScrollBarPolicy JScrollPane/VERTICAL_SCROLLBAR_ALWAYS))
     (.add cp sp)
+    ;;
     (let [[minw minh] (read-prop (get-props) 'slix.frame.size)
           ssize (.getScreenSize (java.awt.Toolkit/getDefaultToolkit))
           width (int (* (/ (.width ssize) 8) 5))
@@ -42,3 +41,24 @@
         (.setMinimumSize (Dimension. minw minh))
         (.setSize width hight)
         (.setLocation 0 pos-y)))))
+
+;;;;
+
+(defn create-font
+  []
+  (let [name (get-prop (slix-props) 'font.name)
+        style (read-prop (slix-props) 'font.style)
+        size (read-prop (slix-props) 'font.size)]
+    (Font. name
+           (if (number? style)
+             style
+             (.get (.getField Font (str style)) Font))
+           size)))
+
+(defn set-font
+  []
+  (let [ta (-> (.getContentPane (slix-frame))
+               (.getComponent 0) ;; scrollpane
+               (.getViewport)
+               (.getView))]
+    (.setFont ta (create-font))))

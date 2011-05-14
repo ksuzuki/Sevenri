@@ -18,9 +18,10 @@
 
 (defn frame-created
   [event]
-  (add-ui))
+  (log-viewer-frame-created))
 
 (defn opened
   [event]
+  (set-font)
   (start-view-log)
   (set-slix-visible))
