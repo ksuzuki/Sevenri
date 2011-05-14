@@ -551,6 +551,8 @@
      on that property. Return nil when there is no such property.")
   (get-public-prop [pub name]
     "Return the value of the property specified by the name symbol or nil.")
+  (read-public-prop [pub name]
+    "Read the property specified by the name symbol and return the result or nil.")
   (put-public-prop [pub name val]
     "Put the value to the property specified by the name symbol. Return old
      property value.")
@@ -587,6 +589,8 @@
     (get-public-prop [this prop-name] (when-let [props (public-props this)]
                                         (when (contains? props prop-name)
                                           (get-prop (slix-props (get-slix name)) prop-name))))
+    (read-public-prop [this prop-name] (when-let [prop (get-public-prop this prop-name)]
+                                         (read-string prop)))
     (put-public-prop [this prop-name val] (when-let [props (public-props this)]
                                             (when (contains? props prop-name)
                                               (put-prop (slix-props (get-slix name)) prop-name val))))
@@ -680,6 +684,12 @@
   ([name slix]
      `(when (is-slix? ~slix)
         (:doc (meta (get (public-props (slix-public ~slix)) '~name))))))
+
+(defmacro print-public-prop-description
+  ([name]
+     `(print-public-prop-description ~name ~'*slix*))
+  ([name slix]
+     `(println (get-public-prop-description ~name ~slix))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1593,6 +1603,9 @@
   (get-slix (get-sevenri-name)))
 
 (defn can-slix-sevenri-close
+  "When no arg is given, return true when the slix Sevenri can close or
+   false otherwise. When arg is given, it should be either true or false
+   to allow the slix Sevenri close or not, respectively."
   ([]
      (when-let [slix (get-slix-sevenri)]
        (get-public-prop (slix-public slix) 'can.close)))

@@ -32,7 +32,7 @@
 
 (defn closing
   [event]
-  (when-not (read-prop (slix-props) 'can.close)
+  (when-not (read-public-prop (slix-public) 'can.close)
     (event-response-donot-close)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -57,7 +57,7 @@
   [event]
   (update-sn-list))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;
 
 (defn slixes-opening
   [event]

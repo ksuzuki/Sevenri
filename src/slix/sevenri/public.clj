@@ -9,9 +9,15 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns slix.sevenri.public)
+(ns slix.sevenri.public
+  (:use sevenri.slix))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(public-properties
+ can.close
+ "true when the slix Sevenri can close. false otherwise.
+  Use can-slix-sevenri-close to change this prop value.")
 
 (defn functions
   []
