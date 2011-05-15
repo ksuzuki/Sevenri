@@ -17,7 +17,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn api-browser-frame-created
+(defn create-api-browser-frame
   []
   (let [sps (slix-props)
         frm (slix-frame)

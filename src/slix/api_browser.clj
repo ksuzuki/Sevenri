@@ -25,7 +25,7 @@
 
 (defn frame-created
   [event]
-  (api-browser-frame-created))
+  (create-api-browser-frame))
 
 (defn opened
   [event]
