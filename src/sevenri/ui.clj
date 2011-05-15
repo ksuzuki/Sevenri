@@ -376,7 +376,7 @@
 
 (defn- -create-event-handler-target
   ([]
-     (-create-event-handler-target (gensym "lms")))
+     (-create-event-handler-target (gensym "eht")))
   ([id]
      (let [ctor (.getConstructor (-get-event-handler-target-class) (into-array Class [String]))]
        (.newInstance ctor (into-array [(str id)])))))
@@ -389,14 +389,15 @@
        (do
          (.setHandler target handler)
          target)
-       (throw (IllegalArgumentException.
-               "-set-handler-to-target: null handler or invalid event-handler-target")))))
+       (throw (IllegalArgumentException. (str "-set-handler-to-target: null handler or invalid target."
+                                              " handler:" handler
+                                              " target:" target))))))
 
 (defn- -get-listener-accessor-methods
-  [comp-class listener-intf]
-  (let [bean-info (java.beans.Introspector/getBeanInfo comp-class)
-        event-set-descs (filter #(= listener-intf (.getListenerType %))
-                                (.getEventSetDescriptors bean-info))]
+  [comp listener-intf]
+  (let [comp-class (.getClass comp)
+        bean-info (java.beans.Introspector/getBeanInfo comp-class)
+        event-set-descs (filter #(= listener-intf (.getListenerType %)) (.getEventSetDescriptors bean-info))]
     (if (seq event-set-descs)
       (let [esd (first event-set-descs)
             add-method (.getAddListenerMethod esd)
@@ -444,23 +445,19 @@
   ([comp listener-intf id-method-handler-map]
      (set-listener-handlers comp listener-intf id-method-handler-map false))
   ([comp listener-intf id-method-handler-map remove-unused-targets?]
-     (let [comp-class (.getClass comp)
-           intf-name (last (.split (str (.getName listener-intf)) "\\."))
-           listener-intf-array (into-array [listener-intf])
+     (let [[add-listener-method get-listeners-method remove-listener-method]
+             (-get-listener-accessor-methods comp listener-intf)
            ;;
-           [add-listener-method get-listeners-method remove-listener-method]
-             (-get-listener-accessor-methods comp-class listener-intf)
-           ;;
+           event-handler-target-class (-get-event-handler-target-class)
            get-invocation-target (fn [l] (.getTarget (Proxy/getInvocationHandler l)))
            event-handlers (filter #(and (instance? Proxy %)
                                         (Proxy/isProxyClass (.getClass %))
-                                        (instance? (-get-event-handler-target-class) (get-invocation-target %)))
+                                        (instance? event-handler-target-class (get-invocation-target %)))
                                   (.invoke get-listeners-method comp (into-array [])))
-           id-target-map (reduce (fn [m p]
-                                 (let [ehs (get-invocation-target p)]
-                                   (assoc m (.getId ehs) ehs)))
-                               {}
-                               event-handlers)
+           id-target-map (reduce (fn [m l]
+                                   (let [t (get-invocation-target l)]
+                                     (assoc m (.getId t) t)))
+                               {} event-handlers)
            target-ids (apply hash-set (keys id-target-map))
            ;;
            ids (apply hash-set (map str (keys id-method-handler-map)))
@@ -498,6 +495,24 @@
     (when (seq pairs)
       (set-listener-handlers comp (first pairs) (second pairs))
       (recur (nnext pairs)))))
+
+(defn get-listener-handlers
+  "Return id-method-handler-map currently applied for listener-intf of comp.
+   See set-listener-handlers for more details about id-method-handler-map."
+  [comp listener-intf]
+  (let [[_ get-listeners-method _] (-get-listener-accessor-methods comp listener-intf)
+        event-handler-target-class (-get-event-handler-target-class)
+        get-invocation-target (fn [l] (.getTarget (Proxy/getInvocationHandler l)))
+        event-handlers (filter #(and (instance? Proxy %)
+                                     (Proxy/isProxyClass (.getClass %))
+                                     (instance? event-handler-target-class (get-invocation-target %)))
+                               (.invoke get-listeners-method comp (into-array [])))
+        id-method-handler-map (reduce (fn [m l]
+                                        (let [h (Proxy/getInvocationHandler l)
+                                              t (.getTarget h)]
+                                          (assoc m (.getId t) (vector (.getListenerMethodName h) (.getHandler t)))))
+                                      {} event-handlers)]
+    id-method-handler-map))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
