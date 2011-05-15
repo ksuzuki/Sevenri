@@ -509,18 +509,21 @@ public class JConsole extends JScrollPane
     private void enter() {
         String s = getCmd();
 
-        // ksuzuki 2010/12/14 >>>
+        // ksuzuki 2010/12/14, 2011/05/15 >>>
         StringWriter sw = new StringWriter();
         for (int i = 0; i < s.length(); i++) {
             int c = s.codePointAt(i);
-            if ((Character.isWhitespace(c) == true) || (Character.isValidCodePoint(c) == false)) {
+            if ((Character.isValidCodePoint(c) == false)
+                || ((Character.isWhitespace(c) == true)
+                    && (c != 0x000A)
+                    && (c != 0x000D))) {
                 sw.append(' ');
             } else {
                 sw.append(s.charAt(i));
             }
         }
         s = sw.toString();
-        // ksuzuki 2010/12/14 <<<
+        // ksuzuki 2010/12/14, 2011/05/15 <<<
 
         if ( s.length() == 0 )  // special hack for empty return!
             s = ";\n";
