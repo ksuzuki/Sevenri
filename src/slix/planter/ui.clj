@@ -1,7 +1,7 @@
 (ns slix.planter.ui
   (:use [sevenri config log slix ui]
         [slix.planter defs io listeners])
-  (:import (java.awt BorderLayout Color Cursor Dimension Font)
+  (:import (java.awt BorderLayout Color Cursor Dimension)
            (javax.swing BorderFactory Box BoxLayout JPanel)
            (javax.swing JButton JComboBox)
            (javax.swing JList JScrollPane JSplitPane JTextPane)))
@@ -44,7 +44,7 @@
         [name style size] (if (seq pref)
                              (first *preferred-fonts*)
                              (second *preferred-fonts*))]
-    (Font. name style size)))
+    (create-font name style size)))
 
 (defn set-title
   ([sym]

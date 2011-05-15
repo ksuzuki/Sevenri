@@ -127,7 +127,7 @@
   ([^java.util.Properties props pi]
      (.get props (str pi)))
   ([^java.util.Properties props pi nfval]
-     (.get props (str pi) nfval)))
+     (or (.get props (str pi)) nfval)))
 
 (defn put-prop*
   ([^java.util.Properties props pi val]

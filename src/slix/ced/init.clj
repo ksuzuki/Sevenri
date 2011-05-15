@@ -13,7 +13,7 @@
   (:use [sevenri config core event log os slix ui]
         [slix.ced defs listeners input2action ui])
   (:require [slix.ced public])
-  (:import (java.awt Dimension Font)
+  (:import (java.awt Dimension)
            (java.io File FileInputStream InputStreamReader StringReader)
            (slix.ced caret cdoc ckit undoman)
            (slix.ced.gui MainPanel)))
@@ -166,7 +166,7 @@
     (.add cpn mpl)
     (doto frm
       (.pack)
-      (.setFont (Font. "Courier", 0, 12))
+      (.setFont (create-font "Courier" 'PLAIN 12))
       (.setSize 640 400)
       (.setMinimumSize (Dimension. 320 200)))))
 

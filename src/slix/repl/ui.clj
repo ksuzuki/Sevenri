@@ -11,27 +11,21 @@
 
 (ns slix.repl.ui
   (:use [sevenri log props slix ui])
-  (:import (java.awt BorderLayout Color)
-           (java.awt.event KeyListener KeyEvent)
-           (javax.swing.text AbstractDocument$LeafElement
-                             StyleConstants$ColorConstants)
+  (:import (java.awt.event KeyListener KeyEvent)
            (bsh.util JConsole)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- -set-colors
   [console textpane]
-  (let [sprps (slix-props)
-        toclr (fn [v] (if (vector? v)
-                        (apply #(Color. %1 %2 %3) v)
-                        (.get (.getField Color (str v)) Color)))]
+  (let [sprps (slix-props)]
     (doto console
-      (.setBackground (toclr (read-prop sprps 'console.background.color)))
-      (.setPromptColor (toclr (read-prop sprps 'console.prompt.color))))
+      (.setBackground (create-color (read-prop sprps 'console.background.color)))
+      (.setPromptColor (create-color (read-prop sprps 'console.prompt.color))))
     (doto textpane
-      (.setBackground (toclr (read-prop sprps 'text.background.color)))
-      (.setCaretColor (toclr (read-prop sprps 'text.caret.color)))
-      (.setForeground (toclr (read-prop sprps 'text.foreground.color))))))
+      (.setBackground (create-color (read-prop sprps 'text.background.color)))
+      (.setCaretColor (create-color (read-prop sprps 'text.caret.color)))
+      (.setForeground (create-color (read-prop sprps 'text.foreground.color))))))
 
 (defn create-content-pane
   [cp]

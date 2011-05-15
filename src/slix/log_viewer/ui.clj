@@ -44,21 +44,10 @@
 
 ;;;;
 
-(defn create-font
-  []
-  (let [name (get-prop (slix-props) 'font.name)
-        style (read-prop (slix-props) 'font.style)
-        size (read-prop (slix-props) 'font.size)]
-    (Font. name
-           (if (number? style)
-             style
-             (.get (.getField Font (str style)) Font))
-           size)))
-
 (defn set-font
   []
   (let [ta (-> (.getContentPane (slix-frame))
                (.getComponent 0) ;; scrollpane
                (.getViewport)
                (.getView))]
-    (.setFont ta (create-font))))
+    (.setFont ta (create-font (slix-props)))))

@@ -26,15 +26,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn get-java-api-url-map
-  [url api-index api-symbol]
-  "Return a map with href as key and a doc url as value for the api symbol."
+  [url api-index api-keyword]
+  "Return a map with href as key and a doc url as value for the api keyword."
   (try
-    (let [[sym-ns sym-name] (trim-api-symbol api-symbol)
+    (let [[kwd-ns kwd-name] (trim-api-keyword api-keyword)
           uri (URI. (str url api-index))
           rdr (BufferedReader. (if (= (.getScheme uri) "http")
                                  (InputStreamReader. (.openStream (.toURL uri)))
                                  (FileReader. (.toString (.getPath uri)))))
-          rem (let [rep (Pattern/compile (str ".*<a href=\"(.+)\" title=\"(.+)\".*>" sym-name "<.*/a>.*")
+          rem (let [rep (Pattern/compile (str ".*<a href=\"(.+)\" title=\"(.+)\".*>" kwd-name "<.*/a>.*")
                                          Pattern/CASE_INSENSITIVE)]
                 (loop [lsq (line-seq rdr)]
                   (when (seq lsq)
@@ -44,8 +44,8 @@
       (if rem
         (let [hrf (second rem)
               ttl (last rem)]
-          (if sym-ns
-            (let [rep (re-pattern (str ".*\\s+" sym-ns "$"))]
+          (if kwd-ns
+            (let [rep (re-pattern (str ".*\\s+" kwd-ns "$"))]
               (if (re-matches rep ttl)
                 {hrf (str url hrf)}
                 {}))
@@ -57,12 +57,12 @@
       {})))
 
 (defn get-java-api-urls
-  [api-symbol]
+  [api-keyword]
   (when (load-api-doc-urls?)
     (when-let [uia (get-java-docs-api-urls)]
       (let [ums (map (fn [[url idx]]
                        (when (and url idx)
-                         (get-java-api-url-map url idx api-symbol)))
+                         (get-java-api-url-map url idx api-keyword)))
                      uia)
             mum (reduce (fn [mm um]
                           (if (seq um)
@@ -75,8 +75,8 @@
           uls)))))
 
 (defn browse-java-api?
-  [api-symbol]
-  (if-let [urls (get-java-api-urls api-symbol)]
+  [api-keyword]
+  (if-let [urls (get-java-api-urls api-keyword)]
     (do
       (doseq [url urls]
         (browse-url url))

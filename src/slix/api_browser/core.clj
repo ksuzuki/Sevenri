@@ -29,15 +29,15 @@
         (log-warning "api-browser: not found:" f)
         false))))
 
-(defn trim-api-symbol
-  [api-symbol]
-  (let [asym0 (if-let [match (re-matches #"^\.+(.*)$" api-symbol)]
+(defn trim-api-keyword
+  [api-keyword]
+  (let [akwd0 (if-let [match (re-matches #"^\.+(.*)$" api-keyword)]
                 (second match)
-                api-symbol)
-        asym1 (if-let [match (re-matches #"^(.*)\.+$" asym0)]
+                api-keyword)
+        akwd1 (if-let [match (re-matches #"^(.*)\.+$" akwd0)]
                 (second match)
-                asym0)
-        [sym-ns sym-name] (if-let [match (re-matches #"^(.*)\.([^.]+)$" asym1)]
+                akwd0)
+        [kwd-ns kwd-name] (if-let [match (re-matches #"^(.*)\.([^.]+)$" akwd1)]
                             [(second match) (last match)]
-                            [nil asym1])]
-    [sym-ns (.replaceAll sym-name "\\$" ".")]))
+                            [nil akwd1])]
+    [kwd-ns (.replaceAll kwd-name "\\$" ".")]))

@@ -13,7 +13,7 @@
   slix.sevenri.about
   (:use [sevenri config core event log props slix ui]
         [slix.sevenri drawicon])
-  (:import (java.awt BorderLayout Color Font Transparency)
+  (:import (java.awt BorderLayout Transparency)
            (java.awt.event MouseListener MouseEvent)
            (javax.imageio ImageIO)
            (javax.swing JLabel JPanel SwingConstants)))
@@ -31,13 +31,13 @@
         cpr (JLabel. (str "Copyright (C) "
                           *copyright-year-name*
                           "  All rights reserved."))
-        clr (Color. 16rcc 16rcc 16r55)]
+        clr (create-color [16rcc 16rcc 16r55])]
     (doto ver
-      (.setFont (Font. "Times" Font/BOLD, 24))
+      (.setFont (create-font "Times" 'BOLD 24))
       (.setHorizontalAlignment SwingConstants/RIGHT)
       (.setForeground clr))
     (doto cpr
-      (.setFont (Font. "Times" Font/PLAIN 11))
+      (.setFont (create-font "Times" 'PLAIN 11))
       (.setHorizontalAlignment SwingConstants/LEFT)
       (.setForeground clr)) 
     (.add canvas ver BorderLayout/NORTH)

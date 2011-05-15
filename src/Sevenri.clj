@@ -13,7 +13,7 @@
   Sevenri
   (:gen-class)
   (:require [sevenri defs refs]
-            [sevenri config core event jvm log os props slix ui]
+            [sevenri config core event java jvm log os props slix ui]
             [sevenri debug main startup utils]))
 
 (defn -main

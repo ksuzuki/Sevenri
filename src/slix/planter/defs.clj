@@ -18,7 +18,7 @@
 (def *button-size* [96 29])
 (def *cursor* "cursor")
 (def *name-config-map* "name-config-map")
-(def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
+(def *preferred-fonts* [["Inconsolata" 'PLAIN 14] ["Courier" 'PLAIN 14]])
 (def *slix-planter-project* 'slix.planter)
 (def *xref-planter-project* :planter-project)
 (def *build-project-and-run* :build-project-and-run)

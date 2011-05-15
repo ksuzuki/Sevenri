@@ -10,9 +10,9 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.ced.ui
-  (:use [sevenri core log slix]
+  (:use [sevenri core log slix ui]
         [slix.ced defs])
-  (:import (java.awt Color Font)
+  (:import (java.awt Color)
            (javax.swing BorderFactory JLabel JOptionPane PopupFactory)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -25,7 +25,7 @@
         [name style size] (if (seq pref)
                              (first *preferred-fonts*)
                              (second *preferred-fonts*))]
-    (Font. name style size)))
+    (create-font name style size)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -101,14 +101,14 @@
         lcx (+ (.x loc) (.x pos) 8)
         lcy (+ (.y loc) (.y pos) -8)]
     (create-ced-popup frame lcx lcy
-                      (Font. "Helvetica" Font/PLAIN 14) (.getFile doc)
+                      (create-font "Helvetica" 'PLAIN 14) (.getFile doc)
                       Color/black *popup-bg-color*)))
 
 (defn popup-warning
   [frame msg]
   (let [loc (.getLocationOnScreen frame)
         pup (create-ced-popup frame (.x loc) (.y loc)
-                              (Font. "Helvetica" Font/PLAIN 14) msg
+                              (create-font "Helvetica" 'PLAIN 14) msg
                               Color/red *popup-bg-color*)
         agt (agent pup)
         afn (fn [p]

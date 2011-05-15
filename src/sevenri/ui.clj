@@ -12,7 +12,7 @@
 (ns sevenri.ui
   "Sevenri user interface lib"
   (:require [clojure.set :as cljset])
-  (:use [sevenri config defs event log refs])
+  (:use [sevenri config defs event java log props refs])
   (:import (clojure.lang IProxy)
            (java.awt AWTEvent Color Component EventQueue Font Toolkit)
            (java.awt.event AWTEventListener FocusEvent InvocationEvent
@@ -498,6 +498,39 @@
     (when (seq pairs)
       (set-listener-handlers comp (first pairs) (second pairs))
       (recur (nnext pairs)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn create-font
+  ([props]
+     (let [[name style size] (if (satisfies? PProperties props)
+                               (let [name (get-prop props 'font.name "Courier")
+                                     style (read-prop props 'font.style 'PLAIN)
+                                     size (read-prop props 'font.size 11)]
+                                 [name style size])
+                               (let [sprops (get-props)
+                                     name (get-prop sprops 'slix.font.name "Courier")
+                                     style (read-prop sprops 'slix.font.style 'PLAIN)
+                                     size (read-prop sprops 'slix.font.size 11)]
+                                 [name style size]))]
+       (create-font name style size)))
+  ([name style size]
+     (let [name (get-class-field-value Font name name)
+           style (if (number? style)
+                   style
+                   (get-class-field-value Font style Font/PLAIN))
+           size (if (number? size)
+                  size
+                  11)]
+       (Font. name style size))))
+
+(defn create-color
+  [value]
+  (if (and (vector? value) (< 2 (count value)))
+    (Color. (nth value 0) (nth value 1) (nth value 2))
+    (if-let [c (get-class-field-value Color (.toUpperCase (str value)))]
+      c
+      Color/WHITE)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Deprecated - remove by 0.3.0

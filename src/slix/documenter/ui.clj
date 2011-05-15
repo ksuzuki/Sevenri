@@ -12,7 +12,7 @@
 (ns slix.documenter.ui
   (:use [sevenri log slix ui]
         [slix.documenter io])
-  (:import (java.awt BorderLayout Color Dimension Font)
+  (:import (java.awt BorderLayout Color Dimension)
            (java.util.regex Pattern)
            (javax.swing BorderFactory Box BoxLayout PopupFactory)
            (javax.swing JButton JComboBox JFrame JLabel JOptionPane JPanel JScrollPane JTextPane)
@@ -262,7 +262,7 @@
         pup (.getPopup (PopupFactory/getSharedInstance) frame lbl lcx lcy)]
     (doto lbl
       (.setOpaque true)
-      (.setFont (Font. "Helvetica" Font/PLAIN 14))
+      (.setFont (create-font "Helvetica" 'PLAIN 14))
       (.setText msg)
       (.setBorder (BorderFactory/createLineBorder bgc 2))
       (.setForeground fgc)

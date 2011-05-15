@@ -9,31 +9,23 @@
 ;; terms of this license.
 ;; You must not remove this notice, or any other, from this software.
 
-(ns ^{:slix true}
-  slix.api-browser
-  (:use [sevenri event log slix]
-        [slix.api-browser java ui]))
+(ns sevenri.java
+  "Sevenri Java utility lib")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn opening
-  [event]
-  (when-not (:keyword (slix-args))
-    (create-event-response
-     :sevenri.event/response-donot-open
-     :missing-api-keyword)))
+(defn get-class-fields
+  [^java.lang.Class class]
+  (apply hash-map (flatten (map #(vector (.getName %) %) (.getFields class)))))
 
-(defn frame-created
-  [event]
-  (api-browser-frame-created))
+(defn get-class-field
+ [^java.lang.Class class field-name]
+ (get (get-class-fields class) (str field-name)))
 
-(defn opened
-  [event]
-  (let [api-kwd (:keyword (slix-args))]
-    (invoke-later #(if (browse-java-api? (str api-kwd))
-                     (close-slix (slix-name))
-                     (set-slix-visible)))))
-
-(defn saving
-  [event]
-  (event-response-donot-save))
+(defn get-class-field-value
+  ([^java.lang.Class class field-name]
+     (get-class-field-value class field-name nil))
+  ([^java.lang.Class class field-name not-found]
+     (if-let [f (get-class-field class field-name)]
+       (.get f class)
+       not-found)))

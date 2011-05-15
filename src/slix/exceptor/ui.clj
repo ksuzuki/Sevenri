@@ -12,7 +12,7 @@
 (ns slix.exceptor.ui
   (:use [sevenri slix ui]
         [slix.exceptor defs])
-  (:import (java.awt BorderLayout Color Font Toolkit)
+  (:import (java.awt BorderLayout Color Toolkit)
            (javax.swing BorderFactory JPanel JTextArea)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -31,7 +31,7 @@
     (doto txa
       (.setEditable false)
       (.setLineWrap true)
-      (.setFont (Font. "Times" Font/BOLD 14))
+      (.setFont (create-font "Times" 'BOLD 14))
       (.setForeground Color/yellow)
       (.setBackground Color/black)
       (.setBorder (BorderFactory/createLineBorder Color/black 6)))

@@ -16,7 +16,7 @@
 
 (def *content-type* "text/clj")
 (def *file-encoding* "UTF-8")
-(def *preferred-fonts* [["Inconsolata" 0 14] ["Courier" 0 14]])
+(def *preferred-fonts* [["Inconsolata" 'PLAIN 14] ["Courier" 'PLAIN 14]])
 (def *tab-size* 8)
 (def *warning-sec* 4)
 
