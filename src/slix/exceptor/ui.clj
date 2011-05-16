@@ -10,14 +10,13 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.exceptor.ui
-  (:use [sevenri slix ui]
-        [slix.exceptor defs])
-  (:import (java.awt BorderLayout Color Toolkit)
+  (:use [sevenri props slix ui])
+  (:import (java.awt BorderLayout Toolkit)
            (javax.swing BorderFactory JPanel JTextArea)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn add-ui
+(defn create-exceptor-frame
   []
   (let [fnm (:file (slix-args))
         lnm (:line (slix-args))
@@ -25,21 +24,25 @@
         ms1 (format "%s: %s" (.getName fnm) lnm)
         ms2 (format "%s: %s" (.getName (class xcp)) (.getMessage xcp))
         txa (JTextArea. (str ms1 "\n" ms2))
+        ;;
+        sps (slix-props)
         frm (slix-frame)
         cpn (.getContentPane frm)
-        sdm (.getScreenSize (Toolkit/getDefaultToolkit))]
+        sdm (.getScreenSize (Toolkit/getDefaultToolkit))
+        [w h] (read-prop sps 'frame.size)]
     (doto txa
       (.setEditable false)
       (.setLineWrap true)
-      (.setFont (create-font "Times" 'BOLD 14))
-      (.setForeground Color/yellow)
-      (.setBackground Color/black)
-      (.setBorder (BorderFactory/createLineBorder Color/black 6)))
-    ;;
+      (.setFont (create-font sps))
+      (.setForeground (create-color (get-prop sps 'foreground.color)))
+      (.setBackground (create-color (get-prop sps 'background.color)))
+      (.setBorder (BorderFactory/createLineBorder (create-color (get-prop sps 'border.color))
+                                                  (read-prop sps 'border.size))))
     (add-default-key-listener txa)
     (.add cpn txa)
+    ;;
     (doto frm
       (.pack)
-      (.setSize *width* *height*)
-      (.setLocation (- (.getWidth sdm) *width*)
-                    (- (.getHeight sdm) *height*)))))
+      (.setSize w h)
+      (.setLocation (- (.getWidth sdm) w)
+                    (- (.getHeight sdm) h)))))

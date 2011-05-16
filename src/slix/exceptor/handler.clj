@@ -11,7 +11,12 @@
 
 (ns slix.exceptor.handler
   (:use [sevenri log]
-        [slix.exceptor core defs]))
+        [slix.exceptor core]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def *sn-lookup-order* '[resources library slix sevenri])
+(def *prefer-sn-lookup-order* true) ;; false prefers the stack trace order
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

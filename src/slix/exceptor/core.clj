@@ -10,9 +10,38 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.exceptor.core
-  (:use [sevenri config core log slix utils]
-        [slix.exceptor defs edb refs])
+  (:use [sevenri core log slix utils])
   (:import (java.io File)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(def *edb* (agent {})) ;; a simple excpetion database
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn reset-edb
+  []
+  (send *edb* (fn [edb] {})))
+
+(defn add-to-edb
+  "Avoid opening multiple exceptors for the same file/line."
+  [^Exception e file line open-ced?]
+  (send *edb* (fn [edb]
+                (let [launch? (if-let [l (get edb (str file))]
+                                (not= l line)
+                                true)]
+                  (if launch?
+                    (let [args (if open-ced?
+                                 {:exception e :file file :line line :open-ced true}
+                                 {:exception e :file file :line line})]
+                      #_(lg "add-to-edb: args:" args)
+                      (open-slix-with-args args 'exceptor (gensym "Exceptor"))
+                      (assoc edb (str file) line))
+                    edb)))))
+
+(defn remove-from-edb
+  [file line]
+  (send *edb* (fn [edb] (dissoc edb (str file) line))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -25,7 +54,7 @@
 (defn launch-exceptor
   [^Exception e fqsn file-name line-number]
   #_(lg "launch-exceptor: fqsn:" fqsn "file-name:" file-name "line-number:" line-number)
-  (if (re-find (re-pattern (str (get-slix-ns *ced*))) (str fqsn))
+  (if (re-find (re-pattern (str (get-slix-ns 'ced))) (str fqsn))
     ;; Cannot open ced when it's the cause of the exception.
     (do-launch e (File. file-name) line-number false)
     (let [clj-file (get-src-path (str (sym2path fqsn) '.clj))
@@ -50,8 +79,18 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn register-exception-handler
-  "(Re)register the exception listener."
+(defn open-ced-if-requested
   []
-  (when-not (seq (filter #(= 'exceptor/handle-exception %) (keys (get-exception-listeners))))
-    (register-exception-listener 'exceptor 'handle-exception)))
+  #_(lg "slix-args:" (slix-args))
+  (when (:open-ced (slix-args)) ;; See above for :open-ced.
+    (invoke-later #(do
+                     (deref (open-slix-with-args
+                             {:file (:file (slix-args))
+                              :line (:line (slix-args))}
+                             'ced))
+                     ;; Make sure to make this window comes on the front.
+                     (.toFront (slix-frame))))))
+
+(defn close-exceptor
+  []
+  (remove-from-edb (:file (slix-args)) (:line (slix-args))))

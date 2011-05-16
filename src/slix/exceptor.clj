@@ -12,7 +12,7 @@
 (ns ^{:slix true :exception-listener 'handle-exception}
   slix.exceptor
   (:use [sevenri event log slix]
-        [slix.exceptor core defs edb handler ui]))
+        [slix.exceptor core handler ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -23,11 +23,17 @@
     (handle-sn-compiler-exception e fqsn)
     (handle-other-exceptions e fqsn)))
 
+(defn do-register-exception-handler
+  "(Re)register the exception listener."
+  []
+  (when-not (seq (filter #(= 'exceptor/handle-exception %) (keys (get-exception-listeners))))
+    (register-exception-listener 'exceptor 'handle-exception)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn opening
   [event]
-  (register-exception-handler)
+  (do-register-exception-handler)
   (let [ge (get-last-global-event)]
     (when-not (and (:exception (slix-args))
                    (:file (slix-args))
@@ -40,19 +46,12 @@
 
 (defn frame-created
   [event]
-  (add-ui))
+  (create-exceptor-frame))
 
 (defn opened
   [event]
   (set-slix-visible)
-  (when (:open-ced (slix-args))
-    #_(lg "slix-args:" (slix-args))
-    (invoke-later #(do
-                     (deref (open-slix-with-args
-                             {:file (:file (slix-args))
-                              :line (:line (slix-args))}
-                             *ced*))
-                     (.toFront (slix-frame))))))
+  (open-ced-if-requested))
 
 (defn saving
   [event]
@@ -60,4 +59,4 @@
 
 (defn closing
   [event]
-  (remove-from-edb (:file (slix-args)) (:line (slix-args))))
+  (close-exceptor))
