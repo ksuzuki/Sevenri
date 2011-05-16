@@ -11,8 +11,7 @@
 
 (ns ^{:slix true}
   slix.repl
-  (:require clojure.main)
-  (:use [sevenri config core debug event jvm log os slix ui utils]
+  (:use [sevenri slix]
         [slix.repl core ui])
   (:require slix.repl.public))
 
@@ -25,7 +24,7 @@
 
 (defn opened
   [event]
-  (ui-initialize)
+  (initialize-ui)
   (start-repl)
   (set-slix-visible))
 

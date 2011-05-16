@@ -66,7 +66,7 @@
               *slix* repl-slix]
       (let [it (fn []
                  (in-ns ins)
-                 (use '[sevenri config core defs log slix props])
+                 (use '[sevenri config core log props slix])
                  (when (pos? (.getLength (.getDocument con))) (println))
                  (try
                    (require 'clojure.stacktrace)

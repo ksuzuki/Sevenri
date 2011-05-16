@@ -11,8 +11,7 @@
 
 (ns slix.repl.ui
   (:use [sevenri log props slix ui])
-  (:import (java.awt.event KeyListener KeyEvent)
-           (bsh.util JConsole)))
+  (:import (bsh.util JConsole)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -46,54 +45,16 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn -setup-opacity
-  "LEFT/RIGHT keys increase/decrease opacity.
-   UP/DOWN keys let it cycle between current-opacity, 1.0, and 0.1."
+(defn setup-opacity
   [frame txtpn]
-  (when (is-translucent-supported?)
-    (let [sp (slix-props (get-slix frame))
-          ov (or (.getClientProperty txtpn 'opacity) (read-prop sp 'opacity.default))]
-      (set-window-opacity frame (float ov))
-      (doto txtpn
-        (.putClientProperty 'opacity (int (* ov 100)))
-        (.putClientProperty 'opacity.delta (read-prop sp 'opacity.delta))))
-    ;;
-    (set-listener-handlers txtpn
-     KeyListener
-     {'opkp ['keyPressed (fn [e] 
-                           (let [kc (.getKeyCode e)
-                                 mo (.getModifiers e)
-                                 mk (bit-or KeyEvent/ALT_MASK KeyEvent/META_MASK)]
-                             (when (and (or (= kc KeyEvent/VK_LEFT) (= kc KeyEvent/VK_RIGHT)
-                                            (= kc KeyEvent/VK_UP) (= kc KeyEvent/VK_DOWN))
-                                        (= mk (bit-and mo mk)))
-                               (let [ovo (get-window-opacity frame)
-                                     opc (.getClientProperty txtpn 'opacity)
-                                     dlt (.getClientProperty txtpn 'opacity.delta)
-                                     ovn (cond
-                                          (= kc KeyEvent/VK_LEFT)  (min 1.0 (- ovo dlt))
-                                          (= kc KeyEvent/VK_RIGHT) (max 0.1 (+ ovo dlt))
-                                          (= kc KeyEvent/VK_UP) (if (<= 1.0 ovo)
-                                                                  0.1
-                                                                  (if (= (int (* ovo 100)) opc)
-                                                                    1.0
-                                                                    (/ opc 100.0)))
-                                          (= kc KeyEvent/VK_DOWN) (if (<= ovo 0.1)
-                                                                    1.0
-                                                                    (if (= (int (* ovo 100)) opc)
-                                                                      0.1
-                                                                      (/ opc 100.0)))
-                                          :else -1.0)]
-                                 #_(lg "ovo:" ovo "ovn:" ovn "opacity:" opc)
-                                 (when (pos? ovn)
-                                   (set-window-opacity frame (float ovn))
-                                   (when (or (= kc KeyEvent/VK_LEFT) (= kc KeyEvent/VK_RIGHT))
-                                     (.putClientProperty txtpn 'opacity (int (* ovn 100)))))))))]})))
+  (when (enable-opacity frame)
+    (add-default-opacity-key-listener frame txtpn)))
 
-(defn ui-initialize
+(defn initialize-ui
   []
   (let [fr (slix-frame)
-        cp (.getContentPane fr)
-        jc (.getComponent cp 0)
-        tp (.getComponent (.getViewport jc) 0)]
-    (-setup-opacity fr tp)))
+        tp (-> (.getContentPane fr)
+               (.getComponent 0)
+               (.getViewport)
+               (.getView))]
+    (setup-opacity fr tp)))

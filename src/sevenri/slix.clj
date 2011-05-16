@@ -1512,7 +1512,7 @@
   [sn]
   (format (str "(ns ^{:slix true}\n"
                "  slix.%s\n"
-               "  (:use [sevenri config core event log props slix ui utils]))\n\n"
+               "  (:use [sevenri config core event log props slix ui]))\n\n"
                "(defn opened\n"
                "  [event]\n"
                "  (set-slix-visible))\n") sn))
@@ -1641,9 +1641,8 @@
   ([title]
      (set-slix-title *slix* title))
   ([slix title]
-     (when-let [frame (slix-frame slix)]
-       (.setTitle frame (str title))
-       (update-sn-list-of-slix-sevenri))))
+     (.setTitle (slix-frame slix) (str title))
+     (update-sn-list-of-slix-sevenri)))
 
 (defn set-slix-visible
   ([]

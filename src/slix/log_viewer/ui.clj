@@ -10,18 +10,16 @@
 ;; You must not remove this notice, or any other, from this software.
 
 (ns slix.log-viewer.ui
-  (:use [sevenri props slix ui])
-  (:import (java.awt Dimension Font)
-           (javax.swing JScrollPane JTextArea)))
+  (:use [sevenri props slix ui]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn log-viewer-frame-created
+(defn create-log-viewer-frame
   []
   (let [fr (slix-frame)
         cp (.getContentPane fr)
-        ta (JTextArea.)
-        sp (JScrollPane. ta)]
+        ta (javax.swing.JTextArea.)
+        sp (javax.swing.JScrollPane. ta)]
     (doto ta
       (.setLineWrap true)
       (.setWrapStyleWord true)
@@ -29,7 +27,7 @@
       (add-default-key-listener))
     ;;
     (doto sp
-      (.setVerticalScrollBarPolicy JScrollPane/VERTICAL_SCROLLBAR_ALWAYS))
+      (.setVerticalScrollBarPolicy javax.swing.JScrollPane/VERTICAL_SCROLLBAR_ALWAYS))
     (.add cp sp)
     ;;
     (let [[minw minh] (read-prop (get-props) 'slix.frame.size)
@@ -38,16 +36,28 @@
           hight (int (/ (.height ssize) 4))
           pos-y (- (.height ssize) hight)]
       (doto fr
-        (.setMinimumSize (Dimension. minw minh))
+        (.setMinimumSize (java.awt.Dimension. minw minh))
         (.setSize width hight)
         (.setLocation 0 pos-y)))))
 
-;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn set-font
+  [textarea]
+    (.setFont textarea (create-font (slix-props))))
+
+(defn setup-opacity
+  [frame txtarea]
+  (when (enable-opacity frame)
+    (add-default-opacity-key-listener frame txtarea)))
+;;;;
+
+(defn initialize-ui
   []
-  (let [ta (-> (.getContentPane (slix-frame))
+  (let [fr (slix-frame)
+        ta (-> (.getContentPane fr)
                (.getComponent 0) ;; scrollpane
                (.getViewport)
                (.getView))]
-    (.setFont ta (create-font (slix-props)))))
+    (set-font ta)
+    (setup-opacity fr ta)))

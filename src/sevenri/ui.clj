@@ -16,24 +16,24 @@
   (:import (clojure.lang IProxy)
            (java.awt AWTEvent Color Component EventQueue Font Toolkit)
            (java.awt.event AWTEventListener FocusEvent InvocationEvent
-                           KeyAdapter KeyEvent WindowEvent)
+                           KeyEvent KeyListener WindowEvent)
            (java.beans EventHandler)
            (java.lang.reflect Proxy)
            (javax.swing BorderFactory JLabel PopupFactory)
            (javax.swing JInternalFrame JFrame)
            (java.util.logging Level)))
 
+;; These fns are resolved at the startup time.
+(using-fns ui slix
+           [is-slix? get-slix slix-frame
+            slix-props put-slix-prop get-slix-prop remove-slix-prop frame-props
+            get-system-event-queue get-slixes close-slix get-slix-sevenri])
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn is-awt-utilities-available?
   []
   *awt-utilities-available*)
-
-;; These fns are resolved at the startup time.
-(using-fns ui slix
-           [is-slix? slix-frame
-            put-slix-prop get-slix-prop remove-slix-prop
-            get-system-event-queue get-slixes close-slix get-slix-sevenri])
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -355,6 +355,126 @@
   [component shape]
   (invoke-awt-utils-feature "setComponentMixingCutoutShape"
                             component shape (into-array Class [java.awt.Component java.awt.Shape])))
+
+;;;;
+
+(defn enable-opacity
+  "Return non-nil when the slix or frame is capable of opacity and set up.
+   The default frame opacity value is 0.90, the mimimum opacity value is
+   0.10, and the increase/decrease amount, called opacity.delta, is 0.02.
+   Those can be overridden by per slix property 'frame.opacity. For example,
+   to change the mimimum opacity specify {:min 0.50}."
+  [slix-or-frame]
+  (when-let [slix (ui-using-get-slix-slix slix-or-frame)]
+    (when (is-translucent-supported?)
+      (let [frame (ui-using-slix-frame-slix slix)
+            fprops (ui-using-frame-props-slix frame)
+            opacity (merge (read-prop (get-props) 'slix.frame.opacity)
+                           (read-prop (ui-using-slix-props-slix slix) 'frame.opacity))
+            value (:default opacity)]
+        (put-prop fprops '*opacity* (assoc opacity :value value))
+        (set-window-opacity frame (float value))
+        true))))
+
+(defn get-opacity
+  "Get the slix frame opacity."
+  [slix-or-frame]
+  (when-let [slix (ui-using-get-slix-slix slix-or-frame)]
+    (let [frame (ui-using-slix-frame-slix slix)
+          fprops (ui-using-frame-props-slix frame)]
+      (when-let [opacity (get-prop fprops '*opacity*)]
+        (let [value (get-window-opacity frame)]
+          (when (not= (int (* value 1000)) (int (* (:value opacity) 1000)))
+            (log-warning "get-opacity: opacity value mismatch."
+                         "actual value:" value
+                         "in frame prop:" (:value opacity)))
+          value)))))
+
+(defn set-opacity
+  "Set the slix frame opacity to the value."
+  [slix-or-frame value]
+  (when-let [slix (ui-using-get-slix-slix slix-or-frame)]
+    (let [frame (ui-using-slix-frame-slix slix)
+          fprops (ui-using-frame-props-slix frame)]
+      (when-let [opacity (get-prop fprops '*opacity*)]
+        (let [value (min (max (:min opacity) value) 1.00)]
+          (set-window-opacity frame (float value))
+          (put-prop fprops '*opacity* (assoc opacity :value value)))))))
+
+(defn cycle-change-opacity
+  "Increase or decrease the slix frame opacity in the amount times
+   opacity.delta. When the opcity value hits either max or min, it wraps
+   down or up to min or max value respectively."
+  [slix-or-frame amount]
+  (when-let [slix (ui-using-get-slix-slix slix-or-frame)]
+    (let [frame (ui-using-slix-frame-slix slix)
+          fprops (ui-using-frame-props-slix frame)]
+      (when-let [opacity (get-prop fprops '*opacity*)]
+        (let [new-value (+ (:value opacity) (* (:delta opacity) amount))
+              new-cycled-value (if (< 1.00 new-value)
+                                 (:min opacity)
+                                 (if (< new-value (:min opacity))
+                                   1.00
+                                   new-value))]
+          (set-opacity slix new-cycled-value))))))
+
+(defmacro inc-opacity
+  "Shorthand of cycle-change-opacity with increase amount of 1."
+  [slix-or-frame]
+  `(cycle-change-opacity ~slix-or-frame 1))
+
+(defmacro dec-opacity
+  "Shorthand of cycle-change-opacity with decrease amount of 1."
+  [slix-or-frame]
+  `(cycle-change-opacity ~slix-or-frame -1))
+
+(defn jump-cycle-change-opacity
+  "Jump up or down around the opacity values of min, the current, and the
+   max."
+  [slix-or-frame up?]
+  (when-let [slix (ui-using-get-slix-slix slix-or-frame)]
+    (let [frame (ui-using-slix-frame-slix slix)
+          fprops (ui-using-frame-props-slix frame)]
+      (when-let [opacity (get-prop fprops '*opacity*)]
+        (let [value (+ (get-window-opacity frame) (if up? 0.01 -0.01))
+              new-value (cond
+                         (< value (:min opacity)) 1.00
+                         (< value (:value opacity)) (if up? (:value opacity) (:min opacity))
+                         (< value 1.00) (if up? 1.00 (:value opacity))
+                         (< 1.00 value) (:min opacity))]
+          (set-window-opacity frame (float new-value)))))))
+
+(defmacro jump-inc-opacity
+  "Shorthand of jump-cycle-change-opacity for up."
+  [slix-or-frame]
+  `(jump-cycle-change-opacity ~slix-or-frame true))
+
+(defmacro jump-dec-opacity
+  "Shorthand of jump-cycle-change-opacity for down."
+  [slix-or-frame]
+  `(jump-cycle-change-opacity ~slix-or-frame false))
+                                                              
+;;;;
+
+(defn add-default-opacity-key-listener
+  "ALT+META+LEFT/RIGHT: dec/inc opacity
+   ALT+META+UP/DOWN:    jump-inc/down opacity"
+  [frame comp]
+  (declare set-listener-handlers)
+  (set-listener-handlers comp
+   KeyListener
+   {'*dokl* ['keyPressed (fn [e]
+                           (let [kc (.getKeyCode e)
+                                 mo (.getModifiers e)
+                                 mk (bit-or KeyEvent/ALT_MASK KeyEvent/META_MASK)]
+                             (when (and (or (= kc KeyEvent/VK_LEFT) (= kc KeyEvent/VK_RIGHT)
+                                            (= kc KeyEvent/VK_UP) (= kc KeyEvent/VK_DOWN))
+                                        (= mk (bit-and mo mk)))
+                               (cond
+                                (= kc KeyEvent/VK_LEFT)  (dec-opacity frame)
+                                (= kc KeyEvent/VK_RIGHT) (inc-opacity frame)
+                                (= kc KeyEvent/VK_UP)    (jump-inc-opacity frame)
+                                (= kc KeyEvent/VK_DOWN)  (jump-dec-opacity frame)))))]}))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

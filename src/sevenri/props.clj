@@ -106,7 +106,7 @@
 
 (defmacro read-prop
   ([props pi]
-     `(read-string (get-prop ~props ~pi)))
+     `(read-string (get-prop ~props ~pi "nil")))
   ([props pi nfval]
      `(read-string (get-prop ~props ~pi ~nfval))))
 
