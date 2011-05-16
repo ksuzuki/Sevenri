@@ -12,9 +12,10 @@
 (ns ^{:doc "Sevenri bootloader"}
   Sevenri
   (:gen-class)
-  (:require [sevenri defs refs]
-            [sevenri config core event java jvm log os props slix ui]
-            [sevenri debug main startup utils]))
+  (:require [sevenri config core log props slix ui]
+            [sevenri event java jvm os]
+            [sevenri debug main startup utils]
+            [sevenri defs refs]))
 
 (defn -main
   [& args]
