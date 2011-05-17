@@ -23,6 +23,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn to-name
+  [sym]
+  (-> (.replace (str sym) \. \_)
+      (.replaceAll *invalid-chars* "_")))
+
 (defn contains??
   [items item]
   (if (some #(= (str %) item) items)
@@ -114,7 +119,7 @@
              (cond
               (= cactn "Add")
                 (let [old-ctgry ctgry
-                      ctgry (.replaceAll ctgry *invalid-chars* "_")]
+                      ctgry (to-name ctgry)]
                   (disable-controls (vals ctrls))
                   (when (add-category ctgry)
                     (update-mddb)
@@ -142,7 +147,7 @@
                       tl "Rename Category"
                       to (JOptionPane/showInputDialog frame ms tl
                                                       JOptionPane/PLAIN_MESSAGE)
-                      to-ctgry (when (string? to) (.replaceAll to *invalid-chars* "_"))]
+                      to-ctgry (when (string? to) (to-name to))]
                   (when-not (empty? to-ctgry)
                     (if (get-category to-ctgry)
                       (JOptionPane/showMessageDialog frame (str to " exists already.")
@@ -234,7 +239,7 @@
              (cond
               (= tactn "Add")
                 (let [old-title title
-                      title (.replaceAll title *invalid-chars* "_")]
+                      title (to-name title)]
                   (disable-controls (vals ctrls))
                   (when (add-title title ctgry)
                     (update-mddb)
@@ -266,7 +271,7 @@
                       tl "Rename Title"
                       to (JOptionPane/showInputDialog frame ms tl
                                                       JOptionPane/PLAIN_MESSAGE)
-                      to-title (when (string? to) (.replaceAll to *invalid-chars* "_"))]
+                      to-title (when (string? to) (to-name to))]
                   (when-not (empty? to-title)
                     (if (get-title to-title ctgry)
                       (JOptionPane/showMessageDialog frame (str to " exists already.")
@@ -386,7 +391,7 @@
              (cond
               (= sactn "Add")
                 (let [old-sectn sectn
-                      sectn (.replaceAll sectn *invalid-chars* "_")]
+                      sectn (to-name sectn)]
                   (disable-controls (vals ctrls))
                   (when-let [sctnf (add-src-section sectn title ctgry)]
                     (in-edit frame [sectn title ctgry])
@@ -430,7 +435,7 @@
                       tl "Rename Section"
                       to (JOptionPane/showInputDialog frame ms tl
                                                       JOptionPane/PLAIN_MESSAGE)
-                      to-section (when (string? to) (.replaceAll to *invalid-chars* "_"))]
+                      to-section (when (string? to) (to-name to))]
                   (when-not (empty? to-section)
                     (if (get-src-section to-section title ctgry)
                       (JOptionPane/showMessageDialog frame (str to " exists already.")
